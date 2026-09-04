@@ -52,11 +52,11 @@ O RIPE Atlas permite coletar medições de rede distribuídas e repetidas, com c
 
 ## 5. Recomendação
 
-Para a primeira versão do pipeline, recomenda-se a **Opção A — dataset PingER**, usando o RIPE Atlas como alternativa para ampliar ou atualizar a coleta posteriormente.
+Para a primeira versão do pipeline, recomenda-se a **Opção B — API do RIPE Atlas**, mantendo o PingER como referência histórica e possível fonte complementar.
 
 ## 6. Justificativa
 
-O objetivo atual exige dados temporais de latência, perda de pacotes e jitter. O PingER já disponibiliza esse tipo de medição em séries históricas, reduzindo o tempo de implementação e evitando que o grupo precise iniciar uma coleta própria. O RIPE Atlas oferece maior controle e atualização, mas exige configurar medições, selecionar probes e acompanhar créditos. Por isso, o PingER é a opção mais simples para o primeiro modelo; o RIPE Atlas pode ser usado depois para validar o modelo em dados novos.
+O objetivo atual exige dados temporais de latência, perda de pacotes e jitter. O RIPE Atlas permite que a equipe controle o alvo, as probes, a frequência e a duração das medições, além de possibilitar a atualização contínua da base. Isso torna os dados mais alinhados ao cenário que o projeto pretende monitorar e facilita a validação do modelo em medições novas. A opção exige configurar a API, acompanhar créditos e tratar eventuais dados ausentes; o PingER permanece como referência histórica para comparação e análise complementar.
 
 ## 7. Riscos e limitações
 
