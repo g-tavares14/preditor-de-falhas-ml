@@ -2,11 +2,11 @@
 
 | Campo | Informação |
 |---|---|
-| Curso / disciplina | Não informado |
+| Curso / disciplina | Estrutura de Dados II |
 | Projeto integrador | Preditor de falhas ML |
-| Orientador(a) | A confirmar |
-| Data de entrega | A confirmar |
-| Integrantes | A confirmar pela equipe |
+| Orientador(a) | Andrea Ono Sakai |
+| Data de entrega | 08/09/2026 |
+| Integrantes | Alexandre Tiago de Oliveira, Ingrid Ferreira de Sousa, Guilherme Leite Tavares, Kauan Garcia Dias de Oliveira, Lucas Eduardo Malachias Bagatela, Stephanie Vitoria Bessa dos Santos |
 
 > Este documento usa como base a pesquisa sobre o PingER, a documentação oficial do RIPE Atlas e as instruções do template do memorando.
 
@@ -69,14 +69,62 @@ O objetivo atual exige dados temporais de latência, perda de pacotes e jitter. 
 
 Preencher pela equipe após a divisão das atividades:
 
-| Integrante | Atividade realizada | Tempo aproximado | Evidência |
-|---|---|---|---|
-| Integrante 1 | A confirmar | A confirmar | A confirmar |
-| Integrante 2 | A confirmar | A confirmar | A confirmar |
-| Integrante 3 | A confirmar | A confirmar | A confirmar |
-| Integrante 4 | A confirmar | A confirmar | A confirmar |
-| Integrante 5 | A confirmar | A confirmar | A confirmar |
-| Integrante 6 | A confirmar | A confirmar | A confirmar |
+### Integrante 1 — `[Alexandre Tiago de Oliveira ]`
+- **O que fez nesta etapa:** `[]`
+- **Tempo dedicado (aprox.):** `[ex.: 3h30]`
+- **Evidência da contribuição** *(print de conversa, rascunho, e-mail, documento compartilhado etc.)*:
+`[]` 
+`[]`
+
+### Integrante 2 — `[Ingrid Ferreira de Sousa]`
+- **O que fez nesta etapa:** `[Alterei o memorando com os dados solicitados pelo orientador e analisei a comparação entre as fontes de dados.]`
+- **Tempo dedicado (aprox.):** `[ 4h ]`
+- **Evidência da contribuição** *(print de conversa, rascunho, e-mail, documento compartilhado etc.)*:
+`[Anotaçoes sobre a comparaçao:
+PINGER
+-tem dados dja exitentes, sem o poder de escolher quando, onde e em que frequencia pode ser feita a mediçao
+-tem grandes variedades de rotas e regioes
+-tem como principal finalidade achar os relatorios certos, baixando e limpando dados , nao precisa programar para coletar
+os dados ja vem pronto quando baixa o relatorio.
+-delimita a coleta.
+RIPE ATLAS
+-exige lidar com a API, gerenciando creditos e tratando os resultados que chegam de forma continua sem o trabalho de procurar dado pronto
+tambem vai ter cobertura global
+-a cobertura vai depender de quantos probes( voluntarios de mediçao) estao disponiveis no momento da coleta.
+-tem a decisao do que vai medir detalahdamente como rede, pontos  e tempo , fazendo um teste.
+-dependendo da frequencia tem um tempo maior ja que precisa criar a mediçao esperar rodar os pings e consultar o resultado
+-consegue dar controle total sobre a coleta ]` 
+
+### Integrante 3 — `[Guilherme Leite Tavares]`
+- **O que fez nesta etapa:** `[]`
+- **Tempo dedicado (aprox.):** `[ex.: 3h30]`
+- **Evidência da contribuição** *(print de conversa, rascunho, e-mail, documento compartilhado etc.)*: 
+`[]` 
+`[]`
+
+### Integrante 4 — `[Kauan Garcia Dias de Oliveira]`
+- **O que fez nesta etapa:** `[]`
+- **Tempo dedicado (aprox.):** `[ex.: 3h30]`
+- **Evidência da contribuição** *(print de conversa, rascunho, e-mail, documento compartilhado etc.)*: 
+`[]` 
+`[]`
+
+### Integrante 5 — `[Lucas Eduardo Malachias Bagatela ]`
+- **O que fez nesta etapa:** `[]`
+- **Tempo dedicado (aprox.):** `[ex.: 3h30]`
+- **Evidência da contribuição** *(print de conversa, rascunho, e-mail, documento compartilhado etc.)*: 
+`[]` 
+`[]`
+
+### Integrante 6 — `[Stephanie Vitoria Bessa dos Santos]`
+- **O que fez nesta etapa:** `[]`
+- **Tempo dedicado (aprox.):** `[ex.: 3h30]`
+- **Evidência da contribuição** *(print de conversa, rascunho, e-mail, documento compartilhado etc.)*: 
+`[]` 
+`[]`
+
+---
+
 
 ## Fontes consultadas
 
