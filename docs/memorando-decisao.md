@@ -69,14 +69,14 @@ O objetivo atual exige dados temporais de latência, perda de pacotes e jitter. 
 
 Preencher pela equipe após a divisão das atividades:
 
-### Integrante 1 — `[Alexandre Tiago de Oliveira ]`
+### Integrante 1 — `Alexandre Tiago de Oliveira`
 - **O que fez nesta etapa:** `[]`
 - **Tempo dedicado (aprox.):** `[ex.: 3h30]`
 - **Evidência da contribuição** *(print de conversa, rascunho, e-mail, documento compartilhado etc.)*:
 `[]` 
 `[]`
 
-### Integrante 2 — `[Ingrid Ferreira de Sousa]`
+### Integrante 2 — `Ingrid Ferreira de Sousa`
 - **O que fez nesta etapa:** `[Alterei o memorando com os dados solicitados pelo orientador e analisei a comparação entre as fontes de dados.]`
 - **Tempo dedicado (aprox.):** `[ 4h ]`
 - **Evidência da contribuição** *(print de conversa, rascunho, e-mail, documento compartilhado etc.)*:
