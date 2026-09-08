@@ -1,44 +1,58 @@
 # Organização
 
-Ler este arquivo quando a tarefa cria pasta, classe, Protocol ou camada. Não
-copiar isto para o `AGENTS.md` da raiz.
+Ler quando a tarefa **adiciona** entidade, use case, port, adapter, Protocol ou
+pasta. Não copiar isto para o `AGENTS.md`.
 
-## Pastas
+## Onde cada coisa cai
 
-Pasta nova só com dois módulos que mudam pelo mesmo motivo. Um arquivo por pasta
-é recusa.
+| Mudança | Camada |
+| --- | --- |
+| Fórmula, invariante, valor (X, rótulo, predição) | `domain/` |
+| “Fazer X com Y e Z” (coletar, rotular, treinar, gravar) | `application/` + port |
+| HTTP, arquivo, S3, CLI, lib de ML, dataset PingER | `adapters/` |
+| Use case sem I/O | `tests/` + fake em `tests/fakes.py` |
+| Contrato HTTP/arquivo | `tests/` do adapter |
 
-Fluxo de dados: arquivos no pacote (`extract.py`, `transform.py`, `load.py`) só os
-que o fluxo usar. Sem pasta `etl/` com um arquivo. Pipeline vira classe só com
-estado entre etapas (conexão aberta, workbook aberto). Caso contrário, função.
+Pasta nova só com ≥2 módulos que mudam pelo mesmo motivo.
 
 ## Tipos (nessa ordem)
 
 1. Função — operação dados → dados ou dados → efeito.
 2. `dataclass` — dado + invariante simples.
-3. Classe — estado compartilhado entre operações, ou invariante no objeto.
-4. Protocol / ABC — duas implementações reais, ou teste que substitui I/O.
+3. Classe — estado compartilhado entre operações (sessão HTTP, lock).
+4. Protocol — produção + fake de teste (ou segunda implementação real).
+
+## Ports já existentes
+
+- `MeasurementGateway`: `AtlasGateway` + `FakeGateway`.
+- `DatasetStore`: `FileDataset` + `MemoryDataset`.
+
+Port novo (ex.: `LabelPolicy`, `ObjectStore`, `PingerSource`): declarar em
+`application/ports.py`, implementar no adapter, fake no teste do use case.
+Não injetar `AtlasGateway`/`boto3`/`sklearn` no application.
 
 ## SOLID com parada
 
-- **S:** uma razão de mudança por módulo/classe. Não é um arquivo por função.
-- **O:** novo módulo quando `if`/`match` de tipo se repetir. Sem gancho futuro.
+- **S:** uma razão de mudança por módulo. Não um arquivo por função.
+- **O:** novo módulo quando `if`/`match` de tipo se repetir.
 - **L:** ignore se não houver herança.
 - **I:** sem protocolo de um implementador.
-- **D:** `Path`, file-like ou função já é injeção. Sem container no fluxo 1.
+- **D:** o use case recebe o port. Sem container.
 
-## Over-engineering (recusar)
+## Recusar
 
-- ABC/Protocol com uma implementação
+- Protocol com uma implementação
 - Pasta com um arquivo
 - Camada que só chama a de baixo
 - Factory / Strategy / Singleton / Repository / Event / Plugin sem o problema de hoje
 - Config genérica antes do segundo chamador
+- DI container
+- `services/` ou `infrastructure/` paralelos às três camadas
 
 ## Declaração no incremento que mexe em estrutura
 
 - Pastas criadas e por quê.
 - Tipos novos; se houve classe, o motivo.
-- Se houve Protocol/ABC: qual o segundo uso.
+- Port: produção + fake (ou segunda implementação).
 - Gates do `AGENTS.md` e o resultado.
-- Fluxo em um parágrafo: entrada → regra → saída ou erro.
+- Fluxo: entrada → regra → saída ou erro.
