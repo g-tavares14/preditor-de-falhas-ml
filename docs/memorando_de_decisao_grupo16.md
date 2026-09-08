@@ -67,7 +67,7 @@ O objetivo atual exige dados temporais de latência, perda de pacotes e jitter. 
 
 ## 8. Contribuição individual
 
-Preencher pela equipe após a divisão das atividades:
+Distribuição das contribuições nesta etapa:
 
 ### Integrante 1 — `Alexandre Tiago de Oliveira`
 - **O que fez nesta etapa:** `[]`
@@ -77,7 +77,7 @@ Preencher pela equipe após a divisão das atividades:
 `[]`
 
 ### Integrante 2 — `Ingrid Ferreira de Sousa`
-- **O que fez nesta etapa:** `[Alterei o memorando com os dados solicitados pelo orientador e analisei a comparação entre as fontes de dados.]`
+- **O que fez nesta etapa:** `[Realizei o preenchimento do memorando e organizei as informações fornecidas pela equipe.]`
 - **Tempo dedicado (aprox.):** `[ 4h ]`
 - **Evidência da contribuição** *(print de conversa, rascunho, e-mail, documento compartilhado etc.)*:
 `[Anotaçoes sobre a comparaçao:
@@ -95,8 +95,8 @@ tambem vai ter cobertura global
 -dependendo da frequencia tem um tempo maior ja que precisa criar a mediçao esperar rodar os pings e consultar o resultado
 -consegue dar controle total sobre a coleta ]` 
 
-### Integrante 3 — `[Guilherme Leite Tavares]`
-- **O que fez nesta etapa:** `[]`
+### Integrante 3 — `Guilherme Leite Tavares`
+- **O que fez nesta etapa:** `[Realizei a pesquisa do banco de dados e levantei as informações sobre as fontes de dados analisadas.]`
 - **Tempo dedicado (aprox.):** `[ex.: 3h30]`
 - **Evidência da contribuição** *(print de conversa, rascunho, e-mail, documento compartilhado etc.)*: 
 `[]` 
