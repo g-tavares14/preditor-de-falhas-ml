@@ -1,6 +1,8 @@
 # Como contribuir
 
-Este projeto é desenvolvido em conjunto pelas disciplinas de Estruturas de Dados II (ED2), Redes de Computadores e Análise e Projeto de Sistemas (APS). Os documentos são compartilhados entre as disciplinas e ficam em `docs/`, sem separação por matéria.
+Este projeto é desenvolvido em conjunto pelas disciplinas de Estruturas de Dados II
+(ED2), Redes de Computadores e Análise e Projeto de Sistemas (APS). Os documentos são
+compartilhados entre as disciplinas e ficam em `docs/`, sem separação por matéria.
 
 ## Regra principal
 
@@ -43,8 +45,11 @@ Faça os commits na branch, envie-a ao GitHub e abra um Pull Request para `main`
 git push -u origin feat/nome-da-entrega
 ```
 
-Após a revisão e o merge, atualize sua cópia local da `main` antes de iniciar a próxima entrega.
+Após a revisão e o merge, atualize sua cópia local da `main` antes de iniciar a próxima
+entrega.
 
 ## Documentação compartilhada
 
-Materiais que servem para mais de uma disciplina devem permanecer em `docs/`, organizados pelo tipo de artefato ou pelo assunto do projeto. A disciplina é identificada pela branch e pelo Pull Request, não por uma pasta separada.
+Materiais que servem para mais de uma disciplina devem permanecer em `docs/`,
+organizados pelo tipo de artefato ou pelo assunto do projeto. A disciplina é
+identificada pela branch e pelo Pull Request, não por uma pasta separada.
