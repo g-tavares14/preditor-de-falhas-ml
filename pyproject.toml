@@ -1,17 +1,19 @@
 [project]
 name = "preditor-de-falhas-ml"
 version = "0.1.0"
-description = "Coleta de medições de ping para 8.8.8.8 com a API do RIPE Atlas."
+description = "Coleta de pings brutos no RIPE Atlas para o preditor de falhas ML."
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "pandas>=3.0.5",
     "requests>=2.34.2",
 ]
 
 [dependency-groups]
 dev = [
-    "ruff>=0.11",
+    "pyrefly>=1.2",
     "pytest>=8",
+    "ruff>=0.11",
 ]
 
 [build-system]
@@ -51,3 +53,8 @@ docstring-code-format = true
 testpaths = ["tests"]
 pythonpath = ["src", "tests"]
 addopts = ["-q"]
+
+[tool.pyrefly]
+python-version = "3.12"
+project-includes = ["src", "tests"]
+search-path = ["src", "tests"]

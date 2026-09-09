@@ -2,8 +2,12 @@
 __pycache__/
 .pytest_cache/
 .ruff_cache/
+.pyrefly_cache/
 dist/
 .env
 .env.*
 .DS_Store
-/data/
+/data/*
+!/data/raw/
+/data/raw/*
+!/data/raw/.gitkeep
