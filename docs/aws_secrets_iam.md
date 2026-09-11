@@ -8,9 +8,9 @@ Runbook + IaC para colocar `RIPE_ATLAS_API_KEY` fora do Git e criar a role da fu
 
 ## Região
 
-Padrão: **`sa-east-1`** (São Paulo), alinhada às probes BR do hub. Sobrescreva com `AWS_REGION` / `AWS_DEFAULT_REGION`.
+**Região efetiva (deploy 2026-09-11):** `sa-east-1`, conta `274394226829` (stack `preditor-falhas-s1`, `CREATE_COMPLETE`).
 
-Registre a região efetiva no PR depois do primeiro `deploy` (output `Region`).
+Padrão: **`sa-east-1`** (São Paulo), alinhada às probes BR do hub. Sobrescreva com `AWS_REGION` / `AWS_DEFAULT_REGION`.
 
 ## Diagrama
 
@@ -33,8 +33,9 @@ A função em si **não** entra neste card. A role já existe para o S1.7 assumi
 
 | Recurso | Nome canônico | Permissões da role |
 |---|---|---|
-| Secret | `RIPE_ATLAS_API_KEY` | `secretsmanager:GetSecretValue`, `DescribeSecret` **só neste ARN** |
+| Secret | `RIPE_ATLAS_API_KEY` (`arn:aws:secretsmanager:sa-east-1:274394226829:secret:RIPE_ATLAS_API_KEY-A1lRzW`) | `secretsmanager:GetSecretValue`, `DescribeSecret` **só neste ARN** |
 | S3 | `preditor-falhas-ml` | `s3:PutObject`, `s3:GetObject` em `raw/*` e `curated/*` (Get no curated para append do CSV) |
+| Role | `preditor-falhas-s1-LambdaExecutionRole-bLuoV1hL3Slq` | assume só `lambda.amazonaws.com` + `SourceAccount`/`SourceArn` da fn `preditor-falhas-collector` |
 | Logs | `/aws/lambda/preditor-falhas-collector` | `CreateLogGroup` no log group; `CreateLogStream` / `PutLogEvents` em `:*` |
 
 Trust policy: `lambda.amazonaws.com` + `aws:SourceAccount` + `aws:SourceArn` da função reservada `preditor-falhas-collector`. **S1.7 deve criar a Lambda com esse nome**; senão o assume falha.
@@ -108,6 +109,16 @@ aws iam simulate-principal-policy \
 A role **não** pode ser assumida pelo seu usuário IAM (`lambda.amazonaws.com` only). Por isso a prova de PutObject da role é `simulate-principal-policy`, não `sts assume-role`.
 
 Script equivalente: `./infra/aws/verify.sh`.
+
+### Evidência 2026-09-11 (valor do secret não impresso)
+
+`./infra/aws/verify.sh` em `sa-east-1` / conta `274394226829`:
+
+- `describe-secret` `RIPE_ATLAS_API_KEY` OK
+- `GetSecretValue` OK (length=32; ainda é o placeholder do CloudFormation — **não** é a API key do Atlas)
+- `iam simulate-principal-policy` na role: `GetSecretValue`, `s3:PutObject`, `s3:GetObject`, `logs:PutLogEvents` = `allowed`
+
+Ainda falta: `aws secretsmanager put-secret-value --region sa-east-1 --secret-id RIPE_ATLAS_API_KEY --secret-string "$RIPE_ATLAS_API_KEY"` com a key real no ambiente.
 
 ## Fora deste card
 

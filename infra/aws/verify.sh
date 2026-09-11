@@ -65,11 +65,11 @@ else
   bad "S3 Block Public Access not fully on: ${pab}"
 fi
 
-acl_err="$(aws s3api get-bucket-acl --region "${REGION}" --bucket "${BUCKET_NAME}" 2>&1 || true)"
-if echo "${acl_err}" | grep -qi 'AccessControlListNotSupported\|does not allow ACLs'; then
-  ok "S3 ACLs disabled (BucketOwnerEnforced)"
+own="$(aws s3api get-bucket-ownership-controls --region "${REGION}" --bucket "${BUCKET_NAME}" --output json 2>/dev/null || echo '{}')"
+if echo "${own}" | grep -q '"ObjectOwnership": "BucketOwnerEnforced"'; then
+  ok "S3 ObjectOwnership BucketOwnerEnforced (ACLs off)"
 else
-  note "S3 get-bucket-acl: ${acl_err}"
+  bad "S3 ObjectOwnership not BucketOwnerEnforced: ${own}"
 fi
 
 if aws s3api head-object --region "${REGION}" --bucket "${BUCKET_NAME}" --key "raw/measurements/.keep" >/dev/null 2>&1 \

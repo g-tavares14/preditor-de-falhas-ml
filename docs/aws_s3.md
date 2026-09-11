@@ -55,16 +55,20 @@ export AWS_REGION=sa-east-1
 ./infra/aws/verify.sh
 ```
 
-Evidência esperada (preencher o output real no PR após o primeiro deploy autenticado):
+### Evidência 2026-09-11 (`sa-east-1`, conta `274394226829`)
 
-```bash
-aws s3api get-public-access-block --bucket preditor-falhas-ml --region sa-east-1
-aws s3api get-bucket-location --bucket preditor-falhas-ml
-aws s3 ls s3://preditor-falhas-ml/raw/measurements/
-aws s3 ls s3://preditor-falhas-ml/curated/
+Bucket `preditor-falhas-ml` criado; nome canônico estava livre.
+
+```text
+LocationConstraint: sa-east-1
+BlockPublicAccess: BlockPublicAcls/IgnorePublicAcls/BlockPublicPolicy/RestrictPublicBuckets = true
+ObjectOwnership: BucketOwnerEnforced
+SSE-S3 AES256; Versioning Enabled
+s3 ls: PRE curated/  PRE raw/  (+ .keep placeholders)
+bucket policy Sids: DenyInsecureTransport, LambdaWriteRawCurated
+  Principal Allow: arn:aws:iam::274394226829:role/preditor-falhas-s1-LambdaExecutionRole-bLuoV1hL3Slq
+verify.sh: PutObject de teste como caller + delete OK; role simulation Put/GetObject = allowed
 ```
-
-`get-public-access-block` deve mostrar os quatro `true`. `verify.sh` checa isso e os placeholders.
 
 ## Fora deste card
 
