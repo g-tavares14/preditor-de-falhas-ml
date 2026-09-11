@@ -10,9 +10,10 @@ for passado.
 `is_oneoff: false`, `interval` 900) para `94.140.14.14` (AdGuard DNS),
 `208.67.222.222` (OpenDNS) e `202.12.28.131` (APNIC). A intenção original
 (`8.8.8.8`, `1.1.1.1`, `202.12.27.33`) ficou superseded-for-quota — retry
-só se a cota global liberar; não entram neste POST. `getData` é só um ping
-**one-off** de demo — não é a série de treino. A Lambda da S1.7 **reutiliza**
-`fetch_measurement_results`; não reimplementa HTTP nem chama
+só se a cota global liberar; não entram neste POST. `stopPeriodic` para a
+série (`DELETE /measurements/{id}/`; histórico GET permanece). `getData` é
+só um ping **one-off** de demo — não é a série de treino. A Lambda da S1.7
+**reutiliza** `fetch_measurement_results`; não reimplementa HTTP nem chama
 `createPeriodic` / `get_data`.
 
 O dataset de treino é o acumulado dos GETs desses 6 `msm_id`. O POST é só
@@ -56,20 +57,22 @@ uv run python -m preditor_de_falhas_ml --help
 uv run python -m preditor_de_falhas_ml getCredits --help
 uv run python -m preditor_de_falhas_ml getResults --help
 uv run python -m preditor_de_falhas_ml createPeriodic --help
+uv run python -m preditor_de_falhas_ml stopPeriodic --help
 uv run python -m preditor_de_falhas_ml getData --help
 ```
 
 Sem operação, ou com `--help`, mostra a ajuda e não acessa o Atlas.
 
-**Chave:** `getCredits`, `getResults`, `createPeriodic` e `getData` exigem
-`RIPE_ATLAS_API_KEY`. Os exemplos abaixo carregam `.env` com uv; se a variável
-já estiver no ambiente, remova `--env-file .env`.
+**Chave:** `getCredits`, `getResults`, `createPeriodic`, `stopPeriodic` e
+`getData` exigem `RIPE_ATLAS_API_KEY`. Os exemplos abaixo carregam `.env`
+com uv; se a variável já estiver no ambiente, remova `--env-file .env`.
 
 ```bash
 uv run --env-file .env python -m preditor_de_falhas_ml getCredits
 uv run --env-file .env python -m preditor_de_falhas_ml getResults --msm-id 12345 --start 1710000000 --stop 1710000900
 uv run --env-file .env python -m preditor_de_falhas_ml getResults --msm-id 12345 --start 1710000000 --stop 1710000900 --output-dir data/raw
 uv run --env-file .env python -m preditor_de_falhas_ml createPeriodic --ids-file data/msm_ids.json
+uv run --env-file .env python -m preditor_de_falhas_ml stopPeriodic --ids-file data/msm_ids.json
 uv run --env-file .env python -m preditor_de_falhas_ml getData
 uv run --env-file .env python -m preditor_de_falhas_ml getData --target 8.8.8.8 --af 4 --country-code BR --probe-count 1 --packets 16 --output-dir data/raw
 ```
@@ -80,11 +83,17 @@ GET na janela informada, imprime o DataFrame e **não** cria medição. Sem
 uma linha JSON por probe no JSONL.
 
 `createPeriodic` (S1.6) **sempre cria** as 6 medições periódicas do hub
-(consome créditos; corre até serem paradas no Atlas). Consulta créditos
-antes/depois, imprime os `msm_id` e a linha `export RIPE_ATLAS_MSM_IDS=…`.
-Com `--ids-file`, grava JSON **sem a API key** (o caminho em `data/` já é
-gitignorado). Com `--wait-seconds 900`, espera um ciclo e GET em cada
-`msm_id` via `fetch_measurement_results`. Não é o collector.
+(consome créditos; corre até `stopPeriodic` / DELETE no Atlas). Consulta
+créditos antes/depois, imprime os `msm_id` e a linha
+`export RIPE_ATLAS_MSM_IDS=…`. Com `--ids-file`, grava JSON **sem a API
+key** (o caminho em `data/` já é gitignorado). Com `--wait-seconds 900`,
+espera um ciclo e GET em cada `msm_id` via `fetch_measurement_results`.
+Não é o collector.
+
+`stopPeriodic` envia `DELETE /measurements/{id}/` (stop documentado; HTTP
+204; não apaga `/results/`). IDs vêm de `--ids-file` ou
+`RIPE_ATLAS_MSM_IDS`. Atlas **não** reinicia medição Stopped — retomar é
+outro `createPeriodic` (novos ids).
 
 `getData` (demo one-off: `8.8.8.8`, IPv4, 16 pacotes, 1 probe no Brasil)
 **sempre cria** uma medição nova (consome créditos). Depois do POST, consulta
@@ -129,12 +138,12 @@ append_data(frame, output_dir=Path("data/raw"))
 
 ```text
 src/preditor_de_falhas_ml/
-  atlas.py   GET /credits/, POST periódico (hub) / one-off, GET /results/, JSONL
-  cli.py     argparse: getCredits, getResults (GET), createPeriodic e getData
+  atlas.py   GET /credits/, POST periódico (hub) / DELETE stop / one-off, GET /results/, JSONL
+  cli.py     argparse: getCredits, getResults (GET), createPeriodic, stopPeriodic e getData
 notebooks/01_coleta_atlas_raw.ipynb         doc GET (S1.2)
 notebooks/02_post_medicoes_periodicas.ipynb doc POST periódico (S1.6)
 docs/dataset-fonte-atlas.md                S1.6: POST = setup; dataset = GETs
-tests/       HTTP simulado (requests.request), CLI getResults e createPeriodic
+tests/       HTTP simulado (requests.request), CLI getResults, createPeriodic e stopPeriodic
 ```
 
 Contrato para o próximo incremento: `AGENTS.md`.
@@ -168,6 +177,7 @@ Sem treino de modelo.
 - [Autenticação com chave de API](https://atlas.ripe.net/docs/apis/rest-api-manual/authentication/api-keys/)
 - [Consulta de créditos](https://atlas.ripe.net/docs/apis/rest-api-reference/credits/credits_retrieve)
 - [Criação de medições](https://atlas.ripe.net/docs/apis/rest-api-manual/measurements/creating-measurements/)
+- [Atualizar e parar medições](https://atlas.ripe.net/docs/apis/rest-api-manual/measurements/updating-and-stopping/)
 - [Seleção de probes](https://atlas.ripe.net/docs/apis/rest-api-manual/measurements/creating-measurements/probe-selection/)
 - [Resultados de medições](https://atlas.ripe.net/docs/apis/rest-api-reference/measurements/measurements_results)
 - [Formato dos resultados de ping](https://atlas.ripe.net/docs/apis/measurement-result-format/version-5000#version-5000-ping-v6-ping)
