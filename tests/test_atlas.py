@@ -133,9 +133,9 @@ def test_create_periodic_measurements_posts_hub_matrix(
     assert all(item["packets"] == 3 for item in traces)
     assert all(item["protocol"] == "ICMP" for item in traces)
     assert {item["target"] for item in definitions} == {
-        "8.8.8.8",
-        "1.1.1.1",
-        "202.12.27.33",
+        "94.140.14.14",
+        "208.67.222.222",
+        "202.12.28.131",
     }
 
 
@@ -167,7 +167,7 @@ def test_write_measurement_ids_omits_api_key(tmp_path: Path) -> None:
         15,
         16,
     ]
-    assert payload["measurements"][0]["target"] == "8.8.8.8"
+    assert payload["measurements"][0]["target"] == "94.140.14.14"
     assert payload["measurements"][0]["type"] == "ping"
-    assert payload["measurements"][5]["target"] == "202.12.27.33"
+    assert payload["measurements"][5]["target"] == "202.12.28.131"
     assert payload["measurements"][5]["type"] == "traceroute"

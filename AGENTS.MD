@@ -18,9 +18,12 @@ POST (uma vez / ao reconfigurar)     GET (sempre: local + Lambda)
 ```
 
 - **POST** — define a *fonte* do dataset: apontar aos destinos
-  `8.8.8.8`, `1.1.1.1`, `202.12.27.33` (ping + traceroute ICMP, probes BR,
-  `interval` 900s, `is_oneoff: false`). One-off custa mais e **não** serve
-  para série de treino. Isso é setup (Sprint card S1.6), não o collector.
+  `94.140.14.14` (AdGuard DNS, estável), `208.67.222.222` (OpenDNS, estável),
+  `202.12.28.131` (APNIC, caminho longo) — ping + traceroute ICMP, probes BR,
+  `interval` 900s, `is_oneoff: false`. Intenção original (`8.8.8.8`,
+  `1.1.1.1`, `202.12.27.33`) ficou superseded-for-quota; retry só se a cota
+  global liberar — **não** entram neste POST. One-off custa mais e **não**
+  serve para série de treino. Isso é setup (Sprint card S1.6), não o collector.
 - **GET** — enche o dataset: `fetch` por `msm_id` + janela `start`/`stop`.
   Mesma função no driver local e na Lambda a cada 15 min (S1.2 / S1.7).
 - **Lambda / collector agendado: só GET.** Nunca POST no schedule.
