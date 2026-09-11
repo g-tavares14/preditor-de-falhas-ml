@@ -61,6 +61,57 @@ def get_credits(api_key: str) -> int:
     return _request("GET", f"{API}credits/", api_key)["current_balance"]
 
 
+def fetch_measurement(api_key: str, msm_id: int) -> dict[str, Any]:
+    """GET `/measurements/{msm_id}/` (metadados, inclusive status)."""
+    payload = _request("GET", f"{API}measurements/{msm_id}/", api_key)
+    if not isinstance(payload, dict):
+        raise ValueError(
+            f"GET /measurements/{msm_id}/ não devolveu objeto. Resposta: {payload}."
+        )
+    return payload
+
+
+def stop_measurement(api_key: str, msm_id: int) -> None:
+    """DELETE `/measurements/{msm_id}/` — para a série; o histórico GET permanece."""
+    response = requests.request(
+        "DELETE",
+        f"{API}measurements/{msm_id}/",
+        headers={
+            "Authorization": f"Key {api_key}",
+            "Accept": "application/json",
+        },
+        timeout=30,
+    )
+    if response.status_code == 204:
+        return
+    detail = ""
+    if getattr(response, "content", None):
+        try:
+            detail = f" Resposta: {response.json()}."
+        except ValueError:
+            detail = ""
+    raise ValueError(
+        f"DELETE /measurements/{msm_id}/ falhou (HTTP {response.status_code}).{detail}"
+    )
+
+
+def read_measurement_ids(path: Path) -> list[int]:
+    """Lê msm_id do JSON gravado por write_measurement_ids (sem a API key)."""
+    payload = json.loads(Path(path).read_text(encoding="utf-8"))
+    rows = payload.get("measurements") if isinstance(payload, dict) else None
+    if not isinstance(rows, list) or not rows:
+        raise ValueError(f"{path} não tem measurements[] com msm_id.")
+    return [int(row["msm_id"]) for row in rows]
+
+
+def parse_measurement_ids_csv(value: str) -> list[int]:
+    """Parseia `RIPE_ATLAS_MSM_IDS=id1,id2,…`."""
+    parts = [part.strip() for part in value.split(",") if part.strip()]
+    if not parts:
+        raise ValueError("lista de msm_id vazia.")
+    return [int(part) for part in parts]
+
+
 def fetch_measurement_results(
     api_key: str,
     msm_id: int,

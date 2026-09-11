@@ -14,9 +14,13 @@ from preditor_de_falhas_ml.atlas import (
     HUB_SPECS,
     append_data,
     create_periodic_measurements,
+    fetch_measurement,
     fetch_measurement_results,
     get_credits,
     get_data,
+    parse_measurement_ids_csv,
+    read_measurement_ids,
+    stop_measurement,
     write_measurement_ids,
 )
 
@@ -26,8 +30,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         prog="python -m preditor_de_falhas_ml",
         description=(
             "Consulte créditos, leia resultados existentes (GET), "
-            "crie as 6 medições periódicas do hub (POST setup) "
-            "ou um ping one-off (POST demo)."
+            "crie ou pare as 6 medições periódicas do hub "
+            "(POST setup / DELETE stop) ou um ping one-off (POST demo)."
         ),
     )
     operations = parser.add_subparsers(dest="operation")
@@ -54,6 +58,22 @@ def main(argv: Sequence[str] | None = None) -> int:
         help=(
             "Esperar N segundos e GET results de cada msm_id "
             f"(um ciclo do hub = {HUB_INTERVAL_SECONDS}). 0 = só o POST."
+        ),
+    )
+    stop = operations.add_parser(
+        "stopPeriodic",
+        help=(
+            "Parar medições periódicas (DELETE /measurements/{id}/). "
+            "IDs via --ids-file ou RIPE_ATLAS_MSM_IDS. Não apaga o histórico."
+        ),
+    )
+    stop.add_argument(
+        "--ids-file",
+        type=Path,
+        default=None,
+        help=(
+            f"JSON com msm_id (sem a API key). Ex.: {DEFAULT_MSM_IDS_PATH}. "
+            "Sem arquivo, usa RIPE_ATLAS_MSM_IDS."
         ),
     )
     capture = operations.add_parser(
@@ -124,6 +144,27 @@ def main(argv: Sequence[str] | None = None) -> int:
                 print(f"GET msm_id={msm_id} linhas={len(frame)}")
                 if not frame.empty:
                     print(frame.to_string(index=False))
+        return 0
+    if args.operation == "stopPeriodic":
+        if args.ids_file is not None:
+            msm_ids = read_measurement_ids(args.ids_file)
+        else:
+            env_ids = os.environ.get("RIPE_ATLAS_MSM_IDS", "").strip()
+            if not env_ids:
+                raise ValueError(
+                    "stopPeriodic precisa de --ids-file ou RIPE_ATLAS_MSM_IDS."
+                )
+            msm_ids = parse_measurement_ids_csv(env_ids)
+        credits_before = get_credits(api_key)
+        print(f"Créditos antes: {credits_before}")
+        for msm_id in msm_ids:
+            stop_measurement(api_key, msm_id)
+            meta = fetch_measurement(api_key, msm_id)
+            status = meta.get("status")
+            name = status.get("name") if isinstance(status, dict) else status
+            print(f"msm_id={msm_id} status={name}")
+        credits_after = get_credits(api_key)
+        print(f"Créditos depois: {credits_after}")
         return 0
     frame = get_data(
         api_key,
