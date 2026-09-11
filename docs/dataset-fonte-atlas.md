@@ -37,8 +37,10 @@ matriz só se a cota global liberar.
 `is_oneoff: false`. One-off (`getData`) custa mais e **não** serve para a série
 de treino.
 
-As medições periódicas **continuam cobrando créditos** até serem paradas no
-Atlas. Estimativa do card: ~210 créditos / 15 min → ~20 mil/dia.
+As medições periódicas **continuam cobrando créditos** enquanto estão
+Scheduled/Ongoing. Estimativa do card: ~210 créditos / 15 min → ~20 mil/dia.
+A série ao vivo das 6 medições da tentativa 2 foi **parada** em 2026-09-11
+(~23:03 UTC) pending S1.7 — ver registro abaixo.
 
 ## Persistência dos msm_id (sem a API key)
 
@@ -86,35 +88,63 @@ uv run --env-file .env python -m preditor_de_falhas_ml getResults \
 Copiar os 6 IDs e os saldos para a tabela abaixo. O primeiro ciclo pode ainda
 estar vazio se as probes BR não tiverem reportado; repetir o GET.
 
+## Runbook — parar a série (stop)
+
+`DELETE /api/v2/measurements/{id}/` é o stop documentado do Atlas
+([Updating and Stopping](https://atlas.ripe.net/docs/apis/rest-api-manual/measurements/updating-and-stopping/),
+[measurements_destroy](https://atlas.ripe.net/docs/apis/rest-api-reference/measurements/measurements_destroy)):
+HTTP 204, sem corpo. **Não apaga** o histórico — `GET /results/` continua.
+
+Não há restart. Medição Stopped fica Stopped (pode ir a Archived). Para
+retomar a série: `createPeriodic` de novo — **novos** `msm_id`. Não reutilizar
+os IDs parados como se voltassem a emitir.
+
+```bash
+uv run --env-file .env python -m preditor_de_falhas_ml stopPeriodic \
+  --ids-file data/msm_ids.json
+# ou: RIPE_ATLAS_MSM_IDS=id1,id2,id3,id4,id5,id6
+uv run --env-file .env python -m preditor_de_falhas_ml stopPeriodic
+```
+
 ## Registro do POST ao vivo
 
 ### Tentativa 2 — nova matriz (desbloqueio de cota)
 
-**Estado:** POST ao vivo **aceitou** (2026-09-11, ~22:45 UTC). A chave estava
-presente (`RIPE_ATLAS_API_KEY` present=true, length=36; valor não registrado
-nem commitado). Um POST com as 6 definições; `data/msm_ids.json` gravado
-**sem** a API key (gitignorado). GET imediato em `210717688` devolveu
-DataFrame vazio — medições ainda `Scheduled`. `--wait-seconds 900` **não**
-rodou (ciclo ~15 min pendente via `getResults`). O collector **não** chama
-este POST.
+**Estado:** POST ao vivo **aceitou** (2026-09-11, ~22:45 UTC). Série **pausada**
+em 2026-09-11, ~23:03 UTC, pending Lambda S1.7 — as 6 medições estavam
+`Ongoing` e cobrariam créditos sem collector GET/S3. A chave estava presente
+(`RIPE_ATLAS_API_KEY` present=true, length=36; valor não registrado nem
+commitado). Um POST com as 6 definições; `data/msm_ids.json` gravado **sem**
+a API key (gitignorado). GET imediato em `210717688` devolveu DataFrame
+vazio — medições ainda `Scheduled`. `--wait-seconds 900` **não** rodou.
+O collector **não** chama este POST.
+
+Stop ao vivo: `DELETE /api/v2/measurements/{id}/` (6/6 HTTP 204). GET
+metadados depois: `Stopped` (status id 4). `GET /results/` em `210717688`
+ainda devolveu 2 linhas — histórico intacto. Atlas **não** reinicia medição
+parada; retomar = `createPeriodic` (novos ids). Sem IDs inventados. Sem
+mudança em `HUB_SPECS`.
 
 | Campo | Valor |
 |---|---|
-| Créditos antes | 100000 |
-| Créditos depois | 100000 |
-| Delta | 0 no instante do POST (cobrança periódica continua enquanto as medições rodarem) |
+| Créditos antes (POST) | 100000 |
+| Créditos depois (POST) | 100000 |
+| Créditos no stop | 100000 → 100000 (delta 0 no instante; cobrança periódica **encerra** ao Stopped) |
 | Matriz enviada | 94.140.14.14, 208.67.222.222, 202.12.28.131 × ping + traceroute ICMP; `is_oneoff: false`; interval 900; 2 probes BR |
-| Status Atlas (GET `/measurements/{id}/`) | Scheduled (6/6) |
-| `export RIPE_ATLAS_MSM_IDS` | `210717688,210717689,210717690,210717691,210717692,210717693` |
+| Status Atlas no POST | Scheduled (6/6) |
+| Status Atlas no stop (2026-09-11 ~23:03 UTC) | Stopped (6/6); `when` 1789167830–1789167832 |
+| Endpoint de stop | `DELETE /api/v2/measurements/{id}/` (docs Atlas: stop, HTTP 204) |
+| Retomar | `createPeriodic` de novo (novos msm_id). Sem restart no Atlas. |
+| `export RIPE_ATLAS_MSM_IDS` | `210717688,210717689,210717690,210717691,210717692,210717693` (Stopped; não emitem mais) |
 
 | msm_id | Destino | Tipo | Papel | prb_id (1º ciclo) | timestamps | créditos antes | créditos depois |
 |---|---|---|---|---|---|---|---|
-| 210717688 | 94.140.14.14 | ping | estável | — | Scheduled; ciclo GET pendente | 100000 | 100000 |
-| 210717689 | 94.140.14.14 | traceroute ICMP | estável | — | Scheduled; ciclo GET pendente | 100000 | 100000 |
-| 210717690 | 208.67.222.222 | ping | estável | — | Scheduled; ciclo GET pendente | 100000 | 100000 |
-| 210717691 | 208.67.222.222 | traceroute ICMP | estável | — | Scheduled; ciclo GET pendente | 100000 | 100000 |
-| 210717692 | 202.12.28.131 | ping | caminho longo | — | Scheduled; ciclo GET pendente | 100000 | 100000 |
-| 210717693 | 202.12.28.131 | traceroute ICMP | caminho longo | — | Scheduled; ciclo GET pendente | 100000 | 100000 |
+| 210717688 | 94.140.14.14 | ping | estável | — | Stopped 2026-09-11 23:03:50 UTC | 100000 | 100000 |
+| 210717689 | 94.140.14.14 | traceroute ICMP | estável | — | Stopped 2026-09-11 23:03:50 UTC | 100000 | 100000 |
+| 210717690 | 208.67.222.222 | ping | estável | — | Stopped 2026-09-11 23:03:51 UTC | 100000 | 100000 |
+| 210717691 | 208.67.222.222 | traceroute ICMP | estável | — | Stopped 2026-09-11 23:03:51 UTC | 100000 | 100000 |
+| 210717692 | 202.12.28.131 | ping | caminho longo | — | Stopped 2026-09-11 23:03:52 UTC | 100000 | 100000 |
+| 210717693 | 202.12.28.131 | traceroute ICMP | caminho longo | — | Stopped 2026-09-11 23:03:52 UTC | 100000 | 100000 |
 
 ### Tentativa 1 — intenção original (superseded-for-quota)
 
