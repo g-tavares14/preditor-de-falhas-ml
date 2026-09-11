@@ -1,3 +1,4 @@
+import json
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
@@ -229,3 +230,91 @@ def test_cli_create_periodic_wait_uses_existing_fetch(
     assert all("/results/" in call["url"] for call in calls[3:])
     printed = capsys.readouterr().out
     assert "GET msm_id=301 linhas=1" in printed
+
+
+def test_cli_stop_periodic_uses_env_ids(
+    monkeypatch: pytest.MonkeyPatch,
+    mock_atlas_request: InstallMock,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setenv("RIPE_ATLAS_API_KEY", "test-key")
+    monkeypatch.setenv("RIPE_ATLAS_MSM_IDS", "210717688,210717689")
+    balances = iter([100_000, 100_000])
+
+    def responder(method: str, url: str, _kwargs: dict[str, Any]) -> object:
+        if method == "GET" and url.endswith("credits/"):
+            return {"current_balance": next(balances)}
+        if method == "DELETE":
+            return None
+        if method == "GET" and "/measurements/" in url:
+            msm_id = int(url.rstrip("/").split("/")[-1])
+            return {"id": msm_id, "status": {"id": 4, "name": "Stopped"}}
+        raise AssertionError(f"unexpected {method} {url}")
+
+    def fail_create(*_args: object, **_kwargs: object) -> None:
+        raise AssertionError("stopPeriodic must not call create_periodic_measurements")
+
+    def fail_get_data(*_args: object, **_kwargs: object) -> None:
+        raise AssertionError("stopPeriodic must not call get_data")
+
+    calls = mock_atlas_request(responder)
+    monkeypatch.setattr(
+        "preditor_de_falhas_ml.cli.create_periodic_measurements",
+        fail_create,
+    )
+    monkeypatch.setattr("preditor_de_falhas_ml.cli.get_data", fail_get_data)
+
+    code = main(["stopPeriodic"])
+
+    assert code == 0
+    methods = [call["method"] for call in calls]
+    assert methods == ["GET", "DELETE", "GET", "DELETE", "GET", "GET"]
+    assert calls[1]["url"].endswith("measurements/210717688/")
+    assert calls[3]["url"].endswith("measurements/210717689/")
+    printed = capsys.readouterr().out
+    assert "Créditos antes: 100000" in printed
+    assert "msm_id=210717688 status=Stopped" in printed
+    assert "msm_id=210717689 status=Stopped" in printed
+    assert "Créditos depois: 100000" in printed
+
+
+def test_cli_stop_periodic_reads_ids_file(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    mock_atlas_request: InstallMock,
+) -> None:
+    monkeypatch.setenv("RIPE_ATLAS_API_KEY", "test-key")
+    ids_file = tmp_path / "msm_ids.json"
+    ids_file.write_text(
+        json.dumps(
+            {
+                "measurements": [
+                    {"msm_id": 401, "target": "94.140.14.14", "type": "ping"},
+                    {"msm_id": 402, "target": "94.140.14.14", "type": "traceroute"},
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    def responder(method: str, url: str, _kwargs: dict[str, Any]) -> object:
+        if method == "GET" and url.endswith("credits/"):
+            return {"current_balance": 1}
+        if method == "DELETE":
+            return None
+        return {"id": 401, "status": {"id": 4, "name": "Stopped"}}
+
+    calls = mock_atlas_request(responder)
+    code = main(["stopPeriodic", "--ids-file", str(ids_file)])
+
+    assert code == 0
+    deleted = [call["url"] for call in calls if call["method"] == "DELETE"]
+    assert deleted[0].endswith("measurements/401/")
+    assert deleted[1].endswith("measurements/402/")
+
+
+def test_cli_stop_periodic_requires_ids(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("RIPE_ATLAS_API_KEY", "test-key")
+    monkeypatch.delenv("RIPE_ATLAS_MSM_IDS", raising=False)
+    with pytest.raises(ValueError, match="--ids-file ou RIPE_ATLAS_MSM_IDS"):
+        main(["stopPeriodic"])
