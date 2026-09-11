@@ -7,8 +7,11 @@ a tabela; `append_data` **acrescenta** as linhas em JSONL só se `--output-dir`
 for passado.
 
 `createPeriodic` (S1.6) cria as **6 medições periódicas** do hub (POST,
-`is_oneoff: false`, `interval` 900). `getData` é só um ping **one-off** de
-demo — não é a série de treino. A Lambda da S1.7 **reutiliza**
+`is_oneoff: false`, `interval` 900) para `94.140.14.14` (AdGuard DNS),
+`208.67.222.222` (OpenDNS) e `202.12.28.131` (APNIC). A intenção original
+(`8.8.8.8`, `1.1.1.1`, `202.12.27.33`) ficou superseded-for-quota — retry
+só se a cota global liberar; não entram neste POST. `getData` é só um ping
+**one-off** de demo — não é a série de treino. A Lambda da S1.7 **reutiliza**
 `fetch_measurement_results`; não reimplementa HTTP nem chama
 `createPeriodic` / `get_data`.
 
@@ -148,9 +151,9 @@ uv run pyrefly check
 uv run pytest
 ```
 
-Os testes simulam `requests.request`. O POST ao vivo das 6 medições depende
-de `RIPE_ATLAS_API_KEY` (ausente neste incremento — ver runbook). Sem treino
-de modelo.
+Os testes simulam `requests.request`. O POST ao vivo das 6 medições usa
+`RIPE_ATLAS_API_KEY` (nunca commitada). IDs reais e saldo: `docs/dataset-fonte-atlas.md`.
+Sem treino de modelo.
 
 ## Fora deste incremento
 

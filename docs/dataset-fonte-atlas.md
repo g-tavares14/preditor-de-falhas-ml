@@ -22,12 +22,17 @@ Documentação da disciplina (não é o collector):
 
 | Destino | Papel | Tipo | Pacotes | Probes | Intervalo |
 |---|---|---|---|---|---|
-| 8.8.8.8 | estável | ping | 5 | 2 BR | 900 s |
-| 8.8.8.8 | estável | traceroute ICMP | 3 | 2 BR | 900 s |
-| 1.1.1.1 | estável | ping | 5 | 2 BR | 900 s |
-| 1.1.1.1 | estável | traceroute ICMP | 3 | 2 BR | 900 s |
-| 202.12.27.33 | caminho longo | ping | 5 | 2 BR | 900 s |
-| 202.12.27.33 | caminho longo | traceroute ICMP | 3 | 2 BR | 900 s |
+| 94.140.14.14 (AdGuard DNS) | estável | ping | 5 | 2 BR | 900 s |
+| 94.140.14.14 (AdGuard DNS) | estável | traceroute ICMP | 3 | 2 BR | 900 s |
+| 208.67.222.222 (OpenDNS) | estável | ping | 5 | 2 BR | 900 s |
+| 208.67.222.222 (OpenDNS) | estável | traceroute ICMP | 3 | 2 BR | 900 s |
+| 202.12.28.131 (APNIC) | caminho longo | ping | 5 | 2 BR | 900 s |
+| 202.12.28.131 (APNIC) | caminho longo | traceroute ICMP | 3 | 2 BR | 900 s |
+
+Intenção original (superseded-for-quota; **não** entra neste POST):
+`8.8.8.8`, `1.1.1.1`, `202.12.27.33`. A primeira tentativa ao vivo
+(2026-09-11) foi rejeitada pela cota global em `8.8.8.8`. Retry dessa
+matriz só se a cota global liberar.
 
 `is_oneoff: false`. One-off (`getData`) custa mais e **não** serve para a série
 de treino.
@@ -83,16 +88,34 @@ estar vazio se as probes BR não tiverem reportado; repetir o GET.
 
 ## Registro do POST ao vivo
 
-**Estado:** POST ao vivo **não concluiu**. A chave estava presente no ambiente
+### Tentativa 2 — nova matriz (desbloqueio de cota)
+
+**Estado:** *pendente* (código já aponta aos destinos abaixo; POST ao vivo
+ainda não registrado nesta revisão).
+
+| msm_id | Destino | Tipo | Papel | prb_id (1º ciclo) | timestamps | créditos antes | créditos depois |
+|---|---|---|---|---|---|---|---|
+| *pendente* | 94.140.14.14 | ping | estável | — | — | — | — |
+| *pendente* | 94.140.14.14 | traceroute ICMP | estável | — | — | — | — |
+| *pendente* | 208.67.222.222 | ping | estável | — | — | — | — |
+| *pendente* | 208.67.222.222 | traceroute ICMP | estável | — | — | — | — |
+| *pendente* | 202.12.28.131 | ping | caminho longo | — | — | — | — |
+| *pendente* | 202.12.28.131 | traceroute ICMP | caminho longo | — | — | — | — |
+
+`--wait-seconds` / validação de 1 ciclo via `getResults` fica pendente até
+existirem IDs. Sem IDs reais, **não inventar**. O collector (`getResults`)
+**não** chama este POST. Não commitar `.env` nem a API key.
+
+### Tentativa 1 — intenção original (superseded-for-quota)
+
+POST ao vivo **não concluiu**. A chave estava presente no ambiente
 do agente (`RIPE_ATLAS_API_KEY` present=true, length=36; valor não registrado).
 `createPeriodic` foi executado **duas vezes** (2026-09-11, ~22:12 UTC). As duas
 chamadas receberam HTTP 400 / code 102 do Atlas:
 
 `We do not allow more than 25 concurrent measurements to the same target: 8.8.8.8.`
 
-Nenhum `msm_id` foi inventado. `data/msm_ids.json` **não** foi gravado. O
-collector (`getResults`) **não** chama este POST. `--wait-seconds` / validação
-de 1 ciclo via `getResults` ficou pendente — sem IDs não há o que consultar.
+Nenhum `msm_id` foi inventado. `data/msm_ids.json` **não** foi gravado.
 
 | Campo | Valor |
 |---|---|
@@ -111,10 +134,9 @@ Contagem pública no momento da tentativa (`status` specified/scheduled/ongoing)
 
 A cota documentada pelo Atlas é “até 25 periódicas e 25 one-off **do mesmo
 tipo** no mesmo destino”. O erro devolvido fala em 25 concorrentes **no
-destino** (sem filtrar tipo). 8.8.8.8 tinha 30 medições ativas no total. A
-matriz do hub **não** foi alterada. Relistar `/measurements/my/` com esta
-chave devolveu 403 (a chave cria/consulta créditos, mas não lista “minhas”
-medições).
+destino** (sem filtrar tipo). 8.8.8.8 tinha 30 medições ativas no total.
+Relistar `/measurements/my/` com esta chave devolveu 403 (a chave
+cria/consulta créditos, mas não lista “minhas” medições).
 
 Medições públicas já existentes com descrição “Preditor de falhas ML” são só
 três one-off ping a 8.8.8.8, todas `Stopped` — não são a série periódica do
@@ -129,6 +151,5 @@ hub e **não** entram na tabela.
 | *pendente* | 202.12.27.33 | ping | caminho longo | — | POST 400 | 100000 | 100000 |
 | *pendente* | 202.12.27.33 | traceroute ICMP | caminho longo | — | POST 400 | 100000 | 100000 |
 
-Quando o Atlas aceitar o POST da matriz (cota no destino, ou allowlist do
-alvo), rodar o runbook de novo, preencher os 6 IDs reais, gravar
-`RIPE_ATLAS_MSM_IDS` no Secret/SSM e **não** commitar a chave.
+Retry desta matriz original só se a cota global liberar. A matriz **atual**
+do POST é a tentativa 2 (AdGuard / OpenDNS / APNIC).
