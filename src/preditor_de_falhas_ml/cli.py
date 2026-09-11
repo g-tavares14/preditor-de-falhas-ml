@@ -4,14 +4,20 @@ import argparse
 import os
 from collections.abc import Sequence
 from pathlib import Path
+from time import sleep, time
 
 from preditor_de_falhas_ml.atlas import (
+    DEFAULT_MSM_IDS_PATH,
     DEFAULT_OUTPUT_DIR,
     DEFAULT_TARGET,
+    HUB_INTERVAL_SECONDS,
+    HUB_SPECS,
     append_data,
+    create_periodic_measurements,
     fetch_measurement_results,
     get_credits,
     get_data,
+    write_measurement_ids,
 )
 
 
@@ -19,15 +25,40 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="python -m preditor_de_falhas_ml",
         description=(
-            "Consulte créditos, leia resultados existentes (GET) "
-            "ou crie um ping one-off (POST) no RIPE Atlas."
+            "Consulte créditos, leia resultados existentes (GET), "
+            "crie as 6 medições periódicas do hub (POST setup) "
+            "ou um ping one-off (POST demo)."
         ),
     )
     operations = parser.add_subparsers(dest="operation")
     operations.add_parser("getCredits", help="Consultar o saldo de créditos.")
+    create = operations.add_parser(
+        "createPeriodic",
+        help=(
+            "Criar as 6 medições periódicas do hub (POST; is_oneoff=false, "
+            "interval=900). Setup do dataset — não é o collector."
+        ),
+    )
+    create.add_argument(
+        "--ids-file",
+        type=Path,
+        default=None,
+        help=(
+            f"Gravar os 6 msm_id em JSON (sem a API key). Ex.: {DEFAULT_MSM_IDS_PATH}"
+        ),
+    )
+    create.add_argument(
+        "--wait-seconds",
+        type=int,
+        default=0,
+        help=(
+            "Esperar N segundos e GET results de cada msm_id "
+            f"(um ciclo do hub = {HUB_INTERVAL_SECONDS}). 0 = só o POST."
+        ),
+    )
     capture = operations.add_parser(
         "getData",
-        help="Criar um ping (POST), imprimir a tabela e acrescentar o histórico.",
+        help="Criar um ping one-off (POST demo), imprimir a tabela e gravar JSONL.",
     )
     capture.add_argument("--target", default=DEFAULT_TARGET)
     capture.add_argument("--af", type=int, default=4, dest="address_family")
@@ -61,6 +92,38 @@ def main(argv: Sequence[str] | None = None) -> int:
         if args.output_dir is not None:
             append_data(frame, output_dir=args.output_dir)
         print(frame.to_string(index=False))
+        return 0
+    if args.operation == "createPeriodic":
+        credits_before = get_credits(api_key)
+        print(f"Créditos antes: {credits_before}")
+        msm_ids = create_periodic_measurements(api_key)
+        credits_after = get_credits(api_key)
+        print(f"Créditos depois: {credits_after}")
+        for msm_id, spec in zip(msm_ids, HUB_SPECS, strict=True):
+            print(
+                f"msm_id={msm_id} target={spec.target} "
+                f"type={spec.measurement_type} role={spec.role}"
+            )
+        print(
+            "export RIPE_ATLAS_MSM_IDS=" + ",".join(str(msm_id) for msm_id in msm_ids)
+        )
+        if args.ids_file is not None:
+            written = write_measurement_ids(msm_ids, output_path=args.ids_file)
+            print(f"IDs gravados em {written}")
+        if args.wait_seconds > 0:
+            sleep(args.wait_seconds)
+            stop = int(time())
+            start = stop - args.wait_seconds
+            for msm_id in msm_ids:
+                frame = fetch_measurement_results(
+                    api_key,
+                    msm_id,
+                    start=start,
+                    stop=stop,
+                )
+                print(f"GET msm_id={msm_id} linhas={len(frame)}")
+                if not frame.empty:
+                    print(frame.to_string(index=False))
         return 0
     frame = get_data(
         api_key,
