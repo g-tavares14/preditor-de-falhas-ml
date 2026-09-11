@@ -12,6 +12,15 @@ créditos) — caminho de setup (S1.6). A Lambda da S1.7 **reutiliza**
 
 Não há rótulo de falha nem treino ML neste incremento. PingER não está integrado.
 
+## Notebook da disciplina
+
+`notebooks/01_coleta_atlas_raw.ipynb` é a documentação pedida pela professora, não
+o pipeline de produção. Ele importa o GET compartilhado
+(`from preditor_de_falhas_ml import fetch_measurement_results`), mostra o
+DataFrame bruto e, se quiser, chama `append_data` em `data/raw/`. Não
+reimplementa HTTP e não cria medição (POST). O core continua no pacote
+(`atlas.py` + CLI `getResults`); a Lambda da S1.7 reutiliza a mesma função.
+
 ## Ambiente
 
 Requer Python 3.12 ou superior e uv. Na raiz do repositório:
@@ -98,6 +107,7 @@ append_data(frame, output_dir=Path("data/raw"))
 src/preditor_de_falhas_ml/
   atlas.py   GET /credits/, POST /measurements/, GET /results/, append do JSONL
   cli.py     argparse: getCredits, getResults (GET) e getData (POST)
+notebooks/01_coleta_atlas_raw.ipynb  doc da disciplina (importa o GET)
 tests/       HTTP simulado (requests.request) e CLI getResults
 ```
 
