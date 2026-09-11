@@ -115,10 +115,10 @@ Script equivalente: `./infra/aws/verify.sh`.
 `./infra/aws/verify.sh` em `sa-east-1` / conta `274394226829`:
 
 - `describe-secret` `RIPE_ATLAS_API_KEY` OK
-- `GetSecretValue` OK (length=32; ainda é o placeholder do CloudFormation — **não** é a API key do Atlas)
+- `GetSecretValue` OK (length=36 na versão AWSCURRENT; CreatedDate 23:17, LastChangedDate 23:25 — o placeholder CFN foi substituído; valor não impresso)
 - `iam simulate-principal-policy` na role: `GetSecretValue`, `s3:PutObject`, `s3:GetObject`, `logs:PutLogEvents` = `allowed`
 
-Ainda falta: `aws secretsmanager put-secret-value --region sa-east-1 --secret-id RIPE_ATLAS_API_KEY --secret-string "$RIPE_ATLAS_API_KEY"` com a key real no ambiente.
+O `put-secret-value` da key real já foi feito. Não colar o valor no Git/PR.
 
 ## Fora deste card
 
