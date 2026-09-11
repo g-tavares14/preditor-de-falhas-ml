@@ -101,6 +101,7 @@ src/preditor_de_falhas_ml/
   cli.py     argparse / env / stdout — um comando por superfície
 tests/       um módulo por superfície exercitada
 docs/
+notebooks/   01 GET (doc S1.2), 02 POST periódico (doc S1.6) — não o collector
 ```
 
 Estado atual do código: `get_credits`; `create_periodic_measurements` (POST

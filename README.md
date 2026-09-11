@@ -17,14 +17,19 @@ setup. Detalhe e runbook: `docs/dataset-fonte-atlas.md`.
 
 Não há rótulo de falha nem treino ML neste incremento. PingER não está integrado.
 
-## Notebook da disciplina
+## Notebooks da disciplina
 
-`notebooks/01_coleta_atlas_raw.ipynb` é a documentação pedida pela professora, não
-o pipeline de produção. Ele importa o GET compartilhado
-(`from preditor_de_falhas_ml import fetch_measurement_results`), mostra o
-DataFrame bruto e, se quiser, chama `append_data` em `data/raw/`. Não
-reimplementa HTTP e não cria medição (POST). O core continua no pacote
-(`atlas.py` + CLI `getResults`); a Lambda da S1.7 reutiliza a mesma função.
+São a documentação pedida pela professora, **não** o pipeline de produção.
+O core continua no pacote (`atlas.py` + CLI); a Lambda da S1.7 reutiliza o GET.
+
+- `notebooks/01_coleta_atlas_raw.ipynb` (S1.2) — importa
+  `fetch_measurement_results`, mostra o DataFrame bruto e, se quiser, chama
+  `append_data` em `data/raw/`. Não reimplementa HTTP e não cria medição.
+- `notebooks/02_post_medicoes_periodicas.ipynb` (S1.6) — importa
+  `create_periodic_measurements`, `get_credits` e `write_measurement_ids`.
+  Documenta o POST periódico (fonte do dataset). A célula ao vivo fica
+  desligada (`CRIAR_MEDICOES = False`); sem chave, bloqueia e **não inventa**
+  `msm_id`. Não usa `requests` nem `get_data` como série de treino.
 
 ## Ambiente
 
@@ -123,8 +128,9 @@ append_data(frame, output_dir=Path("data/raw"))
 src/preditor_de_falhas_ml/
   atlas.py   GET /credits/, POST periódico (hub) / one-off, GET /results/, JSONL
   cli.py     argparse: getCredits, getResults (GET), createPeriodic e getData
-notebooks/01_coleta_atlas_raw.ipynb  doc da disciplina (importa o GET)
-docs/dataset-fonte-atlas.md         S1.6: POST = setup; dataset = GETs
+notebooks/01_coleta_atlas_raw.ipynb         doc GET (S1.2)
+notebooks/02_post_medicoes_periodicas.ipynb doc POST periódico (S1.6)
+docs/dataset-fonte-atlas.md                S1.6: POST = setup; dataset = GETs
 tests/       HTTP simulado (requests.request), CLI getResults e createPeriodic
 ```
 
