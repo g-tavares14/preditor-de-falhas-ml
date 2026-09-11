@@ -173,8 +173,8 @@ def test_cli_create_periodic_posts_and_prints_credits(
     assert "Créditos depois: 99790" in printed
     assert "export RIPE_ATLAS_MSM_IDS=101,102,103,104,105,106" in printed
     assert "msm_id=101" in printed
-    assert "8.8.8.8" in printed
-    assert "202.12.27.33" in printed
+    assert "94.140.14.14" in printed
+    assert "202.12.28.131" in printed
 
 
 def test_cli_create_periodic_writes_ids_file(

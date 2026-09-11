@@ -19,6 +19,11 @@ HUB_TRACEROUTE_PACKETS = 3
 HUB_PROBE_COUNT = 2
 HUB_COUNTRY_CODE = "BR"
 HUB_ADDRESS_FAMILY = 4
+HUB_TARGET_ADGUARD = "94.140.14.14"
+HUB_TARGET_OPENDNS = "208.67.222.222"
+HUB_TARGET_APNIC = "202.12.28.131"
+# Intenção original (cota global; retry se liberar — não entra neste POST):
+# 8.8.8.8, 1.1.1.1, 202.12.27.33. Ver docs/dataset-fonte-atlas.md.
 
 
 class HubSpec(NamedTuple):
@@ -29,12 +34,12 @@ class HubSpec(NamedTuple):
 
 
 HUB_SPECS: tuple[HubSpec, ...] = (
-    HubSpec("8.8.8.8", "estável", "ping", HUB_PING_PACKETS),
-    HubSpec("8.8.8.8", "estável", "traceroute", HUB_TRACEROUTE_PACKETS),
-    HubSpec("1.1.1.1", "estável", "ping", HUB_PING_PACKETS),
-    HubSpec("1.1.1.1", "estável", "traceroute", HUB_TRACEROUTE_PACKETS),
-    HubSpec("202.12.27.33", "caminho longo", "ping", HUB_PING_PACKETS),
-    HubSpec("202.12.27.33", "caminho longo", "traceroute", HUB_TRACEROUTE_PACKETS),
+    HubSpec(HUB_TARGET_ADGUARD, "estável", "ping", HUB_PING_PACKETS),
+    HubSpec(HUB_TARGET_ADGUARD, "estável", "traceroute", HUB_TRACEROUTE_PACKETS),
+    HubSpec(HUB_TARGET_OPENDNS, "estável", "ping", HUB_PING_PACKETS),
+    HubSpec(HUB_TARGET_OPENDNS, "estável", "traceroute", HUB_TRACEROUTE_PACKETS),
+    HubSpec(HUB_TARGET_APNIC, "caminho longo", "ping", HUB_PING_PACKETS),
+    HubSpec(HUB_TARGET_APNIC, "caminho longo", "traceroute", HUB_TRACEROUTE_PACKETS),
 )
 
 
