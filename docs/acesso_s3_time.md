@@ -69,3 +69,10 @@ Não commitar o CSV grande no Git. Sample pequeno ok se o grupo decidir.
 ```
 
 O script simula o **group**: `GetObject` allowed, `PutObject` e `GetSecretValue` implicitDeny. O teste “1 pessoa além do dono consegue baixar” só fecha depois de um integrante entrar no group e rodar o `aws s3 cp` acima.
+
+### Evidência 2026-09-11
+
+- Group `preditor-dados-leitura` criado (ainda sem usuários).
+- Policy gerenciada `preditor-dados-leitura` anexada.
+- `simulate-principal-policy` no group: GetObject allowed; PutObject e GetSecretValue implicitDeny.
+- Secret `RIPE_ATLAS_API_KEY` **não** foi rotacionado neste update (LastChangedDate continua 23:25 UTC).
