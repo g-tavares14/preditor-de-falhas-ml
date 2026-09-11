@@ -103,17 +103,17 @@ tests/       um módulo por superfície exercitada
 docs/
 ```
 
-Estado atual do código: `get_credits`; `get_data` (POST + poll; o GET interno
-usa `fetch_measurement_results`); `fetch_measurement_results` (GET puro por
-`msm_id` + `start`/`stop`, sem poll); `append_data` (JSONL). O collector
-(`getResults` / Lambda S1.7) chama só o GET — nunca `get_data`. O nome
-`get_data` **mistura** criação (POST) com leitura — não espelhar esse padrão
-em código novo.
+Estado atual do código: `get_credits`; `create_periodic_measurements` (POST
+periódico das 6 do hub; S1.6; `is_oneoff: false`, `interval` 900);
+`write_measurement_ids` (JSON dos msm_id, sem a key); `get_data` (POST one-off
++ poll — demo, não é a série de treino); `fetch_measurement_results` (GET puro
+por `msm_id` + `start`/`stop`, sem poll); `append_data` (JSONL). O collector
+(`getResults` / Lambda S1.7) chama só o GET — nunca `create_periodic_measurements`
+nem `get_data`. O nome `get_data` **mistura** criação (POST) com leitura — não
+espelhar esse padrão em código novo.
 
 Próximos incrementos (adicionar, não confundir):
 
-- **POST periódico** explícito para os 6 destinos do hub (setup do dataset /
-  S1.6), separado do fetch.
 - **Função pura** de features + `status_real` (sem HTTP/Path), depois quem
   aplica no curated.
 
