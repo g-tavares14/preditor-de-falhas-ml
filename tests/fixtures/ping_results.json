@@ -1,0 +1,23 @@
+[
+  {
+    "fw": 5040,
+    "af": 4,
+    "dst_addr": "8.8.8.8",
+    "dst_name": "8.8.8.8",
+    "src_addr": "192.0.2.10",
+    "proto": "ICMP",
+    "ttl": 117,
+    "size": 64,
+    "result": [{ "rtt": 12.3 }],
+    "dup": 0,
+    "rcvd": 1,
+    "sent": 1,
+    "min": 12.3,
+    "max": 12.3,
+    "avg": 12.3,
+    "msm_id": 12345,
+    "prb_id": 9,
+    "timestamp": 1710000000,
+    "type": "ping"
+  }
+]

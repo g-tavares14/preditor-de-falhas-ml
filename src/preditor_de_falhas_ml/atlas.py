@@ -1,4 +1,4 @@
-"""Requests ao RIPE Atlas: créditos, ping novo, DataFrame e histórico JSONL."""
+"""Requests ao RIPE Atlas: créditos, ping novo, GET de results e JSONL."""
 
 from pathlib import Path
 from time import sleep
@@ -28,6 +28,31 @@ def _request(method: str, url: str, api_key: str, **kwargs: Any) -> Any:
 
 def get_credits(api_key: str) -> int:
     return _request("GET", f"{API}credits/", api_key)["current_balance"]
+
+
+def fetch_measurement_results(
+    api_key: str,
+    msm_id: int,
+    *,
+    start: int | None = None,
+    stop: int | None = None,
+) -> pd.DataFrame:
+    """GET `/measurements/{msm_id}/results/`. Sem POST, sem poll, sem features."""
+    extra: dict[str, Any] = {}
+    params: dict[str, int] = {}
+    if start is not None:
+        params["start"] = start
+    if stop is not None:
+        params["stop"] = stop
+    if params:
+        extra["params"] = params
+    results = _request(
+        "GET",
+        f"{API}measurements/{msm_id}/results/",
+        api_key,
+        **extra,
+    )
+    return pd.DataFrame(results)
 
 
 def get_data(
@@ -64,22 +89,14 @@ def get_data(
             "is_oneoff": True,
         },
     )
-    measurement_id = created["measurements"][0]
-    results = _request(
-        "GET",
-        f"{API}measurements/{measurement_id}/results/",
-        api_key,
-    )
+    measurement_id = int(created["measurements"][0])
+    frame = fetch_measurement_results(api_key, measurement_id)
     deadline = 30
-    while not results and deadline > 0:
+    while frame.empty and deadline > 0:
         sleep(2)
         deadline -= 2
-        results = _request(
-            "GET",
-            f"{API}measurements/{measurement_id}/results/",
-            api_key,
-        )
-    return pd.DataFrame(results)
+        frame = fetch_measurement_results(api_key, measurement_id)
+    return frame
 
 
 def append_data(
