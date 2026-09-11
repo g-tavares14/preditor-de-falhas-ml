@@ -1,8 +1,10 @@
-"""Requests ao RIPE Atlas: créditos, ping novo, GET de results e JSONL."""
+"""Requests ao RIPE Atlas: créditos, POST (one-off/periódico), GET e JSONL."""
 
+import json
+from datetime import UTC, datetime
 from pathlib import Path
 from time import sleep
-from typing import Any
+from typing import Any, NamedTuple
 
 import pandas as pd
 import requests
@@ -10,6 +12,35 @@ import requests
 API = "https://atlas.ripe.net/api/v2/"
 DEFAULT_TARGET = "8.8.8.8"
 DEFAULT_OUTPUT_DIR = Path("data/raw")
+DEFAULT_MSM_IDS_PATH = Path("data/msm_ids.json")
+HUB_INTERVAL_SECONDS = 900
+HUB_PING_PACKETS = 5
+HUB_TRACEROUTE_PACKETS = 3
+HUB_PROBE_COUNT = 2
+HUB_COUNTRY_CODE = "BR"
+HUB_ADDRESS_FAMILY = 4
+HUB_TARGET_ADGUARD = "94.140.14.14"
+HUB_TARGET_OPENDNS = "208.67.222.222"
+HUB_TARGET_APNIC = "202.12.28.131"
+# Intenção original (cota global; retry se liberar — não entra neste POST):
+# 8.8.8.8, 1.1.1.1, 202.12.27.33. Ver docs/dataset-fonte-atlas.md.
+
+
+class HubSpec(NamedTuple):
+    target: str
+    role: str
+    measurement_type: str
+    packets: int
+
+
+HUB_SPECS: tuple[HubSpec, ...] = (
+    HubSpec(HUB_TARGET_ADGUARD, "estável", "ping", HUB_PING_PACKETS),
+    HubSpec(HUB_TARGET_ADGUARD, "estável", "traceroute", HUB_TRACEROUTE_PACKETS),
+    HubSpec(HUB_TARGET_OPENDNS, "estável", "ping", HUB_PING_PACKETS),
+    HubSpec(HUB_TARGET_OPENDNS, "estável", "traceroute", HUB_TRACEROUTE_PACKETS),
+    HubSpec(HUB_TARGET_APNIC, "caminho longo", "ping", HUB_PING_PACKETS),
+    HubSpec(HUB_TARGET_APNIC, "caminho longo", "traceroute", HUB_TRACEROUTE_PACKETS),
+)
 
 
 def _request(method: str, url: str, api_key: str, **kwargs: Any) -> Any:
@@ -53,6 +84,92 @@ def fetch_measurement_results(
         **extra,
     )
     return pd.DataFrame(results)
+
+
+def _hub_definition(spec: HubSpec) -> dict[str, Any]:
+    kind = (
+        "traceroute ICMP"
+        if spec.measurement_type == "traceroute"
+        else spec.measurement_type
+    )
+    definition: dict[str, Any] = {
+        "target": spec.target,
+        "af": HUB_ADDRESS_FAMILY,
+        "type": spec.measurement_type,
+        "description": f"Preditor de falhas ML - {kind} {spec.target} ({spec.role})",
+        "packets": spec.packets,
+        "interval": HUB_INTERVAL_SECONDS,
+        "is_oneoff": False,
+    }
+    if spec.measurement_type == "ping":
+        definition["size"] = 64
+    if spec.measurement_type == "traceroute":
+        definition["protocol"] = "ICMP"
+    return definition
+
+
+def create_periodic_measurements(api_key: str) -> list[int]:
+    """POST das 6 medições periódicas do hub. Setup do dataset; não é collector."""
+    created = _request(
+        "POST",
+        f"{API}measurements/",
+        api_key,
+        json={
+            "definitions": [_hub_definition(spec) for spec in HUB_SPECS],
+            "probes": [
+                {
+                    "type": "countries",
+                    "value": HUB_COUNTRY_CODE,
+                    "requested": HUB_PROBE_COUNT,
+                }
+            ],
+            "is_oneoff": False,
+        },
+    )
+    raw_ids = created.get("measurements") if isinstance(created, dict) else None
+    if not isinstance(raw_ids, list) or len(raw_ids) != len(HUB_SPECS):
+        raise ValueError(
+            f"POST /measurements/ não devolveu {len(HUB_SPECS)} msm_id. "
+            f"Resposta: {created}. "
+            "Confira RIPE_ATLAS_API_KEY (permissão create) e o payload periódico."
+        )
+    return [int(msm_id) for msm_id in raw_ids]
+
+
+def write_measurement_ids(
+    msm_ids: list[int],
+    output_path: Path = DEFAULT_MSM_IDS_PATH,
+) -> Path:
+    """Grava os 6 msm_id sem a API key. Arquivo local / Secret — não o .env no git."""
+    if len(msm_ids) != len(HUB_SPECS):
+        raise ValueError(
+            f"Esperado {len(HUB_SPECS)} msm_id para persistir, veio {len(msm_ids)}: "
+            f"{msm_ids}."
+        )
+    path = Path(output_path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "created_at": datetime.now(UTC).isoformat(),
+        "interval": HUB_INTERVAL_SECONDS,
+        "is_oneoff": False,
+        "country_code": HUB_COUNTRY_CODE,
+        "probe_count": HUB_PROBE_COUNT,
+        "measurements": [
+            {
+                "msm_id": msm_id,
+                "target": spec.target,
+                "role": spec.role,
+                "type": spec.measurement_type,
+                "packets": spec.packets,
+            }
+            for msm_id, spec in zip(msm_ids, HUB_SPECS, strict=True)
+        ],
+    }
+    path.write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    return path
 
 
 def get_data(

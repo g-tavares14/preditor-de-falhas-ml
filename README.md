@@ -6,20 +6,33 @@ já existente e devolve um DataFrame com o JSON bruto. A CLI `getResults` imprim
 a tabela; `append_data` **acrescenta** as linhas em JSONL só se `--output-dir`
 for passado.
 
-`getData` **não** é o collector: cria uma medição one-off (POST, consome
-créditos) — caminho de setup (S1.6). A Lambda da S1.7 **reutiliza**
-`fetch_measurement_results`; não reimplementa HTTP nem chama `get_data`.
+`createPeriodic` (S1.6) cria as **6 medições periódicas** do hub (POST,
+`is_oneoff: false`, `interval` 900) para `94.140.14.14` (AdGuard DNS),
+`208.67.222.222` (OpenDNS) e `202.12.28.131` (APNIC). A intenção original
+(`8.8.8.8`, `1.1.1.1`, `202.12.27.33`) ficou superseded-for-quota — retry
+só se a cota global liberar; não entram neste POST. `getData` é só um ping
+**one-off** de demo — não é a série de treino. A Lambda da S1.7 **reutiliza**
+`fetch_measurement_results`; não reimplementa HTTP nem chama
+`createPeriodic` / `get_data`.
+
+O dataset de treino é o acumulado dos GETs desses 6 `msm_id`. O POST é só
+setup. Detalhe e runbook: `docs/dataset-fonte-atlas.md`.
 
 Não há rótulo de falha nem treino ML neste incremento. PingER não está integrado.
 
-## Notebook da disciplina
+## Notebooks da disciplina
 
-`notebooks/01_coleta_atlas_raw.ipynb` é a documentação pedida pela professora, não
-o pipeline de produção. Ele importa o GET compartilhado
-(`from preditor_de_falhas_ml import fetch_measurement_results`), mostra o
-DataFrame bruto e, se quiser, chama `append_data` em `data/raw/`. Não
-reimplementa HTTP e não cria medição (POST). O core continua no pacote
-(`atlas.py` + CLI `getResults`); a Lambda da S1.7 reutiliza a mesma função.
+São a documentação pedida pela professora, **não** o pipeline de produção.
+O core continua no pacote (`atlas.py` + CLI); a Lambda da S1.7 reutiliza o GET.
+
+- `notebooks/01_coleta_atlas_raw.ipynb` (S1.2) — importa
+  `fetch_measurement_results`, mostra o DataFrame bruto e, se quiser, chama
+  `append_data` em `data/raw/`. Não reimplementa HTTP e não cria medição.
+- `notebooks/02_post_medicoes_periodicas.ipynb` (S1.6) — importa
+  `create_periodic_measurements`, `get_credits` e `write_measurement_ids`.
+  Documenta o POST periódico (fonte do dataset). A célula ao vivo fica
+  desligada (`CRIAR_MEDICOES = False`); sem chave, bloqueia e **não inventa**
+  `msm_id`. Não usa `requests` nem `get_data` como série de treino.
 
 ## Ambiente
 
@@ -42,19 +55,21 @@ uv run python -m preditor_de_falhas_ml
 uv run python -m preditor_de_falhas_ml --help
 uv run python -m preditor_de_falhas_ml getCredits --help
 uv run python -m preditor_de_falhas_ml getResults --help
+uv run python -m preditor_de_falhas_ml createPeriodic --help
 uv run python -m preditor_de_falhas_ml getData --help
 ```
 
 Sem operação, ou com `--help`, mostra a ajuda e não acessa o Atlas.
 
-**Chave:** `getCredits`, `getResults` e `getData` exigem `RIPE_ATLAS_API_KEY`.
-Os exemplos abaixo carregam `.env` com uv; se a variável já estiver no ambiente,
-remova `--env-file .env`.
+**Chave:** `getCredits`, `getResults`, `createPeriodic` e `getData` exigem
+`RIPE_ATLAS_API_KEY`. Os exemplos abaixo carregam `.env` com uv; se a variável
+já estiver no ambiente, remova `--env-file .env`.
 
 ```bash
 uv run --env-file .env python -m preditor_de_falhas_ml getCredits
 uv run --env-file .env python -m preditor_de_falhas_ml getResults --msm-id 12345 --start 1710000000 --stop 1710000900
 uv run --env-file .env python -m preditor_de_falhas_ml getResults --msm-id 12345 --start 1710000000 --stop 1710000900 --output-dir data/raw
+uv run --env-file .env python -m preditor_de_falhas_ml createPeriodic --ids-file data/msm_ids.json
 uv run --env-file .env python -m preditor_de_falhas_ml getData
 uv run --env-file .env python -m preditor_de_falhas_ml getData --target 8.8.8.8 --af 4 --country-code BR --probe-count 1 --packets 16 --output-dir data/raw
 ```
@@ -64,12 +79,19 @@ GET na janela informada, imprime o DataFrame e **não** cria medição. Sem
 `--output-dir` não grava arquivo; com `--output-dir`, `append_data` acrescenta
 uma linha JSON por probe no JSONL.
 
-`getData` (S1.6, default: `8.8.8.8`, IPv4, 16 pacotes, 1 probe no Brasil)
+`createPeriodic` (S1.6) **sempre cria** as 6 medições periódicas do hub
+(consome créditos; corre até serem paradas no Atlas). Consulta créditos
+antes/depois, imprime os `msm_id` e a linha `export RIPE_ATLAS_MSM_IDS=…`.
+Com `--ids-file`, grava JSON **sem a API key** (o caminho em `data/` já é
+gitignorado). Com `--wait-seconds 900`, espera um ciclo e GET em cada
+`msm_id` via `fetch_measurement_results`. Não é o collector.
+
+`getData` (demo one-off: `8.8.8.8`, IPv4, 16 pacotes, 1 probe no Brasil)
 **sempre cria** uma medição nova (consome créditos). Depois do POST, consulta
 os resultados via `fetch_measurement_results`, imprime o DataFrame e grava
 **uma linha JSON por probe** em `data/raw/measurements.jsonl`. Uma segunda
 execução não apaga a primeira. Se o ping ainda não terminou, espera alguns
-segundos e tenta o GET de novo.
+segundos e tenta o GET de novo. Não usar para a série de treino.
 
 Cada linha é um objeto do array de `GET /results/`:
 
@@ -89,6 +111,7 @@ from pathlib import Path
 
 from preditor_de_falhas_ml import (
     append_data,
+    create_periodic_measurements,
     fetch_measurement_results,
     get_credits,
     get_data,
@@ -98,17 +121,20 @@ key = os.environ["RIPE_ATLAS_API_KEY"]
 print(get_credits(key))
 frame = fetch_measurement_results(key, 12345, start=1710000000, stop=1710000900)
 append_data(frame, output_dir=Path("data/raw"))
-# get_data(key) cria medição (POST) — não usar no collector
+# create_periodic_measurements(key) — POST setup (S1.6), não o collector
+# get_data(key) cria medição one-off — não usar no collector nem no dataset
 ```
 
 ## Estrutura
 
 ```text
 src/preditor_de_falhas_ml/
-  atlas.py   GET /credits/, POST /measurements/, GET /results/, append do JSONL
-  cli.py     argparse: getCredits, getResults (GET) e getData (POST)
-notebooks/01_coleta_atlas_raw.ipynb  doc da disciplina (importa o GET)
-tests/       HTTP simulado (requests.request) e CLI getResults
+  atlas.py   GET /credits/, POST periódico (hub) / one-off, GET /results/, JSONL
+  cli.py     argparse: getCredits, getResults (GET), createPeriodic e getData
+notebooks/01_coleta_atlas_raw.ipynb         doc GET (S1.2)
+notebooks/02_post_medicoes_periodicas.ipynb doc POST periódico (S1.6)
+docs/dataset-fonte-atlas.md                S1.6: POST = setup; dataset = GETs
+tests/       HTTP simulado (requests.request), CLI getResults e createPeriodic
 ```
 
 Contrato para o próximo incremento: `AGENTS.md`.
@@ -125,8 +151,9 @@ uv run pyrefly check
 uv run pytest
 ```
 
-Os testes simulam `requests.request`. Este incremento não cria medição na API
-real nem treina modelo.
+Os testes simulam `requests.request`. O POST ao vivo das 6 medições usa
+`RIPE_ATLAS_API_KEY` (nunca commitada). IDs reais e saldo: `docs/dataset-fonte-atlas.md`.
+Sem treino de modelo.
 
 ## Fora deste incremento
 
@@ -134,7 +161,6 @@ real nem treina modelo.
 - Rotulagem de falha e treino ML
 - Cálculo de `latency_ms`, `loss_pct`, `jitter_rtt_ms` / `status_real`
 - Fonte PingER
-- Medição recorrente (`interval` / `duration`) — S1.6
 - Lambda e gravação no Amazon S3 — S1.7 reutiliza `fetch_measurement_results`
 
 ## Referências

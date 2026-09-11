@@ -18,9 +18,12 @@ POST (uma vez / ao reconfigurar)     GET (sempre: local + Lambda)
 ```
 
 - **POST** — define a *fonte* do dataset: apontar aos destinos
-  `8.8.8.8`, `1.1.1.1`, `202.12.27.33` (ping + traceroute ICMP, probes BR,
-  `interval` 900s, `is_oneoff: false`). One-off custa mais e **não** serve
-  para série de treino. Isso é setup (Sprint card S1.6), não o collector.
+  `94.140.14.14` (AdGuard DNS, estável), `208.67.222.222` (OpenDNS, estável),
+  `202.12.28.131` (APNIC, caminho longo) — ping + traceroute ICMP, probes BR,
+  `interval` 900s, `is_oneoff: false`. Intenção original (`8.8.8.8`,
+  `1.1.1.1`, `202.12.27.33`) ficou superseded-for-quota; retry só se a cota
+  global liberar — **não** entram neste POST. One-off custa mais e **não**
+  serve para série de treino. Isso é setup (Sprint card S1.6), não o collector.
 - **GET** — enche o dataset: `fetch` por `msm_id` + janela `start`/`stop`.
   Mesma função no driver local e na Lambda a cada 15 min (S1.2 / S1.7).
 - **Lambda / collector agendado: só GET.** Nunca POST no schedule.
@@ -101,19 +104,20 @@ src/preditor_de_falhas_ml/
   cli.py     argparse / env / stdout — um comando por superfície
 tests/       um módulo por superfície exercitada
 docs/
+notebooks/   01 GET (doc S1.2), 02 POST periódico (doc S1.6) — não o collector
 ```
 
-Estado atual do código: `get_credits`; `get_data` (POST + poll; o GET interno
-usa `fetch_measurement_results`); `fetch_measurement_results` (GET puro por
-`msm_id` + `start`/`stop`, sem poll); `append_data` (JSONL). O collector
-(`getResults` / Lambda S1.7) chama só o GET — nunca `get_data`. O nome
-`get_data` **mistura** criação (POST) com leitura — não espelhar esse padrão
-em código novo.
+Estado atual do código: `get_credits`; `create_periodic_measurements` (POST
+periódico das 6 do hub; S1.6; `is_oneoff: false`, `interval` 900);
+`write_measurement_ids` (JSON dos msm_id, sem a key); `get_data` (POST one-off
++ poll — demo, não é a série de treino); `fetch_measurement_results` (GET puro
+por `msm_id` + `start`/`stop`, sem poll); `append_data` (JSONL). O collector
+(`getResults` / Lambda S1.7) chama só o GET — nunca `create_periodic_measurements`
+nem `get_data`. O nome `get_data` **mistura** criação (POST) com leitura — não
+espelhar esse padrão em código novo.
 
 Próximos incrementos (adicionar, não confundir):
 
-- **POST periódico** explícito para os 6 destinos do hub (setup do dataset /
-  S1.6), separado do fetch.
 - **Função pura** de features + `status_real` (sem HTTP/Path), depois quem
   aplica no curated.
 

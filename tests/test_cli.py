@@ -27,7 +27,15 @@ def test_cli_get_results_fetches_window_and_never_posts(
         raise AssertionError("collector must not call get_data")
 
     calls = mock_atlas_request(responder)
+
+    def fail_create(*_args: object, **_kwargs: object) -> None:
+        raise AssertionError("collector must not call create_periodic_measurements")
+
     monkeypatch.setattr("preditor_de_falhas_ml.cli.get_data", fail_get_data)
+    monkeypatch.setattr(
+        "preditor_de_falhas_ml.cli.create_periodic_measurements",
+        fail_create,
+    )
 
     code = main(
         [
@@ -131,3 +139,93 @@ def test_cli_get_results_requires_msm_id_start_stop() -> None:
     with pytest.raises(SystemExit) as exc:
         main(["getResults"])
     assert exc.value.code != 0
+
+
+def test_cli_create_periodic_posts_and_prints_credits(
+    monkeypatch: pytest.MonkeyPatch,
+    mock_atlas_request: InstallMock,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setenv("RIPE_ATLAS_API_KEY", "test-key")
+    balances = iter([100_000, 99_790])
+
+    def responder(method: str, url: str, _kwargs: dict[str, Any]) -> object:
+        if method == "GET" and url.endswith("credits/"):
+            return {"current_balance": next(balances)}
+        if method == "POST":
+            return {"measurements": [101, 102, 103, 104, 105, 106]}
+        raise AssertionError(f"unexpected {method} {url}")
+
+    def fail_get_data(*_args: object, **_kwargs: object) -> None:
+        raise AssertionError("createPeriodic must not call get_data")
+
+    calls = mock_atlas_request(responder)
+    monkeypatch.setattr("preditor_de_falhas_ml.cli.get_data", fail_get_data)
+
+    code = main(["createPeriodic"])
+
+    assert code == 0
+    assert [call["method"] for call in calls] == ["GET", "POST", "GET"]
+    assert calls[1]["url"].endswith("measurements/")
+    assert calls[1]["kwargs"]["json"]["is_oneoff"] is False
+    printed = capsys.readouterr().out
+    assert "Créditos antes: 100000" in printed
+    assert "Créditos depois: 99790" in printed
+    assert "export RIPE_ATLAS_MSM_IDS=101,102,103,104,105,106" in printed
+    assert "msm_id=101" in printed
+    assert "94.140.14.14" in printed
+    assert "202.12.28.131" in printed
+
+
+def test_cli_create_periodic_writes_ids_file(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    mock_atlas_request: InstallMock,
+) -> None:
+    monkeypatch.setenv("RIPE_ATLAS_API_KEY", "test-key")
+    ids_file = tmp_path / "msm_ids.json"
+
+    def responder(method: str, url: str, _kwargs: dict[str, Any]) -> object:
+        if method == "GET" and url.endswith("credits/"):
+            return {"current_balance": 1}
+        return {"measurements": [201, 202, 203, 204, 205, 206]}
+
+    mock_atlas_request(responder)
+    code = main(["createPeriodic", "--ids-file", str(ids_file)])
+
+    assert code == 0
+    text = ids_file.read_text(encoding="utf-8")
+    assert "test-key" not in text
+    assert "201" in text
+    assert '"is_oneoff": false' in text
+
+
+def test_cli_create_periodic_wait_uses_existing_fetch(
+    monkeypatch: pytest.MonkeyPatch,
+    mock_atlas_request: InstallMock,
+    ping_results_payload: list[dict[str, Any]],
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setenv("RIPE_ATLAS_API_KEY", "test-key")
+    monkeypatch.setattr("preditor_de_falhas_ml.cli.sleep", lambda _seconds: None)
+    monkeypatch.setattr("preditor_de_falhas_ml.cli.time", lambda: 1_710_000_900)
+
+    def responder(method: str, url: str, _kwargs: dict[str, Any]) -> object:
+        if method == "GET" and url.endswith("credits/"):
+            return {"current_balance": 50}
+        if method == "POST":
+            return {"measurements": [301, 302, 303, 304, 305, 306]}
+        assert method == "GET"
+        assert "/results/" in url
+        return ping_results_payload
+
+    calls = mock_atlas_request(responder)
+    code = main(["createPeriodic", "--wait-seconds", "900"])
+
+    assert code == 0
+    methods = [call["method"] for call in calls]
+    assert methods[:3] == ["GET", "POST", "GET"]
+    assert methods[3:] == ["GET"] * 6
+    assert all("/results/" in call["url"] for call in calls[3:])
+    printed = capsys.readouterr().out
+    assert "GET msm_id=301 linhas=1" in printed
