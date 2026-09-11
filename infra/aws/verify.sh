@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Prove S1.4/S1.5 without printing secret values.
+# Prove S1.4 / S1.5 / S1.5b without printing secret values.
 set -euo pipefail
 
 REGION="${AWS_REGION:-${AWS_DEFAULT_REGION:-sa-east-1}}"
@@ -118,6 +118,42 @@ sys.exit(2 if denied else 0)
   fi
 else
   bad "LambdaRoleArn output missing"
+fi
+
+group_arn="arn:aws:iam::${account}:group/preditor-dados-leitura"
+if aws iam get-group --group-name preditor-dados-leitura --query 'Group.GroupName' --output text >/dev/null 2>&1; then
+  ok "iam group preditor-dados-leitura"
+else
+  bad "iam group preditor-dados-leitura missing"
+fi
+
+note "==> iam simulate-principal-policy for ${group_arn}"
+gsim="$(aws iam simulate-principal-policy \
+  --policy-source-arn "${group_arn}" \
+  --action-names s3:GetObject s3:PutObject secretsmanager:GetSecretValue \
+  --resource-arns \
+    "arn:aws:s3:::${BUCKET_NAME}/curated/log_rede.csv" \
+    "arn:aws:s3:::${BUCKET_NAME}/raw/measurements/x.jsonl" \
+    "${secret_arn}" \
+  --output json)"
+if printf '%s' "${gsim}" | python3 -c '
+import json,sys
+doc=json.load(sys.stdin)
+rows=doc.get("EvaluationResults", [])
+for r in rows:
+    print("  {:14} {} {}".format(r.get("EvalDecision",""), r.get("EvalActionName"), r.get("EvalResourceName","")))
+gets=[r for r in rows if r.get("EvalActionName")=="s3:GetObject" and "s3:::" in (r.get("EvalResourceName") or "")]
+puts=[r for r in rows if r.get("EvalActionName")=="s3:PutObject"]
+secs=[r for r in rows if r.get("EvalActionName")=="secretsmanager:GetSecretValue"]
+ok_get=any(r.get("EvalDecision")=="allowed" for r in gets)
+ok_put=bool(puts) and all(r.get("EvalDecision")!="allowed" for r in puts)
+ok_sec=bool(secs) and all(r.get("EvalDecision")!="allowed" for r in secs)
+sys.exit(0 if (ok_get and ok_put and ok_sec) else 2)
+'; then
+  ok "group simulation GetObject=allowed; PutObject and GetSecretValue=implicitDeny"
+else
+  bad "group simulation unexpected decisions"
+  echo "${gsim}"
 fi
 
 note ""
