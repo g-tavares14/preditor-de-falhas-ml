@@ -1,8 +1,21 @@
+import json
 from collections.abc import Callable
+from pathlib import Path
 from typing import Any
 
-from preditor_de_falhas_ml import fetch_measurement_results
-from preditor_de_falhas_ml.atlas import API, get_data
+import pytest
+
+from preditor_de_falhas_ml import (
+    create_periodic_measurements,
+    fetch_measurement_results,
+    write_measurement_ids,
+)
+from preditor_de_falhas_ml.atlas import (
+    API,
+    HUB_INTERVAL_SECONDS,
+    HUB_SPECS,
+    get_data,
+)
 
 RESULTS_URL = f"{API}measurements/12345/results/"
 
@@ -72,6 +85,89 @@ def test_get_data_posts_then_reuses_fetch(
 
     assert [call["method"] for call in calls] == ["POST", "GET"]
     assert calls[0]["url"] == f"{API}measurements/"
+    assert calls[0]["kwargs"]["json"]["is_oneoff"] is True
     assert calls[1]["url"] == RESULTS_URL
     assert "params" not in calls[1]["kwargs"]
     assert len(frame) == 1
+
+
+def test_create_periodic_measurements_posts_hub_matrix(
+    mock_atlas_request: InstallMock,
+) -> None:
+    msm_ids = [101, 102, 103, 104, 105, 106]
+
+    def responder(method: str, url: str, kwargs: dict[str, Any]) -> object:
+        assert method == "POST"
+        assert url == f"{API}measurements/"
+        return {"measurements": msm_ids}
+
+    calls = mock_atlas_request(responder)
+    returned = create_periodic_measurements("test-key")
+
+    assert returned == msm_ids
+    assert len(calls) == 1
+    payload = calls[0]["kwargs"]["json"]
+    assert payload["is_oneoff"] is False
+    assert payload["probes"] == [{"type": "countries", "value": "BR", "requested": 2}]
+    definitions = payload["definitions"]
+    assert len(definitions) == 6
+    assert [item["target"] for item in definitions] == [
+        spec.target for spec in HUB_SPECS
+    ]
+    assert [item["type"] for item in definitions] == [
+        spec.measurement_type for spec in HUB_SPECS
+    ]
+    assert [item["packets"] for item in definitions] == [
+        spec.packets for spec in HUB_SPECS
+    ]
+    for definition in definitions:
+        assert definition["is_oneoff"] is False
+        assert definition["interval"] == HUB_INTERVAL_SECONDS
+        assert definition["af"] == 4
+    pings = [item for item in definitions if item["type"] == "ping"]
+    traces = [item for item in definitions if item["type"] == "traceroute"]
+    assert len(pings) == 3
+    assert len(traces) == 3
+    assert all(item["packets"] == 5 for item in pings)
+    assert all(item["size"] == 64 for item in pings)
+    assert all(item["packets"] == 3 for item in traces)
+    assert all(item["protocol"] == "ICMP" for item in traces)
+    assert {item["target"] for item in definitions} == {
+        "8.8.8.8",
+        "1.1.1.1",
+        "202.12.27.33",
+    }
+
+
+def test_create_periodic_measurements_rejects_incomplete_response(
+    mock_atlas_request: InstallMock,
+) -> None:
+    def responder(_method: str, _url: str, _kwargs: dict[str, Any]) -> object:
+        return {"error": "no credits"}
+
+    mock_atlas_request(responder)
+    with pytest.raises(ValueError, match="não devolveu 6 msm_id"):
+        create_periodic_measurements("test-key")
+
+
+def test_write_measurement_ids_omits_api_key(tmp_path: Path) -> None:
+    path = tmp_path / "msm_ids.json"
+    written = write_measurement_ids([11, 12, 13, 14, 15, 16], output_path=path)
+    raw = written.read_text(encoding="utf-8")
+    payload = json.loads(raw)
+    assert "api_key" not in raw
+    assert "test-key" not in raw
+    assert payload["is_oneoff"] is False
+    assert payload["interval"] == 900
+    assert [row["msm_id"] for row in payload["measurements"]] == [
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+    ]
+    assert payload["measurements"][0]["target"] == "8.8.8.8"
+    assert payload["measurements"][0]["type"] == "ping"
+    assert payload["measurements"][5]["target"] == "202.12.27.33"
+    assert payload["measurements"][5]["type"] == "traceroute"
