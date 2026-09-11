@@ -90,21 +90,31 @@ estar vazio se as probes BR não tiverem reportado; repetir o GET.
 
 ### Tentativa 2 — nova matriz (desbloqueio de cota)
 
-**Estado:** *pendente* (código já aponta aos destinos abaixo; POST ao vivo
-ainda não registrado nesta revisão).
+**Estado:** POST ao vivo **aceitou** (2026-09-11, ~22:45 UTC). A chave estava
+presente (`RIPE_ATLAS_API_KEY` present=true, length=36; valor não registrado
+nem commitado). Um POST com as 6 definições; `data/msm_ids.json` gravado
+**sem** a API key (gitignorado). GET imediato em `210717688` devolveu
+DataFrame vazio — medições ainda `Scheduled`. `--wait-seconds 900` **não**
+rodou (ciclo ~15 min pendente via `getResults`). O collector **não** chama
+este POST.
+
+| Campo | Valor |
+|---|---|
+| Créditos antes | 100000 |
+| Créditos depois | 100000 |
+| Delta | 0 no instante do POST (cobrança periódica continua enquanto as medições rodarem) |
+| Matriz enviada | 94.140.14.14, 208.67.222.222, 202.12.28.131 × ping + traceroute ICMP; `is_oneoff: false`; interval 900; 2 probes BR |
+| Status Atlas (GET `/measurements/{id}/`) | Scheduled (6/6) |
+| `export RIPE_ATLAS_MSM_IDS` | `210717688,210717689,210717690,210717691,210717692,210717693` |
 
 | msm_id | Destino | Tipo | Papel | prb_id (1º ciclo) | timestamps | créditos antes | créditos depois |
 |---|---|---|---|---|---|---|---|
-| *pendente* | 94.140.14.14 | ping | estável | — | — | — | — |
-| *pendente* | 94.140.14.14 | traceroute ICMP | estável | — | — | — | — |
-| *pendente* | 208.67.222.222 | ping | estável | — | — | — | — |
-| *pendente* | 208.67.222.222 | traceroute ICMP | estável | — | — | — | — |
-| *pendente* | 202.12.28.131 | ping | caminho longo | — | — | — | — |
-| *pendente* | 202.12.28.131 | traceroute ICMP | caminho longo | — | — | — | — |
-
-`--wait-seconds` / validação de 1 ciclo via `getResults` fica pendente até
-existirem IDs. Sem IDs reais, **não inventar**. O collector (`getResults`)
-**não** chama este POST. Não commitar `.env` nem a API key.
+| 210717688 | 94.140.14.14 | ping | estável | — | Scheduled; ciclo GET pendente | 100000 | 100000 |
+| 210717689 | 94.140.14.14 | traceroute ICMP | estável | — | Scheduled; ciclo GET pendente | 100000 | 100000 |
+| 210717690 | 208.67.222.222 | ping | estável | — | Scheduled; ciclo GET pendente | 100000 | 100000 |
+| 210717691 | 208.67.222.222 | traceroute ICMP | estável | — | Scheduled; ciclo GET pendente | 100000 | 100000 |
+| 210717692 | 202.12.28.131 | ping | caminho longo | — | Scheduled; ciclo GET pendente | 100000 | 100000 |
+| 210717693 | 202.12.28.131 | traceroute ICMP | caminho longo | — | Scheduled; ciclo GET pendente | 100000 | 100000 |
 
 ### Tentativa 1 — intenção original (superseded-for-quota)
 
