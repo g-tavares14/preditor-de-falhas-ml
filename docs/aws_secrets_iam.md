@@ -122,4 +122,4 @@ O `put-secret-value` da key real já foi feito. Não colar o valor no Git/PR.
 
 ## Fora deste card
 
-Bucket layout e Block Public Access: [aws_s3.md](aws_s3.md). Função Lambda + EventBridge: S1.7. POST Atlas: S1.6. Grupo read-only do time: S1.5b.
+Bucket layout e Block Public Access: [aws_s3.md](aws_s3.md). Leitura do time: [acesso_s3_time.md](acesso_s3_time.md). Função Lambda + EventBridge: S1.7. POST Atlas: S1.6.

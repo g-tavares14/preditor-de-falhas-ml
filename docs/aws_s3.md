@@ -35,7 +35,7 @@ Prefixos `raw/measurements/` e `curated/` ganham objetos vazios `.keep` no `depl
 
 **Somente** a role IAM da Lambda (S1.4), via identity policy + bucket policy (`s3:PutObject` e `s3:GetObject` em `raw/*` e `curated/*`).
 
-Humanos do grupo **não** escrevem (S1.5b = leitura). Conta dona do stack pode PutObject de verificação; isso não substitui a role.
+Humanos do grupo **não** escrevem. Leitura: group `preditor-dados-leitura` — [acesso_s3_time.md](acesso_s3_time.md). Conta dona do stack pode PutObject de verificação; isso não substitui a role.
 
 ## Segurança
 
@@ -72,4 +72,4 @@ verify.sh: PutObject de teste como caller + delete OK; role simulation Put/GetOb
 
 ## Fora deste card
 
-Lambda, EventBridge, medições Atlas, treino ML, acesso read-only do time (**S1.5b**).
+Lambda, EventBridge, medições Atlas, treino ML. Leitura do time: [acesso_s3_time.md](acesso_s3_time.md) (S1.5b).

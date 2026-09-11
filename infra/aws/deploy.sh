@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Deploy S1.4 + S1.5 (Secrets Manager, Lambda IAM role, S3 raw/curated).
+# Deploy S1.4 + S1.5 + S1.5b (secret, Lambda role, S3, team read group).
 # Does not print secret values. Requires AWS CLI v2 and credentials.
 set -euo pipefail
 
@@ -30,7 +30,7 @@ aws cloudformation deploy \
   --region "${REGION}" \
   --stack-name "${STACK_NAME}" \
   --template-file "${TEMPLATE}" \
-  --capabilities CAPABILITY_IAM \
+  --capabilities CAPABILITY_NAMED_IAM \
   --no-fail-on-empty-changeset \
   --parameter-overrides \
     "BucketName=${BUCKET_NAME}" \
