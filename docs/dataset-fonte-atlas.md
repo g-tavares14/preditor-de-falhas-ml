@@ -15,6 +15,9 @@ GET getResults (sempre: local + Lambda)
 
 O collector agendado **não** chama `createPeriodic` nem `getData`.
 
+Documentação da disciplina (não é o collector):
+`notebooks/02_post_medicoes_periodicas.ipynb`.
+
 ## Matriz do hub (fixa)
 
 | Destino | Papel | Tipo | Pacotes | Probes | Intervalo |
