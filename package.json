@@ -1,0 +1,14 @@
+{
+  "name": "preditor-de-falhas-ml-docs",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Ambiente de desenvolvimento da documentação compartilhada (ED2, Redes e APS).",
+  "scripts": {
+    "lint": "markdownlint-cli2 \"**/*.md\"",
+    "preview": "markserv ."
+  },
+  "devDependencies": {
+    "markdownlint-cli2": "^0.14.0",
+    "markserv": "^1.17.4"
+  }
+}

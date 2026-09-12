@@ -1,0 +1,11 @@
+{
+  "name": "Documentação Preditor de Falhas ML",
+  "install": "npm install",
+  "terminals": [
+    {
+      "name": "markdown-preview",
+      "command": "npx markserv ."
+    }
+  ],
+  "ports": [8642]
+}
