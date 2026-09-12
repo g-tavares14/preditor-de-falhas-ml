@@ -92,12 +92,15 @@ if [[ -n "${role_arn}" && "${role_arn}" != "None" ]]; then
   note "==> iam simulate-principal-policy for ${role_arn}"
   sim="$(aws iam simulate-principal-policy \
     --policy-source-arn "${role_arn}" \
-    --action-names secretsmanager:GetSecretValue s3:PutObject s3:GetObject logs:PutLogEvents \
+    --action-names secretsmanager:GetSecretValue s3:PutObject s3:GetObject s3:ListBucket logs:PutLogEvents \
     --resource-arns \
       "${secret_arn}" \
       "arn:aws:s3:::${BUCKET_NAME}/raw/measurements/x.jsonl" \
       "arn:aws:s3:::${BUCKET_NAME}/curated/log_rede.csv" \
+      "arn:aws:s3:::${BUCKET_NAME}" \
       "arn:aws:logs:${REGION}:${account}:log-group:/aws/lambda/${fn_name}:*" \
+    --context-entries \
+      ContextKeyName=s3:prefix,ContextKeyValues=raw/measurements/x.jsonl,ContextKeyType=string \
     --output json)"
   if printf '%s' "${sim}" | python3 -c '
 import json,sys
@@ -111,7 +114,7 @@ for r in doc.get("EvaluationResults", []):
         denied=True
 sys.exit(2 if denied else 0)
 '; then
-    ok "role simulation GetSecretValue + Put/GetObject + PutLogEvents = allowed"
+    ok "role simulation GetSecretValue + Put/GetObject + ListBucket + PutLogEvents = allowed"
   else
     bad "role simulation denied something"
     echo "${sim}"
