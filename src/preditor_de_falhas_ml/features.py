@@ -46,6 +46,14 @@ CURATED_COLUMNS: tuple[str, ...] = (
 CURATED_CSV_COLUMNS: tuple[str, ...] = ("msm_id", *CURATED_COLUMNS)
 
 
+def _valid_rtt(value: object) -> float | None:
+    if isinstance(value, bool) or value is None:
+        return None
+    if isinstance(value, int | float) and value >= 0:
+        return float(value)
+    return None
+
+
 def status_real(
     perda_pacotes_pct: float | None,
     latencia_ms: float | None,
@@ -68,10 +76,10 @@ def curated_row(record: dict[str, Any]) -> dict[str, Any]:
     destino = _destino_respondeu(record, kind, rcvd, hops)
     perda = _perda_pacotes_pct(sent, rcvd, kind, destino)
     latencia = _mean(rtts)
-    rtt_min = min(rtts) if rtts else _as_float(record.get("min"))
-    rtt_max = max(rtts) if rtts else _as_float(record.get("max"))
+    rtt_min = min(rtts) if rtts else _valid_rtt(record.get("min"))
+    rtt_max = max(rtts) if rtts else _valid_rtt(record.get("max"))
     if latencia is None:
-        latencia = _as_float(record.get("avg"))
+        latencia = _valid_rtt(record.get("avg"))
     n_hops, pct_timeout = _hop_stats(hops) if kind == "traceroute" else (None, None)
     return {
         "msm_id": record.get("msm_id"),
@@ -95,14 +103,6 @@ def curated_row(record: dict[str, Any]) -> dict[str, Any]:
 def row_identity(row: dict[str, Any]) -> tuple[object, object, object]:
     """Chave de idempotência: msm_id + timestamp + prb_id."""
     return (row.get("msm_id"), row.get("timestamp"), row.get("prb_id"))
-
-
-def _as_float(value: object) -> float | None:
-    if isinstance(value, bool) or value is None:
-        return None
-    if isinstance(value, int | float):
-        return float(value)
-    return None
 
 
 def _as_int(value: object) -> int | None:
@@ -147,7 +147,7 @@ def _valid_rtts(record: dict[str, Any], kind: str) -> list[float]:
     rtts = _rtts_from_items(record.get("result"))
     if rtts:
         return rtts
-    fallback = _as_float(record.get("avg"))
+    fallback = _valid_rtt(record.get("avg"))
     return [fallback] if fallback is not None else []
 
 
@@ -158,7 +158,7 @@ def _rtts_from_items(items: object) -> list[float]:
     for item in items:
         if not isinstance(item, dict) or "x" in item:
             continue
-        rtt = _as_float(item.get("rtt"))
+        rtt = _valid_rtt(item.get("rtt"))
         if rtt is not None:
             rtts.append(rtt)
     return rtts
@@ -195,7 +195,7 @@ def _hop_timed_out(hop: dict[str, Any]) -> bool:
             continue
         if "x" in item:
             continue
-        if item.get("from") or _as_float(item.get("rtt")) is not None:
+        if item.get("from") or _valid_rtt(item.get("rtt")) is not None:
             return False
     return True
 
