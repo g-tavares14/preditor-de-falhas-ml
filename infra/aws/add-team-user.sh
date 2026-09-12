@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Create an IAM user and add them to preditor-dados-leitura (S1.5b).
-# Does not set a password or access key — do that in the console / privately.
+# Run by the AWS account owner only — once per teammate, different USER_NAME.
+# Teammates do not run this. Does not set a password or access key.
 set -euo pipefail
 
 USER_NAME="${1:?usage: add-team-user.sh <iam-user-name>}"
