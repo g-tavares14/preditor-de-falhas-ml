@@ -13,7 +13,10 @@ GET getResults (sempre: local + Lambda)
   → dataset de treino
 ```
 
-O collector agendado **não** chama `createPeriodic` nem `getData`.
+O collector agendado **não** chama `createPeriodic` nem `getData`. Runbook
+Lambda: `docs/aws_lambda.md`. Os IDs `210717688`–`210717693` estão **Stopped**;
+retomar a série = outro `createPeriodic` (novos ids) **antes** de ligar o
+EventBridge.
 
 Documentação da disciplina (não é o collector):
 `notebooks/02_post_medicoes_periodicas.ipynb`.

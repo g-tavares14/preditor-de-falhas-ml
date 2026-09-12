@@ -1,0 +1,29 @@
+[
+  {
+    "fw": 5040,
+    "af": 4,
+    "dst_addr": "202.12.28.131",
+    "dst_name": "202.12.28.131",
+    "src_addr": "192.0.2.10",
+    "proto": "ICMP",
+    "result": [
+      {
+        "hop": 1,
+        "result": [{ "from": "192.0.2.1", "rtt": 1.5, "ttl": 64 }]
+      },
+      {
+        "hop": 2,
+        "result": [{ "x": "*" }]
+      },
+      {
+        "hop": 3,
+        "result": [{ "from": "202.12.28.131", "rtt": 80.0, "ttl": 50 }]
+      }
+    ],
+    "destination_ip_responded": true,
+    "msm_id": 210717693,
+    "prb_id": 11,
+    "timestamp": 1710000000,
+    "type": "traceroute"
+  }
+]

@@ -31,6 +31,15 @@ def ping_results_payload() -> list[dict[str, Any]]:
 
 
 @pytest.fixture
+def traceroute_results_payload() -> list[dict[str, Any]]:
+    import json
+
+    raw = (FIXTURES / "traceroute_results.json").read_text(encoding="utf-8")
+    payload: list[dict[str, Any]] = json.loads(raw)
+    return payload
+
+
+@pytest.fixture
 def mock_atlas_request(
     monkeypatch: pytest.MonkeyPatch,
 ) -> Callable[[Responder], list[dict[str, Any]]]:
