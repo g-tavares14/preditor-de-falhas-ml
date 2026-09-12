@@ -5,6 +5,7 @@ description = "Coleta de pings brutos no RIPE Atlas para o preditor de falhas ML
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "boto3>=1.43.93",
     "pandas>=3.0.5",
     "requests>=2.34.2",
 ]

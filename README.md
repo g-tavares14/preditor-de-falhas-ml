@@ -19,7 +19,10 @@ só um ping **one-off** de demo — não é a série de treino. A Lambda da S1.7
 O dataset de treino é o acumulado dos GETs desses 6 `msm_id`. O POST é só
 setup. Detalhe e runbook: `docs/dataset-fonte-atlas.md`.
 
-Não há rótulo de falha nem treino ML neste incremento. PingER não está integrado.
+`features.py` (S1.3) é a função pura `curated_row` / `status_real` (sem HTTP/Path):
+perda > 15 → `FALHA`; senão latência > 100 → `RISCO`; senão `OK`. A Lambda
+`preditor-falhas-collector` (S1.7) orquestra GET + rótulo + S3. PingER não
+está integrado. Sem treino ML neste incremento.
 
 ## Notebooks da disciplina
 
@@ -43,8 +46,9 @@ Requer Python 3.12 ou superior e uv. Na raiz do repositório:
 uv sync
 ```
 
-`requests` é a dependência HTTP. `pandas` é a tabela. Ruff, Pyrefly e pytest
-são de desenvolvimento.
+`requests` é a dependência HTTP. `pandas` é a tabela. `boto3` é o SDK de S3 e
+Secrets Manager (já existe no runtime da Lambda; o zip de deploy **não** o
+empacota). Ruff, Pyrefly e pytest são de desenvolvimento.
 
 ## Usar pelo terminal
 
@@ -121,29 +125,37 @@ from pathlib import Path
 from preditor_de_falhas_ml import (
     append_data,
     create_periodic_measurements,
+    curated_row,
     fetch_measurement_results,
     get_credits,
     get_data,
+    status_real,
 )
 
 key = os.environ["RIPE_ATLAS_API_KEY"]
 print(get_credits(key))
 frame = fetch_measurement_results(key, 12345, start=1710000000, stop=1710000900)
 append_data(frame, output_dir=Path("data/raw"))
+# curated_row(record) / status_real(perda, latencia) — S1.3, sem I/O
 # create_periodic_measurements(key) — POST setup (S1.6), não o collector
 # get_data(key) cria medição one-off — não usar no collector nem no dataset
 ```
+
+Runbook da Lambda: `docs/aws_lambda.md`.
 
 ## Estrutura
 
 ```text
 src/preditor_de_falhas_ml/
-  atlas.py   GET /credits/, POST periódico (hub) / DELETE stop / one-off, GET /results/, JSONL
-  cli.py     argparse: getCredits, getResults (GET), createPeriodic, stopPeriodic e getData
-notebooks/01_coleta_atlas_raw.ipynb         doc GET (S1.2)
-notebooks/02_post_medicoes_periodicas.ipynb doc POST periódico (S1.6)
-docs/dataset-fonte-atlas.md                S1.6: POST = setup; dataset = GETs
-tests/       HTTP simulado (requests.request), CLI getResults, createPeriodic e stopPeriodic
+  atlas.py      GET /credits/, POST periódico / DELETE stop / one-off, GET /results/, JSONL
+  features.py   S1.3: curated_row + status_real (puro; sem HTTP/Path)
+  collector.py  S1.7: GET + rótulo + I/O S3 (sem POST)
+  handler.py    Lambda preditor-falhas-collector
+  cli.py        getCredits, getResults, createPeriodic, stopPeriodic, getData
+infra/aws/      package.sh, deploy.sh, invoke.sh, verify.sh
+infra/cloudformation/s1-secrets-iam-s3.yaml   stack preditor-falhas-s1
+docs/aws_lambda.md                           runbook S1.7 + kill-switch
+docs/dataset-fonte-atlas.md                  S1.6: POST = setup; dataset = GETs
 ```
 
 Contrato para o próximo incremento: `AGENTS.md`.
@@ -167,10 +179,9 @@ Sem treino de modelo.
 ## Fora deste incremento
 
 - Tratamento de erro HTTP
-- Rotulagem de falha e treino ML
-- Cálculo de `latency_ms`, `loss_pct`, `jitter_rtt_ms` / `status_real`
+- Treino da árvore / Streamlit
 - Fonte PingER
-- Lambda e gravação no Amazon S3 — S1.7 reutiliza `fetch_measurement_results`
+- Compartilhar a API key da Lambda com o time
 
 ## Referências
 
