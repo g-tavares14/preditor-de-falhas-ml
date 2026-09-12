@@ -13,7 +13,10 @@ GET getResults (sempre: local + Lambda)
   → dataset de treino
 ```
 
-O collector agendado **não** chama `createPeriodic` nem `getData`.
+O collector agendado **não** chama `createPeriodic` nem `getData`. Runbook
+Lambda: `docs/aws_lambda.md`. Os IDs `210717688`–`210717693` estão **Stopped**.
+Série Ongoing atual (2026-09-12, após o collector gravar no S3):
+`210732689,210732690,210732692,210732693,210732696,210732697`.
 
 Documentação da disciplina (não é o collector):
 `notebooks/02_post_medicoes_periodicas.ipynb`.
@@ -107,6 +110,37 @@ uv run --env-file .env python -m preditor_de_falhas_ml stopPeriodic
 ```
 
 ## Registro do POST ao vivo
+
+### Tentativa 3 — retomar série após collector S1.7
+
+**Estado:** POST ao vivo **aceitou** (2026-09-12, ~00:30 UTC). Hub inalterado
+(AdGuard / OpenDNS / APNIC). Um POST com as 6 definições; `data/msm_ids.json`
+gravado **sem** a API key (gitignorado). A chave estava presente
+(`RIPE_ATLAS_API_KEY` present=true, length=36; valor não registrado).
+O collector **não** chama este POST. IDs novos foram para o env da Lambda
+`RIPE_ATLAS_MSM_IDS` (não os Stopped). Invoke com os IDs novos: HTTP 200,
+janela vazia (probes ainda não reportaram). EventBridge
+`preditor-falhas-collector-15min` **ENABLED** depois desse invoke.
+
+| Campo | Valor |
+|---|---|
+| Créditos antes | 100000 |
+| Créditos depois | 100000 |
+| Delta | 0 no instante (cobrança periódica começa com a série Ongoing) |
+| Matriz enviada | 94.140.14.14, 208.67.222.222, 202.12.28.131 × ping + traceroute ICMP; `is_oneoff: false`; interval 900; 2 probes BR |
+| Status Atlas no POST | Scheduled/Ongoing (6 IDs devolvidos) |
+| EventBridge | `preditor-falhas-collector-15min` **ENABLED** (após invoke com IDs novos; janela vazia OK) |
+| Lambda ARN | `arn:aws:lambda:sa-east-1:274394226829:function:preditor-falhas-collector` |
+| `export RIPE_ATLAS_MSM_IDS` | `210732689,210732690,210732692,210732693,210732696,210732697` |
+
+| msm_id | Destino | Tipo | Papel | prb_id (1º ciclo) | timestamps | créditos antes | créditos depois |
+|---|---|---|---|---|---|---|---|
+| 210732689 | 94.140.14.14 | ping | estável | — | POST 2026-09-12 ~00:30 UTC | 100000 | 100000 |
+| 210732690 | 94.140.14.14 | traceroute ICMP | estável | — | POST 2026-09-12 ~00:30 UTC | 100000 | 100000 |
+| 210732692 | 208.67.222.222 | ping | estável | — | POST 2026-09-12 ~00:30 UTC | 100000 | 100000 |
+| 210732693 | 208.67.222.222 | traceroute ICMP | estável | — | POST 2026-09-12 ~00:30 UTC | 100000 | 100000 |
+| 210732696 | 202.12.28.131 | ping | caminho longo | — | POST 2026-09-12 ~00:30 UTC | 100000 | 100000 |
+| 210732697 | 202.12.28.131 | traceroute ICMP | caminho longo | — | POST 2026-09-12 ~00:30 UTC | 100000 | 100000 |
 
 ### Tentativa 2 — nova matriz (desbloqueio de cota)
 
