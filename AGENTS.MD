@@ -99,27 +99,26 @@ não escrever no README.
 
 ```text
 src/preditor_de_falhas_ml/
-  atlas.py   _request, créditos, criar medição (POST), fetch results (GET),
-             append raw local
-  cli.py     argparse / env / stdout — um comando por superfície
-tests/       um módulo por superfície exercitada
+  atlas.py      _request, créditos, POST periódico / DELETE / one-off, GET results
+  features.py   S1.3: curated_row + status_real (puro; sem HTTP/Path/CSV/pandas)
+  collector.py  S1.7: orquestra GET + rótulo + S3 (sem POST)
+  handler.py    Lambda: secret + janela + collect_measurements
+  cli.py        argparse / env / stdout — um comando por superfície
+tests/          um módulo por superfície exercitada
 docs/
-notebooks/   01 GET (doc S1.2), 02 POST periódico (doc S1.6) — não o collector
+infra/aws/      package / deploy / invoke / verify
+notebooks/      01 GET (doc S1.2), 02 POST periódico (doc S1.6) — não o collector
 ```
 
 Estado atual do código: `get_credits`; `create_periodic_measurements` (POST
 periódico das 6 do hub; S1.6; `is_oneoff: false`, `interval` 900);
 `write_measurement_ids` (JSON dos msm_id, sem a key); `get_data` (POST one-off
 + poll — demo, não é a série de treino); `fetch_measurement_results` (GET puro
-por `msm_id` + `start`/`stop`, sem poll); `append_data` (JSONL). O collector
-(`getResults` / Lambda S1.7) chama só o GET — nunca `create_periodic_measurements`
-nem `get_data`. O nome `get_data` **mistura** criação (POST) com leitura — não
-espelhar esse padrão em código novo.
-
-Próximos incrementos (adicionar, não confundir):
-
-- **Função pura** de features + `status_real` (sem HTTP/Path), depois quem
-  aplica no curated.
+por `msm_id` + `start`/`stop`, sem poll); `append_data` (JSONL); `curated_row`
+/ `status_real` (S1.3); `collect_measurements` + `lambda_handler` (S1.7, GET +
+S3). O collector (`getResults` / Lambda) chama só o GET — nunca
+`create_periodic_measurements` nem `get_data`. O nome `get_data` **mistura**
+criação (POST) com leitura — não espelhar esse padrão em código novo.
 
 Não introduzir `domain/`, `application/`, `adapters/`, `Protocol` nem fake
 “para o futuro” sem Ask.
