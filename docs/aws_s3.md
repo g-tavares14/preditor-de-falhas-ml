@@ -33,7 +33,7 @@ Prefixos `raw/measurements/` e `curated/` ganham objetos vazios `.keep` no `depl
 
 ## Quem escreve
 
-**Somente** a role IAM da Lambda (S1.4), via identity policy + bucket policy (`s3:PutObject` e `s3:GetObject` em `raw/*` e `curated/*`).
+**Somente** a role IAM da Lambda (S1.4), via identity policy + bucket policy (`s3:PutObject` e `s3:GetObject` em `raw/*` e `curated/*`; `s3:ListBucket` só nesses prefixos — senão GetObject em objeto ainda inexistente vira AccessDenied).
 
 Humanos do grupo **não** escrevem. Leitura: group `preditor-dados-leitura` — [acesso_s3_time.md](acesso_s3_time.md). Conta dona do stack pode PutObject de verificação; isso não substitui a role.
 
@@ -44,7 +44,7 @@ Humanos do grupo **não** escrevem. Leitura: group `preditor-dados-leitura` — 
 | Block Public Access | quatro flags `true` | card: bucket não é público |
 | Object ownership | `BucketOwnerEnforced` (ACLs off) | [S3 security best practices](https://docs.aws.amazon.com/AmazonS3/latest/userguide/security-best-practices.html) |
 | Encryption | SSE-S3 (`AES256`) | default CFN; sem KMS extra neste volume |
-| Bucket policy | Deny `aws:SecureTransport=false`; Allow Get/Put só na role S1.4 em `raw/*` e `curated/*` | alinhada à role (não “aplicar depois”) |
+| Bucket policy | Deny `aws:SecureTransport=false`; Allow Get/Put na role S1.4 em `raw/*` e `curated/*`; Allow ListBucket na mesma role só nesses prefixos | alinhada à role (não “aplicar depois”) |
 | Versioning | Enabled | protege overwrite do CSV curated |
 
 ## Deploy
