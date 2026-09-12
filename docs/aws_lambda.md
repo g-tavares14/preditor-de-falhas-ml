@@ -55,7 +55,9 @@ Janela fixa: `[now − 1200, now]` (unix UTC). Invoke manual pode passar
 Raw: `raw/measurements/yyyy=/mm=/dd=/{msm_id}.jsonl` (data UTC do `stop`).
 Curated: append `curated/log_rede.csv`. Chave de idempotência:
 `msm_id + timestamp + prb_id`. `msm_id` é coluna operacional no CSV; as 14
-colunas da disciplina vêm na ordem canônica.
+colunas da disciplina vêm na ordem canônica. A role precisa de
+`s3:ListBucket` nos prefixos `raw`/`curated`: sem isso, GetObject em
+objeto ainda inexistente vira AccessDenied em vez de `NoSuchKey`.
 
 ## Kill-switch
 

@@ -23,7 +23,7 @@ flowchart LR
   S3["S3 preditor-falhas-ml"]
   Logs["CloudWatch Logs\n/aws/lambda/preditor-falhas-collector"]
   Lambda -->|"GetSecretValue"| Secret
-  Lambda -->|"PutObject / GetObject\nraw/* e curated/*"| S3
+  Lambda -->|"PutObject / GetObject raw/* curated/*\nListBucket prefix raw/curated"| S3
   Lambda --> Logs
 ```
 
@@ -34,13 +34,13 @@ A função em si **não** entra neste card. A role já existe para o S1.7 assumi
 | Recurso | Nome canônico | Permissões da role |
 |---|---|---|
 | Secret | `RIPE_ATLAS_API_KEY` (`arn:aws:secretsmanager:sa-east-1:274394226829:secret:RIPE_ATLAS_API_KEY-A1lRzW`) | `secretsmanager:GetSecretValue`, `DescribeSecret` **só neste ARN** |
-| S3 | `preditor-falhas-ml` | `s3:PutObject`, `s3:GetObject` em `raw/*` e `curated/*` (Get no curated para append do CSV) |
+| S3 | `preditor-falhas-ml` | `s3:PutObject`, `s3:GetObject` em `raw/*` e `curated/*`; `s3:ListBucket` só nos prefixos `raw`/`curated` (GetObject em key ausente devolve AccessDenied sem ListBucket — o collector trata `NoSuchKey` no 1º append) |
 | Role | `preditor-falhas-s1-LambdaExecutionRole-bLuoV1hL3Slq` | assume só `lambda.amazonaws.com` + `SourceAccount`/`SourceArn` da fn `preditor-falhas-collector` |
 | Logs | `/aws/lambda/preditor-falhas-collector` | `CreateLogGroup` no log group; `CreateLogStream` / `PutLogEvents` em `:*` |
 
 Trust policy: `lambda.amazonaws.com` + `aws:SourceAccount` + `aws:SourceArn` da função reservada `preditor-falhas-collector`. **S1.7 deve criar a Lambda com esse nome**; senão o assume falha.
 
-Não há `s3:ListBucket` na role (isso é S1.5b, leitura humana). Não há `s3:*` nem `Resource: *`.
+`s3:ListBucket` na role é só prefixo `raw`/`curated` (necessário para o 1º GetObject do collector). Leitura humana continua no grupo S1.5b. Não há `s3:*` nem `Resource: *`.
 
 ## Variáveis de ambiente previstas (aplicar em S1.7)
 
