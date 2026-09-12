@@ -92,15 +92,12 @@ if [[ -n "${role_arn}" && "${role_arn}" != "None" ]]; then
   note "==> iam simulate-principal-policy for ${role_arn}"
   sim="$(aws iam simulate-principal-policy \
     --policy-source-arn "${role_arn}" \
-    --action-names secretsmanager:GetSecretValue s3:PutObject s3:GetObject s3:ListBucket logs:PutLogEvents \
+    --action-names secretsmanager:GetSecretValue s3:PutObject s3:GetObject logs:PutLogEvents \
     --resource-arns \
       "${secret_arn}" \
       "arn:aws:s3:::${BUCKET_NAME}/raw/measurements/x.jsonl" \
       "arn:aws:s3:::${BUCKET_NAME}/curated/log_rede.csv" \
-      "arn:aws:s3:::${BUCKET_NAME}" \
       "arn:aws:logs:${REGION}:${account}:log-group:/aws/lambda/${fn_name}:*" \
-    --context-entries \
-      ContextKeyName=s3:prefix,ContextKeyValues=raw/measurements/x.jsonl,ContextKeyType=string \
     --output json)"
   if printf '%s' "${sim}" | python3 -c '
 import json,sys
@@ -114,10 +111,29 @@ for r in doc.get("EvaluationResults", []):
         denied=True
 sys.exit(2 if denied else 0)
 '; then
-    ok "role simulation GetSecretValue + Put/GetObject + ListBucket + PutLogEvents = allowed"
+    ok "role simulation GetSecretValue + Put/GetObject + PutLogEvents = allowed"
   else
     bad "role simulation denied something"
     echo "${sim}"
+  fi
+  list_sim="$(aws iam simulate-principal-policy \
+    --policy-source-arn "${role_arn}" \
+    --action-names s3:ListBucket \
+    --resource-arns "arn:aws:s3:::${BUCKET_NAME}" \
+    --context-entries \
+      ContextKeyName=s3:prefix,ContextKeyValues=raw/measurements/x.jsonl,ContextKeyType=string \
+    --output json)"
+  if printf '%s' "${list_sim}" | python3 -c '
+import json,sys
+doc=json.load(sys.stdin)
+rows=doc.get("EvaluationResults", [])
+print("  {:12} {}".format(rows[0].get("EvalDecision",""), rows[0].get("EvalActionName")) if rows else "  missing")
+sys.exit(0 if rows and rows[0].get("EvalDecision")=="allowed" else 2)
+'; then
+    ok "role simulation ListBucket on bucket+prefix raw/* = allowed"
+  else
+    bad "role simulation ListBucket denied"
+    echo "${list_sim}"
   fi
 else
   bad "LambdaRoleArn output missing"
