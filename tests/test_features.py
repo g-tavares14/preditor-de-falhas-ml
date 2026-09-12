@@ -99,6 +99,29 @@ def test_curated_row_sent_zero_is_falha() -> None:
     assert row["destino_respondeu"] is False
 
 
+def test_curated_row_negative_rtt_is_missing() -> None:
+    row = curated_row(
+        {
+            "type": "ping",
+            "msm_id": 1,
+            "prb_id": 2,
+            "timestamp": 1710000000,
+            "dst_addr": "202.12.28.131",
+            "sent": 5,
+            "rcvd": 0,
+            "avg": -1,
+            "min": -1,
+            "max": -1,
+            "result": [{"rtt": -1}, {"rtt": -1}],
+        }
+    )
+    assert row["latencia_ms"] is None
+    assert row["rtt_min_ms"] is None
+    assert row["rtt_max_ms"] is None
+    assert row["perda_pacotes_pct"] == 100.0
+    assert row["status_real"] == "FALHA"
+
+
 def test_curated_row_missing_rtt_keeps_loss_rule() -> None:
     row = curated_row(
         {
