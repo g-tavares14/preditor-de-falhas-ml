@@ -130,6 +130,26 @@ Copiar a linha `export RIPE_ATLAS_MSM_IDS=…` para o env da Lambda
 Se o POST falhar por cota, **deixar a regra DISABLED** e registrar em
 `docs/dataset-fonte-atlas.md`.
 
+## Evidência live 2026-09-12 (`sa-east-1`, conta `274394226829`)
+
+Stack `preditor-falhas-s1` **UPDATE_COMPLETE** com `preditor-falhas-collector`.
+Secret length=36 (valor não impresso). Collector continua GET-only.
+
+| Campo | Valor |
+|---|---|
+| Lambda ARN | `arn:aws:lambda:sa-east-1:274394226829:function:preditor-falhas-collector` |
+| EventBridge | `preditor-falhas-collector-15min` **ENABLED** (`rate(15 minutes)`) |
+| `RIPE_ATLAS_MSM_IDS` | `210732689,210732690,210732692,210732693,210732696,210732697` |
+| Invoke histórico (Stopped `210717688`–`210717693`, `1789166700`–`1789167900`) | raw 12 + curated 12 |
+| Raw histórico | `s3://preditor-falhas-ml/raw/measurements/yyyy=2026/mm=09/dd=11/{msm_id}.jsonl` |
+| Curated | `s3://preditor-falhas-ml/curated/log_rede.csv` |
+| Invoke IDs novos | HTTP 200, 0 linhas (cedo demais para o 1º ciclo) |
+
+1ª invoke falhou com AccessDenied/`s3:ListBucket` (GetObject em curated
+inexistente). Role + bucket policy ganharam ListBucket só em `raw`/`curated`.
+
+Kill-switch: `aws events disable-rule --name preditor-falhas-collector-15min --region sa-east-1`
+
 ## Fora deste card
 
 Treino da árvore, Streamlit, mudar destinos do hub, compartilhar a key
