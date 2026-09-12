@@ -14,17 +14,30 @@ IAM **groups não podem** ser `Principal` em bucket policy. A leitura é identit
 
 Sem `s3:PutObject` / `DeleteObject`. Sem `secretsmanager:*`.
 
-## Como cada pessoa entra no group
+## Quem roda o quê
 
-1. O dono da conta (Guilherme) cria **um usuário IAM por integrante** (não compartilhem o root):
+**Só o dono da conta (Guilherme)** roda `add-team-user.sh`. Os colegas **não** rodam esse script — eles não têm permissão IAM para criar usuário.
+
+Guilherme executa **uma vez por pessoa**, mudando o nome:
 
 ```bash
+./infra/aws/add-team-user.sh preditor-alexandre
 ./infra/aws/add-team-user.sh preditor-ingrid
+./infra/aws/add-team-user.sh preditor-kauan
+./infra/aws/add-team-user.sh preditor-lucas
+./infra/aws/add-team-user.sh preditor-stephanie
 ```
 
-2. No console IAM → Users → esse usuário → **Create login password** (ou Access key só se a pessoa for usar CLI). Marcar *User must create a new password at next sign-in*.
-3. Enviar usuário + senha temporária **por canal privado** (não WhatsApp do grupo com a key do Atlas; não Git/PR).
-4. A pessoa configura `aws login` ou `AWS_PROFILE` e testa o download abaixo.
+Você (root) **não** precisa de um `preditor-guilherme` para administrar o bucket.
+
+Depois, no console IAM → Users → cada usuário → **Create login password** (*User must create a new password at next sign-in*). Envie usuário + senha temporária **por canal privado** (não Git/PR; não misturar com a key do Atlas).
+
+**O que cada colega faz:** entra com o usuário IAM dele, configura o CLI (`aws login` ou profile) e só baixa:
+
+```bash
+aws s3 ls s3://preditor-falhas-ml/curated/ --region sa-east-1
+aws s3 cp s3://preditor-falhas-ml/curated/log_rede.csv . --region sa-east-1
+```
 
 Não criem access key da **role da Lambda**. Não compartilhem `RIPE_ATLAS_API_KEY`.
 
