@@ -84,7 +84,7 @@ aws events enable-rule \
 ```bash
 export AWS_REGION=sa-east-1
 # IDs novos depois do createPeriodic; vazio no primeiro deploy
-export RIPE_ATLAS_MSM_IDS='id1,id2,id3,id4,id5,id6'
+export RIPE_ATLAS_MSM_IDS='id1,id2,id3,id4,id5,id6,id7,id8'
 export SCHEDULE_STATE=DISABLED
 ./infra/aws/deploy.sh
 ./infra/aws/verify.sh
@@ -117,8 +117,9 @@ aws s3 cp s3://preditor-falhas-ml/curated/log_rede.csv - --region sa-east-1 | he
 
 ## createPeriodic (novos IDs — fora da Lambda)
 
-Os IDs `210717688`–`210717693` estão Stopped. Atlas não reinicia. A série
-Ongoing é outro POST:
+Os IDs `210717688`–`210717693` estão Stopped. A série 900s/6 msm da S1.7
+(`210732689`–`210732697`) foi recriada na S1.8 (8 msm, 300 s). Atlas não
+reinicia. A série Ongoing é outro POST:
 
 ```bash
 uv run --env-file .env python -m preditor_de_falhas_ml createPeriodic \
@@ -139,7 +140,7 @@ Secret length=36 (valor não impresso). Collector continua GET-only.
 |---|---|
 | Lambda ARN | `arn:aws:lambda:sa-east-1:274394226829:function:preditor-falhas-collector` |
 | EventBridge | `preditor-falhas-collector-15min` **ENABLED** (`rate(15 minutes)`) |
-| `RIPE_ATLAS_MSM_IDS` | `210732689,210732690,210732692,210732693,210732696,210732697` |
+| `RIPE_ATLAS_MSM_IDS` | `210732689,210732690,210732692,210732693,210732696,210732697` (S1.7; **atualizar** após S1.8 recreate — 8 IDs em `docs/dataset-fonte-atlas.md`) |
 | Invoke histórico (Stopped `210717688`–`210717693`, `1789166700`–`1789167900`) | raw 12 + curated 12 |
 | Raw histórico | `s3://preditor-falhas-ml/raw/measurements/yyyy=2026/mm=09/dd=11/{msm_id}.jsonl` |
 | Curated | `s3://preditor-falhas-ml/curated/log_rede.csv` |
@@ -152,5 +153,5 @@ Kill-switch: `aws events disable-rule --name preditor-falhas-collector-15min --r
 
 ## Fora deste card
 
-Treino da árvore, Streamlit, mudar destinos do hub, compartilhar a key
-da Lambda com o time.
+Treino da árvore, Streamlit, compartilhar a key da Lambda com o time.
+Destinos/cadência Atlas: S1.8 (`docs/dataset-fonte-atlas.md`).

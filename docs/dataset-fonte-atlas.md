@@ -1,22 +1,23 @@
-# Fonte do dataset de treino (S1.6)
+# Fonte do dataset de treino (S1.6 / S1.8)
 
 O dataset de treino **não** é o payload do POST. O POST só **aponta** as
 medições periódicas. O histórico que treina o modelo é o **acumulado dos GETs**
 em `fetch_measurement_results` / CLI `getResults` (local e, depois, Lambda S1.7)
-sobre os 6 `msm_id` abaixo.
+sobre os 8 `msm_id` abaixo.
 
 ```text
 POST createPeriodic (uma vez / ao reconfigurar)
-  → 6 msm_id periódicos (fonte)
+  → 8 msm_id periódicos (fonte)
 GET getResults (sempre: local + Lambda)
   → raw JSONL → curated/log_rede.csv
   → dataset de treino
 ```
 
 O collector agendado **não** chama `createPeriodic` nem `getData`. Runbook
-Lambda: `docs/aws_lambda.md`. Os IDs `210717688`–`210717693` estão **Stopped**.
-Série Ongoing atual (2026-09-12, após o collector gravar no S3):
-`210732689,210732690,210732692,210732693,210732696,210732697`.
+Lambda: `docs/aws_lambda.md`. IDs Stopped: `210717688`–`210717693` (S1.6).
+Série 900s/6 msm (S1.7) `210732689,210732690,210732692,210732693,210732696,210732697`
+foi **recriada** na S1.8 (stop + POST novo; ver Tentativa 4). EventBridge
+continua `rate(15 minutes)` — só o intervalo Atlas mudou (900→300).
 
 Documentação da disciplina (não é o collector):
 `notebooks/02_post_medicoes_periodicas.ipynb`.
@@ -25,12 +26,14 @@ Documentação da disciplina (não é o collector):
 
 | Destino | Papel | Tipo | Pacotes | Probes | Intervalo |
 |---|---|---|---|---|---|
-| 94.140.14.14 (AdGuard DNS) | estável | ping | 5 | 2 BR | 900 s |
-| 94.140.14.14 (AdGuard DNS) | estável | traceroute ICMP | 3 | 2 BR | 900 s |
-| 208.67.222.222 (OpenDNS) | estável | ping | 5 | 2 BR | 900 s |
-| 208.67.222.222 (OpenDNS) | estável | traceroute ICMP | 3 | 2 BR | 900 s |
-| 202.12.28.131 (APNIC) | caminho longo | ping | 5 | 2 BR | 900 s |
-| 202.12.28.131 (APNIC) | caminho longo | traceroute ICMP | 3 | 2 BR | 900 s |
+| 94.140.14.14 (AdGuard DNS) | estável | ping | 8 | 2 BR | 300 s |
+| 94.140.14.14 (AdGuard DNS) | estável | traceroute ICMP | 3 | 2 BR | 300 s |
+| 208.67.222.222 (OpenDNS) | estável | ping | 8 | 2 BR | 300 s |
+| 208.67.222.222 (OpenDNS) | estável | traceroute ICMP | 3 | 2 BR | 300 s |
+| 202.12.28.131 (APNIC) | caminho longo | ping | 8 | 2 BR | 300 s |
+| 202.12.28.131 (APNIC) | caminho longo | traceroute ICMP | 3 | 2 BR | 300 s |
+| 4.2.2.1 (Level3/Lumen) | médio | ping | 8 | 2 BR | 300 s |
+| 4.2.2.1 (Level3/Lumen) | médio | traceroute ICMP | 3 | 2 BR | 300 s |
 
 Intenção original (superseded-for-quota; **não** entra neste POST):
 `8.8.8.8`, `1.1.1.1`, `202.12.27.33`. A primeira tentativa ao vivo
@@ -40,10 +43,16 @@ matriz só se a cota global liberar.
 `is_oneoff: false`. One-off (`getData`) custa mais e **não** serve para a série
 de treino.
 
+O 4º hub (`4.2.2.1`) existe para o curated gerar **RISCO** sem mudar o limiar
+`status_real` (perda > 15 → FALHA; senão latência > 100 → RISCO; senão OK).
+AdGuard/OpenDNS continuam o papel estável (OK); APNIC o caminho longo (FALHA).
+Volume S1.8: intervalo 900→300 s e ping 5→8 pacotes em **todas** as 8 msm
+(recreate, não só no hub novo).
+
 As medições periódicas **continuam cobrando créditos** enquanto estão
-Scheduled/Ongoing. Estimativa do card: ~210 créditos / 15 min → ~20 mil/dia.
-A série ao vivo das 6 medições da tentativa 2 foi **parada** em 2026-09-11
-(~23:03 UTC) pending S1.7 — ver registro abaixo.
+Scheduled/Ongoing. Com 8 msm + ping 8 + 300 s o burn sobe ~linear; headroom
+~100k ainda cobre. Monitorar saldo após o 1º lote Atlas (4–6 h). A série
+900s/6 msm da S1.7 foi parada no recreate S1.8 — ver Tentativa 4.
 
 ## Persistência dos msm_id (sem a API key)
 
@@ -52,7 +61,7 @@ Os IDs **não** são a chave; podem ir para env/Secret e, depois do POST ao vivo
 para esta página.
 
 - Arquivo local (gitignorado em `data/`): `--ids-file data/msm_ids.json`
-- Env / Secret para o collector: `RIPE_ATLAS_MSM_IDS=id1,id2,id3,id4,id5,id6`
+- Env / Secret para o collector: `RIPE_ATLAS_MSM_IDS=id1,id2,…,id8`
   (a CLI imprime a linha `export …` após o POST)
 
 Não commitar `.env` nem a API key.
@@ -69,13 +78,13 @@ uv run --env-file .env python -m preditor_de_falhas_ml createPeriodic \
   --ids-file data/msm_ids.json
 ```
 
-O comando consulta créditos antes e depois, faz **um** POST com as 6 definições
-e imprime os `msm_id`. Para validar 1 ciclo (~15 min) no mesmo processo:
+O comando consulta créditos antes e depois, faz **um** POST com as 8 definições
+e imprime os `msm_id`. Para validar 1 ciclo (~5 min) no mesmo processo:
 
 ```bash
 uv run --env-file .env python -m preditor_de_falhas_ml createPeriodic \
   --ids-file data/msm_ids.json \
-  --wait-seconds 900
+  --wait-seconds 300
 ```
 
 `--wait-seconds` só espera e chama o GET já existente
@@ -88,7 +97,7 @@ uv run --env-file .env python -m preditor_de_falhas_ml getResults \
   --msm-id MSM_ID --start UNIX --stop UNIX
 ```
 
-Copiar os 6 IDs e os saldos para a tabela abaixo. O primeiro ciclo pode ainda
+Copiar os 8 IDs e os saldos para a tabela abaixo. O primeiro ciclo pode ainda
 estar vazio se as probes BR não tiverem reportado; repetir o GET.
 
 ## Runbook — parar a série (stop)
@@ -105,11 +114,61 @@ os IDs parados como se voltassem a emitir.
 ```bash
 uv run --env-file .env python -m preditor_de_falhas_ml stopPeriodic \
   --ids-file data/msm_ids.json
-# ou: RIPE_ATLAS_MSM_IDS=id1,id2,id3,id4,id5,id6
+# ou: RIPE_ATLAS_MSM_IDS=id1,id2,id3,id4,id5,id6,id7,id8
 uv run --env-file .env python -m preditor_de_falhas_ml stopPeriodic
 ```
 
+Depois do recreate S1.8, atualizar o env da Lambda (este agente **não** tem
+AWS CLI neste ambiente):
+
+```bash
+aws lambda update-function-configuration \
+  --function-name preditor-falhas-collector \
+  --region sa-east-1 \
+  --environment "Variables={S3_BUCKET=preditor-falhas-ml,RIPE_ATLAS_MSM_IDS=ID1,ID2,ID3,ID4,ID5,ID6,ID7,ID8,SECRET_NAME=RIPE_ATLAS_API_KEY,COLLECT_WINDOW_SECONDS=1200}"
+```
+
+Ou `./infra/aws/deploy.sh` com `RIPE_ATLAS_MSM_IDS` exportado. Não inventar IDs.
+EventBridge `preditor-falhas-collector-15min` permanece ENABLED; a cadência
+Lambda não muda.
+
+## Piloto one-off S1.8 (escolher o hub médio)
+
+One-off ping, 2 probes BR, 8 pacotes, IPv4. Créditos 100000→100000 no instante.
+Nenhum limiar `status_real` foi alterado. Candidatos saturados (`8.8.8.8` /
+`1.1.1.1`) não foram POSTados.
+
+| Destino | Papel no piloto | msm_id | prb_id | RTT médio (ms) | RTT mediana (ms) | Perda | Faixa 100–200 ms e perda ≤15% |
+|---|---|---|---|---|---|---|---|
+| 9.9.9.9 (Quad9) | anycast / candidato 1 | 210928315 | 1015587, — | 3.5 / 21.1 | 21.1 | 0% | não (OK, ~3–21 ms) |
+| 89.233.43.71 (UncensoredDNS unicast DK) | europeu unicast | 210928319 | 1000709, 1002873 | 220.1 | 222.0 | 0% | não (acima de 200 ms) |
+| 84.200.69.80 (DNS.WATCH DE) | europeu / pouco anycast | 210928322 | 1002873, 1014381 | 215.2 | 223.6 | 0% | não (acima de 200 ms) |
+| 4.2.2.1 (Level3/Lumen) | terceiro (1º e 2º fora da faixa) | 210928514 | 1000489, 1008715 | 147.3 | 176.3 | 0% | **sim** (118 e 176 ms) |
+| 80.58.61.250 (Telefonica ES) | extra ibérico | 210928522 | 1009598, 1016740 | — | — | 100% | não (FALHA) |
+
+**Escolhido:** `4.2.2.1` (Level3/Lumen). Cota pública no POST: 0 ping ativos
+nesse alvo. Os dois europeus gerariam RISCO (RTT > 100 e perda 0), mas
+ficaram fora da faixa pedida (100–200 ms).
+
 ## Registro do POST ao vivo
+
+### Tentativa 4 — S1.8 hub médio + volume (300 s / ping 8 / 8 msm)
+
+**Estado:** recreate **pendente neste PR** (código/docs já na matriz nova).
+Plano: `stopPeriodic` das 6 Ongoing 900s
+(`210732689,210732690,210732692,210732693,210732696,210732697`) e
+`createPeriodic` das 8 definições (AdGuard / OpenDNS / APNIC / Level3).
+Sem overlap longo: stop primeiro, POST em seguida. Collector GET nas
+antigas continua a ler histórico; linhas novas só após o Secret/env
+receber os 8 IDs.
+
+| Campo | Valor |
+|---|---|
+| Créditos antes | *pendente recreate* |
+| Créditos depois | *pendente recreate* |
+| Matriz enviada | 94.140.14.14, 208.67.222.222, 202.12.28.131, 4.2.2.1 × ping + traceroute ICMP; `is_oneoff: false`; interval 300; ping 8; tr 3; 2 probes BR |
+| `export RIPE_ATLAS_MSM_IDS` | *pendente recreate — não inventar IDs* |
+| AWS Secret / Lambda env | **follow-up:** este ambiente não tem AWS CLI; copiar a linha `export` para `RIPE_ATLAS_MSM_IDS` |
 
 ### Tentativa 3 — retomar série após collector S1.7
 
@@ -226,4 +285,4 @@ hub e **não** entram na tabela.
 | *pendente* | 202.12.27.33 | traceroute ICMP | caminho longo | — | POST 400 | 100000 | 100000 |
 
 Retry desta matriz original só se a cota global liberar. A matriz **atual**
-do POST é a tentativa 2 (AdGuard / OpenDNS / APNIC).
+do POST é a tentativa 4 (AdGuard / OpenDNS / APNIC / Level3 `4.2.2.1`).

@@ -12,18 +12,21 @@ Fluxo de branch/PR: `CONTRIBUTING.md` (raiz ou `docs/`).
 
 ```text
 POST (uma vez / ao reconfigurar)     GET (sempre: local + Lambda)
-  cria 6 medições periódicas    →     lê /results/ dos msm_id
+  cria 8 medições periódicas    →     lê /results/ dos msm_id
   destinos do projeto                  acumula raw → curated
                                       = dataset de treino
 ```
 
 - **POST** — define a *fonte* do dataset: apontar aos destinos
   `94.140.14.14` (AdGuard DNS, estável), `208.67.222.222` (OpenDNS, estável),
-  `202.12.28.131` (APNIC, caminho longo) — ping + traceroute ICMP, probes BR,
-  `interval` 900s, `is_oneoff: false`. Intenção original (`8.8.8.8`,
-  `1.1.1.1`, `202.12.27.33`) ficou superseded-for-quota; retry só se a cota
-  global liberar — **não** entram neste POST. One-off custa mais e **não**
-  serve para série de treino. Isso é setup (Sprint card S1.6), não o collector.
+  `202.12.28.131` (APNIC, caminho longo) e `4.2.2.1` (Level3/Lumen, médio /
+  RISCO) — ping + traceroute ICMP, probes BR, `interval` 300s, ping
+  `packets=8`, traceroute `packets=3`, `is_oneoff: false`. O 4º hub existe
+  para o curated gerar **RISCO** sem mudar o limiar `status_real`. Intenção
+  original (`8.8.8.8`, `1.1.1.1`, `202.12.27.33`) ficou superseded-for-quota;
+  retry só se a cota global liberar — **não** entram neste POST. One-off
+  custa mais e **não** serve para série de treino. Isso é setup (S1.6 /
+  S1.8), não o collector.
 - **GET** — enche o dataset: `fetch` por `msm_id` + janela `start`/`stop`.
   Mesma função no driver local e na Lambda a cada 15 min (S1.2 / S1.7).
 - **Lambda / collector agendado: só GET.** Nunca POST no schedule.
@@ -111,7 +114,8 @@ notebooks/      01 GET (doc S1.2), 02 POST periódico (doc S1.6) — não o coll
 ```
 
 Estado atual do código: `get_credits`; `create_periodic_measurements` (POST
-periódico das 6 do hub; S1.6; `is_oneoff: false`, `interval` 900);
+periódico das 8 do hub; S1.6 / S1.8; `is_oneoff: false`, `interval` 300,
+ping 8);
 `write_measurement_ids` (JSON dos msm_id, sem a key); `get_data` (POST one-off
 + poll — demo, não é a série de treino); `fetch_measurement_results` (GET puro
 por `msm_id` + `start`/`stop`, sem poll); `append_data` (JSONL); `curated_row`
@@ -177,7 +181,7 @@ depois da função pura e de quem a aplica (ver contrato acima).
 - Qualquer dependência nova.
 - Pasta `domain/` / `application/` / `adapters/` ou Protocol.
 - Protocol sem segunda implementação real.
-- Trocar destinos/cadência das 6 medições do hub.
+- Trocar destinos/cadência das 8 medições do hub.
 
 ### Never
 

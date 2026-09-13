@@ -47,7 +47,7 @@ Trust policy: `lambda.amazonaws.com` + `aws:SourceAccount` + `aws:SourceArn` da 
 | Variável | Valor |
 |---|---|
 | `S3_BUCKET` | output `BucketName` (`preditor-falhas-ml`) |
-| `RIPE_ATLAS_MSM_IDS` | lista dos 6 IDs live (S1.6 `createPeriodic`; não os Stopped) |
+| `RIPE_ATLAS_MSM_IDS` | lista dos 8 IDs live (S1.8 `createPeriodic`; não os Stopped) |
 | `SECRET_NAME` | `RIPE_ATLAS_API_KEY` |
 | `COLLECT_WINDOW_SECONDS` | `1200` |
 | `AWS_REGION` | a região do stack |

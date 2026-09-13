@@ -13,8 +13,8 @@ API = "https://atlas.ripe.net/api/v2/"
 DEFAULT_TARGET = "8.8.8.8"
 DEFAULT_OUTPUT_DIR = Path("data/raw")
 DEFAULT_MSM_IDS_PATH = Path("data/msm_ids.json")
-HUB_INTERVAL_SECONDS = 900
-HUB_PING_PACKETS = 5
+HUB_INTERVAL_SECONDS = 300
+HUB_PING_PACKETS = 8
 HUB_TRACEROUTE_PACKETS = 3
 HUB_PROBE_COUNT = 2
 HUB_COUNTRY_CODE = "BR"
@@ -22,8 +22,12 @@ HUB_ADDRESS_FAMILY = 4
 HUB_TARGET_ADGUARD = "94.140.14.14"
 HUB_TARGET_OPENDNS = "208.67.222.222"
 HUB_TARGET_APNIC = "202.12.28.131"
+HUB_TARGET_LEVEL3 = "4.2.2.1"
 # Intenção original (cota global; retry se liberar — não entra neste POST):
 # 8.8.8.8, 1.1.1.1, 202.12.27.33. Ver docs/dataset-fonte-atlas.md.
+# Hub médio S1.8 (RISCO): 4.2.2.1 (Level3/Lumen). Piloto BR 2026-09-13:
+# ~118–176 ms, perda 0%. Quad9/UncensoredDNS/DNS.WATCH/Telefonica ES
+# ficaram fora da faixa 100–200 ms + perda ≤15%.
 
 
 class HubSpec(NamedTuple):
@@ -40,6 +44,8 @@ HUB_SPECS: tuple[HubSpec, ...] = (
     HubSpec(HUB_TARGET_OPENDNS, "estável", "traceroute", HUB_TRACEROUTE_PACKETS),
     HubSpec(HUB_TARGET_APNIC, "caminho longo", "ping", HUB_PING_PACKETS),
     HubSpec(HUB_TARGET_APNIC, "caminho longo", "traceroute", HUB_TRACEROUTE_PACKETS),
+    HubSpec(HUB_TARGET_LEVEL3, "médio", "ping", HUB_PING_PACKETS),
+    HubSpec(HUB_TARGET_LEVEL3, "médio", "traceroute", HUB_TRACEROUTE_PACKETS),
 )
 
 
@@ -160,7 +166,7 @@ def _hub_definition(spec: HubSpec) -> dict[str, Any]:
 
 
 def create_periodic_measurements(api_key: str) -> list[int]:
-    """POST das 6 medições periódicas do hub. Setup do dataset; não é collector."""
+    """POST das 8 medições periódicas do hub. Setup do dataset; não é collector."""
     created = _request(
         "POST",
         f"{API}measurements/",
@@ -191,7 +197,7 @@ def write_measurement_ids(
     msm_ids: list[int],
     output_path: Path = DEFAULT_MSM_IDS_PATH,
 ) -> Path:
-    """Grava os 6 msm_id sem a API key. Arquivo local / Secret — não o .env no git."""
+    """Grava os 8 msm_id sem a API key. Arquivo local / Secret — não o .env no git."""
     if len(msm_ids) != len(HUB_SPECS):
         raise ValueError(
             f"Esperado {len(HUB_SPECS)} msm_id para persistir, veio {len(msm_ids)}: "

@@ -6,17 +6,18 @@ já existente e devolve um DataFrame com o JSON bruto. A CLI `getResults` imprim
 a tabela; `append_data` **acrescenta** as linhas em JSONL só se `--output-dir`
 for passado.
 
-`createPeriodic` (S1.6) cria as **6 medições periódicas** do hub (POST,
-`is_oneoff: false`, `interval` 900) para `94.140.14.14` (AdGuard DNS),
-`208.67.222.222` (OpenDNS) e `202.12.28.131` (APNIC). A intenção original
-(`8.8.8.8`, `1.1.1.1`, `202.12.27.33`) ficou superseded-for-quota — retry
-só se a cota global liberar; não entram neste POST. `stopPeriodic` para a
-série (`DELETE /measurements/{id}/`; histórico GET permanece). `getData` é
-só um ping **one-off** de demo — não é a série de treino. A Lambda da S1.7
-**reutiliza** `fetch_measurement_results`; não reimplementa HTTP nem chama
-`createPeriodic` / `get_data`.
+`createPeriodic` (S1.6 / S1.8) cria as **8 medições periódicas** do hub (POST,
+`is_oneoff: false`, `interval` 300, ping `packets=8`) para `94.140.14.14`
+(AdGuard DNS, estável), `208.67.222.222` (OpenDNS, estável),
+`202.12.28.131` (APNIC, caminho longo) e `4.2.2.1` (Level3/Lumen, médio /
+RISCO). A intenção original (`8.8.8.8`, `1.1.1.1`, `202.12.27.33`) ficou
+superseded-for-quota — retry só se a cota global liberar; não entram neste
+POST. `stopPeriodic` para a série (`DELETE /measurements/{id}/`; histórico
+GET permanece). `getData` é só um ping **one-off** de demo — não é a série
+de treino. A Lambda da S1.7 **reutiliza** `fetch_measurement_results`; não
+reimplementa HTTP nem chama `createPeriodic` / `get_data`.
 
-O dataset de treino é o acumulado dos GETs desses 6 `msm_id`. O POST é só
+O dataset de treino é o acumulado dos GETs desses 8 `msm_id`. O POST é só
 setup. Detalhe e runbook: `docs/dataset-fonte-atlas.md`.
 
 `features.py` (S1.3) é a função pura `curated_row` / `status_real` (sem HTTP/Path):
@@ -86,11 +87,11 @@ GET na janela informada, imprime o DataFrame e **não** cria medição. Sem
 `--output-dir` não grava arquivo; com `--output-dir`, `append_data` acrescenta
 uma linha JSON por probe no JSONL.
 
-`createPeriodic` (S1.6) **sempre cria** as 6 medições periódicas do hub
-(consome créditos; corre até `stopPeriodic` / DELETE no Atlas). Consulta
+`createPeriodic` (S1.6 / S1.8) **sempre cria** as 8 medições periódicas do
+hub (consome créditos; corre até `stopPeriodic` / DELETE no Atlas). Consulta
 créditos antes/depois, imprime os `msm_id` e a linha
 `export RIPE_ATLAS_MSM_IDS=…`. Com `--ids-file`, grava JSON **sem a API
-key** (o caminho em `data/` já é gitignorado). Com `--wait-seconds 900`,
+key** (o caminho em `data/` já é gitignorado). Com `--wait-seconds 300`,
 espera um ciclo e GET em cada `msm_id` via `fetch_measurement_results`.
 Não é o collector.
 
@@ -172,7 +173,7 @@ uv run pyrefly check
 uv run pytest
 ```
 
-Os testes simulam `requests.request`. O POST ao vivo das 6 medições usa
+Os testes simulam `requests.request`. O POST ao vivo das 8 medições usa
 `RIPE_ATLAS_API_KEY` (nunca commitada). IDs reais e saldo: `docs/dataset-fonte-atlas.md`.
 Sem treino de modelo.
 
