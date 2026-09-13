@@ -6,9 +6,11 @@
 | Projeto integrador | Preditor de falhas ML |
 | Orientador(a) | Andrea Ono Sakai |
 | Data de entrega | 08/09/2026 |
+| Data de revisão | 12/09/2026
 | Integrantes | Alexandre Tiago de Oliveira, Ingrid Ferreira de Sousa, Guilherme Leite Tavares, Kauan Garcia Dias de Oliveira, Lucas Eduardo Malachias Bagatela, Stephanie Vitoria Bessa dos Santos |
 
 > Este documento usa como base a pesquisa sobre o PingER, a documentação oficial do RIPE Atlas e as instruções do template do memorando.
+>**Arquivo vivo**:este memorando será revisado confrome o estado do pipeline e das decisões técnicas do projeto evoluírem 
 
 ## 1. Situação
 
@@ -52,20 +54,57 @@ O RIPE Atlas permite coletar medições de rede distribuídas e repetidas, com c
 
 ## 5. Recomendação
 
-Para a primeira versão do pipeline, recomenda-se a **Opção B — API do RIPE Atlas**, mantendo o PingER como referência histórica e possível fonte complementar.
+Para a primeira versão do pipeline, foi adotada a **Opção B — API do RIPE Atlas**, mantendo o PingER como referência histórica e possível fonte complementar.
 
 ## 6. Justificativa
 
-O objetivo atual exige dados temporais de latência, perda de pacotes e jitter. O RIPE Atlas permite que a equipe controle o alvo, as probes, a frequência e a duração das medições, além de possibilitar a atualização contínua da base. Isso torna os dados mais alinhados ao cenário que o projeto pretende monitorar e facilita a validação do modelo em medições novas. A opção exige configurar a API, acompanhar créditos e tratar eventuais dados ausentes; o PingER permanece como referência histórica para comparação e análise complementar.
+O objetivo atual exige dados temporais de latência, perda de pacotes e jitter. O RIPE Atlas permite que a equipe controle o alvo, as probes, a frequência e a duração das medições, além de possibilitar a atualização contínua da base. Isso torna os dados mais alinhados ao cenário que o projeto pretende monitorar e facilita a validação do modelo em medições novas. A opção exige configurar a API, acompanhar créditos e tratar eventuais dados ausentes; o PingER permanece como referência histórica para comparação e análise complementar. A escolha do RIPE Atlas já foi implementada no pipeline atual, que realiza a coleta contínua dos resultados das medições.
 
-## 7. Riscos e limitações
+## 7. Estado atual (pós-decisão)
+
+A **opção B - API do ripe Atlas** foi adotada e encontra-se operacional no pipeline atual. O **PingER permanece como referência histórica e de comparação**, não sendo a fonte utilizada para o treinamento na versão atual do projeto.
+o dataset de treino é formado pelo acumulo dos resultados obtidos por meio dos "GETs" das medições do RIPE Atlas, armazenados no arquivo "curated/log_rede.csv" no bucket do projeto.
+
+## 8. Riscos e limitações
 
 - **PingER:** a disponibilidade dos monitores e destinos pode variar; alguns dados são agregados; há risco de respostas bloqueadas ou influenciadas pelo próprio destino; e não existe um rótulo pronto de falha.
 - **Mitigação:** selecionar pares monitor-destino estáveis, documentar o período e o tamanho dos pacotes, remover períodos com dados insuficientes e definir o rótulo de falha antes do treinamento.
 - **RIPE Atlas:** a disponibilidade das probes pode variar; a coleta pode consumir créditos; e as medições podem ter valores ausentes.
 - **Mitigação:** começar com uma medição pequena, registrar configuração e horário de cada coleta, tratar dados ausentes, armazenar o identificador da medição e acompanhar o consumo de créditos.
 
-## 8. Contribuição individual
+
+## 9. Destinos atuais do hub 
+
+Os destinos atualmente ultilizados do RIPE Atlas são:
+
+| Papel |  IP atual  |   Quem é | Notas |
+-----------------------------------------
+|Estável|94.140.14.14| AdGuard DNS| Tipicamente OK |
+|Estável|208.67.222.222|OpenDNS  | Tipicamente OK |
+|Caminho longo|202.12.28.131| APNIC| Perda ~100%-->FALHA|
+
+A intenção original utilizava os destinos `8.8.8.8`, `1.1.1.1` e `202.12.27.33`. Esses destinos foram substituídos e ficam registrados apenas como referência histórica.
+
+A troca ocorreu devido à cota global do RIPE Atlas, que retornou HTTP 400 ao tentar utilizar `8.8.8.8`, indicando **mais de 25 medições concorrentes para o mesmo destino**. Portanto, a mudança não foi causada por falta de créditos do projeto.
+
+## 10. Rótulo e pergunta do modelo
+
+A pergunta canônica do modelo é classificar a condição da rede em **OK, RISCO ou FALHA**, a partir dos resultados observados em uma determinada janela de medição.
+
+A regra de classificação adotada é:
+- **FALHA:** perda de pacotes maior que 15%;
+- **RISCO:** quando a perda não ultrapassa 15%, mas a latência é maior que 100 ms;
+- **OK:** quando a perda não ultrapassa 15% e a latência não ultrapassa 100 ms.
+
+No snapshot observado em 12/09/2026, o dataset apresenta aproximadamente **0% de RISCO**, enquanto as ocorrências de **FALHA estão concentradas no destino APNIC (`202.12.28.131`)**. Esse comportamento pode gerar desbalanceamento e possível viés no treinamento caso o `ip` seja utilizado como variável de entrada. A decisão sobre alteração dos destinos permanece em discussão e não deve ser realizada sem nova decisão de arquitetura.
+
+## 11. Arquitetura de coleta 
+
+A coleta atual é dividida em duas etapas. Primeiro, é realizado um **POST único**, utilizando 'createperiodic', para criar seis medições periódicas no RIPE atlas. Depois, os resultados são obtidos continuamente por meio de requisições **GET**, ultilizando 'fetch_measurement_results' no collector executado em AWS lamba.
+o collector **não realiza um POST a cada 15 minutos**. o intervalo de 15 minutos corresponde à frequência de execução da etapa de coleta dos resultados. As medições periódicas possuem intervalo de **900 segundos**, ultilizando **2 probes no Brasil**, com medições de **ping e tracerout ICMP**. 
+Os resultados coletados são ultilizados para alimentar as camadas 'raw' e curated' do dataset do projeto;
+
+## 12. Contribuição individual
 
 Distribuição das contribuições nesta etapa:
 
@@ -117,10 +156,10 @@ tambem vai ter cobertura global
 `[]`
 
 ### Integrante 6 — `[Stephanie Vitoria Bessa dos Santos]`
-- **O que fez nesta etapa:** `[]`
-- **Tempo dedicado (aprox.):** `[ex.: 3h30]`
+- **O que fez nesta etapa:** `[Atualizei o memorando de decisão,incluindo a revisão da recomendação e justificativa da fonte de dados, o registro do estado atual do pipeline, a documentação dos destinos do modelo em OK, RISCO e FALHA]`
+- **Tempo dedicado (aprox.):** `[3h]`
 - **Evidência da contribuição** *(print de conversa, rascunho, e-mail, documento compartilhado etc.)*: 
-`[]` 
+`[![Evidência S1.1](evidencias/stephanie/evidencia-s1.1.png ]` 
 `[]`
 
 ---
