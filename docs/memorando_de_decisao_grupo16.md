@@ -125,6 +125,22 @@ tambem vai ter cobertura global
 
 ---
 
+## 9. Complemento S1.8 — hub médio e volume
+
+Não muda a recomendação (Atlas como fonte) nem o limiar `status_real`
+(perda > 15 → FALHA; senão latência > 100 → RISCO; senão OK). O curated
+live estava OK / FALHA sem **RISCO**; o 4º hub e o volume fecham esse buraco.
+
+| Item | Estado |
+|---|---|
+| Piloto one-off BR (RTT/perda) | `4.2.2.1` na faixa 100–200 ms, perda 0% — ver `docs/dataset-fonte-atlas.md` |
+| 4º hub (médio / RISCO) | `4.2.2.1` Level3/Lumen; AdGuard / OpenDNS / APNIC mantidos |
+| Volume | intervalo 300 s; ping `packets=8`; traceroute 3; 2 probes BR |
+| Limiar `status_real` | intacto |
+| EventBridge / Lambda | cadência 15 min intacta; só a lista `RIPE_ATLAS_MSM_IDS` (6→8) |
+| Secret AWS | follow-up se o agente não tiver AWS CLI |
+
+---
 
 ## Fontes consultadas
 

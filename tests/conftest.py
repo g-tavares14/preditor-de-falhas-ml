@@ -10,8 +10,12 @@ Responder = Callable[[str, str, dict[str, Any]], object]
 
 
 class FakeResponse:
-    def __init__(self, payload: object) -> None:
+    def __init__(self, payload: object, status_code: int | None = None) -> None:
         self._payload = payload
+        if status_code is None:
+            status_code = 204 if payload is None else 200
+        self.status_code = status_code
+        self.content = b"" if payload is None else b"{}"
 
     def json(self) -> object:
         return self._payload
@@ -27,6 +31,15 @@ def ping_results_payload() -> list[dict[str, Any]]:
 
 
 @pytest.fixture
+def traceroute_results_payload() -> list[dict[str, Any]]:
+    import json
+
+    raw = (FIXTURES / "traceroute_results.json").read_text(encoding="utf-8")
+    payload: list[dict[str, Any]] = json.loads(raw)
+    return payload
+
+
+@pytest.fixture
 def mock_atlas_request(
     monkeypatch: pytest.MonkeyPatch,
 ) -> Callable[[Responder], list[dict[str, Any]]]:
@@ -35,7 +48,10 @@ def mock_atlas_request(
 
         def fake_request(method: str, url: str, **kwargs: Any) -> FakeResponse:
             calls.append({"method": method, "url": url, "kwargs": kwargs})
-            return FakeResponse(responder(method, url, kwargs))
+            result = responder(method, url, kwargs)
+            if isinstance(result, FakeResponse):
+                return result
+            return FakeResponse(result)
 
         monkeypatch.setattr(
             "preditor_de_falhas_ml.atlas.requests.request",
