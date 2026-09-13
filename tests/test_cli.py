@@ -154,7 +154,7 @@ def test_cli_create_periodic_posts_and_prints_credits(
         if method == "GET" and url.endswith("credits/"):
             return {"current_balance": next(balances)}
         if method == "POST":
-            return {"measurements": [101, 102, 103, 104, 105, 106]}
+            return {"measurements": [101, 102, 103, 104, 105, 106, 107, 108]}
         raise AssertionError(f"unexpected {method} {url}")
 
     def fail_get_data(*_args: object, **_kwargs: object) -> None:
@@ -172,10 +172,11 @@ def test_cli_create_periodic_posts_and_prints_credits(
     printed = capsys.readouterr().out
     assert "Créditos antes: 100000" in printed
     assert "Créditos depois: 99790" in printed
-    assert "export RIPE_ATLAS_MSM_IDS=101,102,103,104,105,106" in printed
+    assert "export RIPE_ATLAS_MSM_IDS=101,102,103,104,105,106,107,108" in printed
     assert "msm_id=101" in printed
     assert "94.140.14.14" in printed
     assert "202.12.28.131" in printed
+    assert "4.2.2.1" in printed
 
 
 def test_cli_create_periodic_writes_ids_file(
@@ -189,7 +190,7 @@ def test_cli_create_periodic_writes_ids_file(
     def responder(method: str, url: str, _kwargs: dict[str, Any]) -> object:
         if method == "GET" and url.endswith("credits/"):
             return {"current_balance": 1}
-        return {"measurements": [201, 202, 203, 204, 205, 206]}
+        return {"measurements": [201, 202, 203, 204, 205, 206, 207, 208]}
 
     mock_atlas_request(responder)
     code = main(["createPeriodic", "--ids-file", str(ids_file)])
@@ -215,7 +216,7 @@ def test_cli_create_periodic_wait_uses_existing_fetch(
         if method == "GET" and url.endswith("credits/"):
             return {"current_balance": 50}
         if method == "POST":
-            return {"measurements": [301, 302, 303, 304, 305, 306]}
+            return {"measurements": [301, 302, 303, 304, 305, 306, 307, 308]}
         assert method == "GET"
         assert "/results/" in url
         return ping_results_payload
@@ -226,7 +227,7 @@ def test_cli_create_periodic_wait_uses_existing_fetch(
     assert code == 0
     methods = [call["method"] for call in calls]
     assert methods[:3] == ["GET", "POST", "GET"]
-    assert methods[3:] == ["GET"] * 6
+    assert methods[3:] == ["GET"] * 8
     assert all("/results/" in call["url"] for call in calls[3:])
     printed = capsys.readouterr().out
     assert "GET msm_id=301 linhas=1" in printed

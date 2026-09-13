@@ -30,7 +30,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         prog="python -m preditor_de_falhas_ml",
         description=(
             "Consulte créditos, leia resultados existentes (GET), "
-            "crie ou pare as 6 medições periódicas do hub "
+            "crie ou pare as 8 medições periódicas do hub "
             "(POST setup / DELETE stop) ou um ping one-off (POST demo)."
         ),
     )
@@ -39,8 +39,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     create = operations.add_parser(
         "createPeriodic",
         help=(
-            "Criar as 6 medições periódicas do hub (POST; is_oneoff=false, "
-            "interval=900). Setup do dataset — não é o collector."
+            "Criar as 8 medições periódicas do hub (POST; is_oneoff=false, "
+            "interval=300, ping packets=8). Setup do dataset — não é o collector."
         ),
     )
     create.add_argument(
@@ -48,7 +48,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         type=Path,
         default=None,
         help=(
-            f"Gravar os 6 msm_id em JSON (sem a API key). Ex.: {DEFAULT_MSM_IDS_PATH}"
+            f"Gravar os 8 msm_id em JSON (sem a API key). Ex.: {DEFAULT_MSM_IDS_PATH}"
         ),
     )
     create.add_argument(

@@ -99,7 +99,7 @@ def test_get_data_posts_then_reuses_fetch(
 def test_create_periodic_measurements_posts_hub_matrix(
     mock_atlas_request: InstallMock,
 ) -> None:
-    msm_ids = [101, 102, 103, 104, 105, 106]
+    msm_ids = [101, 102, 103, 104, 105, 106, 107, 108]
 
     def responder(method: str, url: str, kwargs: dict[str, Any]) -> object:
         assert method == "POST"
@@ -115,7 +115,7 @@ def test_create_periodic_measurements_posts_hub_matrix(
     assert payload["is_oneoff"] is False
     assert payload["probes"] == [{"type": "countries", "value": "BR", "requested": 2}]
     definitions = payload["definitions"]
-    assert len(definitions) == 6
+    assert len(definitions) == 8
     assert [item["target"] for item in definitions] == [
         spec.target for spec in HUB_SPECS
     ]
@@ -131,9 +131,9 @@ def test_create_periodic_measurements_posts_hub_matrix(
         assert definition["af"] == 4
     pings = [item for item in definitions if item["type"] == "ping"]
     traces = [item for item in definitions if item["type"] == "traceroute"]
-    assert len(pings) == 3
-    assert len(traces) == 3
-    assert all(item["packets"] == 5 for item in pings)
+    assert len(pings) == 4
+    assert len(traces) == 4
+    assert all(item["packets"] == 8 for item in pings)
     assert all(item["size"] == 64 for item in pings)
     assert all(item["packets"] == 3 for item in traces)
     assert all(item["protocol"] == "ICMP" for item in traces)
@@ -141,6 +141,7 @@ def test_create_periodic_measurements_posts_hub_matrix(
         "94.140.14.14",
         "208.67.222.222",
         "202.12.28.131",
+        "4.2.2.1",
     }
 
 
@@ -151,7 +152,7 @@ def test_create_periodic_measurements_rejects_incomplete_response(
         return {"error": "no credits"}
 
     mock_atlas_request(responder)
-    with pytest.raises(ValueError, match="não devolveu 6 msm_id"):
+    with pytest.raises(ValueError, match="não devolveu 8 msm_id"):
         create_periodic_measurements("test-key")
 
 
@@ -195,13 +196,13 @@ def test_stop_measurement_rejects_non_204(mock_atlas_request: InstallMock) -> No
 
 def test_write_measurement_ids_omits_api_key(tmp_path: Path) -> None:
     path = tmp_path / "msm_ids.json"
-    written = write_measurement_ids([11, 12, 13, 14, 15, 16], output_path=path)
+    written = write_measurement_ids([11, 12, 13, 14, 15, 16, 17, 18], output_path=path)
     raw = written.read_text(encoding="utf-8")
     payload = json.loads(raw)
     assert "api_key" not in raw
     assert "test-key" not in raw
     assert payload["is_oneoff"] is False
-    assert payload["interval"] == 900
+    assert payload["interval"] == 300
     assert [row["msm_id"] for row in payload["measurements"]] == [
         11,
         12,
@@ -209,12 +210,19 @@ def test_write_measurement_ids_omits_api_key(tmp_path: Path) -> None:
         14,
         15,
         16,
+        17,
+        18,
     ]
     assert payload["measurements"][0]["target"] == "94.140.14.14"
     assert payload["measurements"][0]["type"] == "ping"
     assert payload["measurements"][5]["target"] == "202.12.28.131"
     assert payload["measurements"][5]["type"] == "traceroute"
-    assert read_measurement_ids(written) == [11, 12, 13, 14, 15, 16]
+    assert payload["measurements"][6]["target"] == "4.2.2.1"
+    assert payload["measurements"][6]["type"] == "ping"
+    assert payload["measurements"][6]["role"] == "médio"
+    assert payload["measurements"][7]["target"] == "4.2.2.1"
+    assert payload["measurements"][7]["type"] == "traceroute"
+    assert read_measurement_ids(written) == [11, 12, 13, 14, 15, 16, 17, 18]
 
 
 def test_parse_measurement_ids_csv() -> None:

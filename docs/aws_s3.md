@@ -25,7 +25,7 @@ s3://preditor-falhas-ml/raw/measurements/yyyy=2026/mm=09/dd=11/12345678.jsonl
 s3://preditor-falhas-ml/curated/log_rede.csv
 ```
 
-`yyyy=` / `mm=` / `dd=` são partições de data da **coleta** (UTC, S1.7). `{msm_id}` é o id da medição Atlas (os 6 IDs vêm do S1.6).
+`yyyy=` / `mm=` / `dd=` são partições de data da **coleta** (UTC, S1.7). `{msm_id}` é o id da medição Atlas (os 8 IDs vêm do S1.8).
 
 Contrato curated (disciplina): ver hub Notion *Preditor de Falhas ML*. Este card só reserva o path.
 
