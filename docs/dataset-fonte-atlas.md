@@ -190,8 +190,9 @@ antigas; linhas novas só depois do env/Secret da Lambda receber os 8 IDs
 
 ### Tentativa 3 — retomar série após collector S1.7
 
-**Estado:** POST ao vivo **aceitou** (2026-09-12, ~00:30 UTC). Hub inalterado
-(AdGuard / OpenDNS / APNIC). Um POST com as 6 definições; `data/msm_ids.json`
+**Estado:** POST ao vivo **aceitou** (2026-09-12, ~00:30 UTC). **Stopped** no
+recreate S1.8 (2026-09-13). Hub inalterado então (AdGuard / OpenDNS / APNIC).
+Um POST com as 6 definições; `data/msm_ids.json`
 gravado **sem** a API key (gitignorado). A chave estava presente
 (`RIPE_ATLAS_API_KEY` present=true, length=36; valor não registrado).
 O collector **não** chama este POST. IDs novos foram para o env da Lambda
