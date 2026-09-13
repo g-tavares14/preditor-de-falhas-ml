@@ -140,7 +140,7 @@ Secret length=36 (valor não impresso). Collector continua GET-only.
 |---|---|
 | Lambda ARN | `arn:aws:lambda:sa-east-1:274394226829:function:preditor-falhas-collector` |
 | EventBridge | `preditor-falhas-collector-15min` **ENABLED** (`rate(15 minutes)`) |
-| `RIPE_ATLAS_MSM_IDS` | `210732689,210732690,210732692,210732693,210732696,210732697` (S1.7; **atualizar** após S1.8 recreate — 8 IDs em `docs/dataset-fonte-atlas.md`) |
+| `RIPE_ATLAS_MSM_IDS` | S1.7 `210732689,…,210732697` (Stopped). **Atualizar** para `210928969,210928970,210928971,210928972,210928973,210928974,210928975,210928976` |
 | Invoke histórico (Stopped `210717688`–`210717693`, `1789166700`–`1789167900`) | raw 12 + curated 12 |
 | Raw histórico | `s3://preditor-falhas-ml/raw/measurements/yyyy=2026/mm=09/dd=11/{msm_id}.jsonl` |
 | Curated | `s3://preditor-falhas-ml/curated/log_rede.csv` |
