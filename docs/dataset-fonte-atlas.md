@@ -16,8 +16,9 @@ GET getResults (sempre: local + Lambda)
 O collector agendado **não** chama `createPeriodic` nem `getData`. Runbook
 Lambda: `docs/aws_lambda.md`. IDs Stopped: `210717688`–`210717693` (S1.6).
 Série 900s/6 msm (S1.7) `210732689,210732690,210732692,210732693,210732696,210732697`
-foi **recriada** na S1.8 (stop + POST novo; ver Tentativa 4). EventBridge
-continua `rate(15 minutes)` — só o intervalo Atlas mudou (900→300).
+está **Stopped** (recreate S1.8). Série Ongoing/Scheduled atual:
+`210928969,210928970,210928971,210928972,210928973,210928974,210928975,210928976`.
+EventBridge continua `rate(15 minutes)` — só o intervalo Atlas mudou (900→300).
 
 Documentação da disciplina (não é o collector):
 `notebooks/02_post_medicoes_periodicas.ipynb`.
@@ -154,21 +155,38 @@ ficaram fora da faixa pedida (100–200 ms).
 
 ### Tentativa 4 — S1.8 hub médio + volume (300 s / ping 8 / 8 msm)
 
-**Estado:** recreate **pendente neste PR** (código/docs já na matriz nova).
-Plano: `stopPeriodic` das 6 Ongoing 900s
-(`210732689,210732690,210732692,210732693,210732696,210732697`) e
-`createPeriodic` das 8 definições (AdGuard / OpenDNS / APNIC / Level3).
-Sem overlap longo: stop primeiro, POST em seguida. Collector GET nas
-antigas continua a ler histórico; linhas novas só após o Secret/env
-receber os 8 IDs.
+**Estado:** recreate ao vivo **aceitou** (2026-09-13). `stopPeriodic` das 6
+Ongoing 900s (6/6 Stopped) e **um** POST `createPeriodic` com as 8
+definições. `data/msm_ids.json` gravado **sem** a API key (gitignorado).
+A chave estava presente (`RIPE_ATLAS_API_KEY` present=true, length=36;
+valor não registrado). Collector GET-only: continua lendo histórico das
+antigas; linhas novas só depois do env/Secret da Lambda receber os 8 IDs
+(este ambiente **não** tem AWS CLI — follow-up).
 
 | Campo | Valor |
 |---|---|
-| Créditos antes | *pendente recreate* |
-| Créditos depois | *pendente recreate* |
+| Créditos antes (stop) | 100000 |
+| Créditos depois (stop) | 100000 |
+| Créditos antes (POST) | 100000 |
+| Créditos depois (POST) | 100000 |
+| Delta | 0 no instante (cobrança periódica começa com a série Scheduled/Ongoing) |
 | Matriz enviada | 94.140.14.14, 208.67.222.222, 202.12.28.131, 4.2.2.1 × ping + traceroute ICMP; `is_oneoff: false`; interval 300; ping 8; tr 3; 2 probes BR |
-| `export RIPE_ATLAS_MSM_IDS` | *pendente recreate — não inventar IDs* |
-| AWS Secret / Lambda env | **follow-up:** este ambiente não tem AWS CLI; copiar a linha `export` para `RIPE_ATLAS_MSM_IDS` |
+| Status Atlas no stop (S1.7) | Stopped (6/6): `210732689,210732690,210732692,210732693,210732696,210732697` |
+| Status Atlas no POST | Scheduled (8/8) |
+| EventBridge | inalterado (`preditor-falhas-collector-15min` 15 min) |
+| `export RIPE_ATLAS_MSM_IDS` | `210928969,210928970,210928971,210928972,210928973,210928974,210928975,210928976` |
+| AWS Secret / Lambda env | **follow-up:** copiar a linha `export` para `RIPE_ATLAS_MSM_IDS` (`deploy.sh` ou `update-function-configuration`) |
+
+| msm_id | Destino | Tipo | Papel | prb_id (1º ciclo) | timestamps | créditos antes | créditos depois |
+|---|---|---|---|---|---|---|---|
+| 210928969 | 94.140.14.14 | ping | estável | — | POST 2026-09-13 | 100000 | 100000 |
+| 210928970 | 94.140.14.14 | traceroute ICMP | estável | — | POST 2026-09-13 | 100000 | 100000 |
+| 210928971 | 208.67.222.222 | ping | estável | — | POST 2026-09-13 | 100000 | 100000 |
+| 210928972 | 208.67.222.222 | traceroute ICMP | estável | — | POST 2026-09-13 | 100000 | 100000 |
+| 210928973 | 202.12.28.131 | ping | caminho longo | — | POST 2026-09-13 | 100000 | 100000 |
+| 210928974 | 202.12.28.131 | traceroute ICMP | caminho longo | — | POST 2026-09-13 | 100000 | 100000 |
+| 210928975 | 4.2.2.1 | ping | médio | — | POST 2026-09-13 | 100000 | 100000 |
+| 210928976 | 4.2.2.1 | traceroute ICMP | médio | — | POST 2026-09-13 | 100000 | 100000 |
 
 ### Tentativa 3 — retomar série após collector S1.7
 
