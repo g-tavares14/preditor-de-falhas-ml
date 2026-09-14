@@ -1,0 +1,12 @@
+{
+  // Configuração de lint para a documentação compartilhada (ED2, Redes e APS).
+  "globs": ["**/*.md"],
+  "ignores": ["node_modules", ".github/pull_request_template.md"],
+  "config": {
+    // Regras relaxadas para texto em prosa e documentos em português.
+    "MD013": false, // comprimento de linha livre para prosa
+    "MD033": false, // permite HTML inline (usado em tabelas/quebras)
+    "MD041": false, // primeiro elemento não precisa ser título
+    "default": true
+  }
+}
