@@ -10,7 +10,7 @@ import pandas as pd
 import requests
 
 API = "https://atlas.ripe.net/api/v2/"
-DEFAULT_TARGET = "8.8.8.8"
+DEFAULT_TARGET = "8.8.8.8" # Pode retirar porque não está sendo mais usado.
 DEFAULT_OUTPUT_DIR = Path("data/raw")
 DEFAULT_MSM_IDS_PATH = Path("data/msm_ids.json")
 HUB_INTERVAL_SECONDS = 300
