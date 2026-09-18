@@ -96,7 +96,7 @@ if [[ -n "${role_arn}" && "${role_arn}" != "None" ]]; then
     --resource-arns \
       "${secret_arn}" \
       "arn:aws:s3:::${BUCKET_NAME}/raw/measurements/x.jsonl" \
-      "arn:aws:s3:::${BUCKET_NAME}/curated/log_rede.csv" \
+      "arn:aws:s3:::${BUCKET_NAME}/curated/features.csv" \
       "arn:aws:logs:${REGION}:${account}:log-group:/aws/lambda/${fn_name}:*" \
     --output json)"
   if printf '%s' "${sim}" | python3 -c '
@@ -151,7 +151,7 @@ gsim="$(aws iam simulate-principal-policy \
   --policy-source-arn "${group_arn}" \
   --action-names s3:GetObject s3:PutObject secretsmanager:GetSecretValue \
   --resource-arns \
-    "arn:aws:s3:::${BUCKET_NAME}/curated/log_rede.csv" \
+    "arn:aws:s3:::${BUCKET_NAME}/curated/features.csv" \
     "arn:aws:s3:::${BUCKET_NAME}/raw/measurements/x.jsonl" \
     "${secret_arn}" \
   --output json)"

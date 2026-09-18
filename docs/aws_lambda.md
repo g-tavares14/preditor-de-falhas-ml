@@ -5,7 +5,8 @@ conta `274394226829`). Não cria outro stack.
 
 ```text
 S1.2 fetch_measurement_results(...)  →  raw JSONL no S3
-S1.3 curated_row / status_real       →  curated/log_rede.csv
+S1.3/S2.1 feature_row / label_row / status_real
+  → curated/features.csv (X) + curated/labels.csv (Y)
 Lambda = schedule + I/O S3 + orquestra os dois
 ```
 
@@ -53,11 +54,14 @@ Janela fixa: `[now − 1200, now]` (unix UTC). Invoke manual pode passar
 `start` / `stop` / `msm_ids` no payload (GET histórico).
 
 Raw: `raw/measurements/yyyy=/mm=/dd=/{msm_id}.jsonl` (data UTC do `stop`).
-Curated: append `curated/log_rede.csv`. Chave de idempotência:
-`msm_id + timestamp + prb_id`. `msm_id` é coluna operacional no CSV; as 14
-colunas da disciplina vêm na ordem canônica. A role precisa de
-`s3:ListBucket` nos prefixos `raw`/`curated`: sem isso, GetObject em
-objeto ainda inexistente vira AccessDenied em vez de `NoSuchKey`.
+Curated S2.1: append `curated/features.csv` (X, sem `status_real`) e
+`curated/labels.csv` (Y). Chave de junção / idempotência:
+`msm_id + timestamp + prb_id` (1:1 entre os dois arquivos). `msm_id` entra
+nos dois CSVs. `curated/log_rede.csv` está superseded — o collector **não**
+grava nele; a primeira coleta (e o comando `migrateCurated`) migra o legado
+se existir. Runbook: [migracao_curated_xy.md](migracao_curated_xy.md).
+A role precisa de `s3:ListBucket` nos prefixos `raw`/`curated`: sem isso,
+GetObject em objeto ainda inexistente vira AccessDenied em vez de `NoSuchKey`.
 
 ## Kill-switch
 
@@ -112,7 +116,8 @@ Conferir objetos (sem secret):
 
 ```bash
 aws s3 ls s3://preditor-falhas-ml/raw/measurements/ --recursive --region sa-east-1
-aws s3 cp s3://preditor-falhas-ml/curated/log_rede.csv - --region sa-east-1 | head
+aws s3 cp s3://preditor-falhas-ml/curated/features.csv - --region sa-east-1 | head
+aws s3 cp s3://preditor-falhas-ml/curated/labels.csv - --region sa-east-1 | head
 ```
 
 ## createPeriodic (novos IDs — fora da Lambda)
@@ -143,7 +148,7 @@ Secret length=36 (valor não impresso). Collector continua GET-only.
 | `RIPE_ATLAS_MSM_IDS` | S1.7 `210732689,…,210732697` (Stopped). **Atualizar** para `210928969,210928970,210928971,210928972,210928973,210928974,210928975,210928976` |
 | Invoke histórico (Stopped `210717688`–`210717693`, `1789166700`–`1789167900`) | raw 12 + curated 12 |
 | Raw histórico | `s3://preditor-falhas-ml/raw/measurements/yyyy=2026/mm=09/dd=11/{msm_id}.jsonl` |
-| Curated | `s3://preditor-falhas-ml/curated/log_rede.csv` |
+| Curated (S1.7, histórico) | `s3://preditor-falhas-ml/curated/log_rede.csv` (superseded em S2.1) |
 | Invoke IDs novos | HTTP 200, 0 linhas (cedo demais para o 1º ciclo) |
 
 1ª invoke falhou com AccessDenied/`s3:ListBucket` (GetObject em curated

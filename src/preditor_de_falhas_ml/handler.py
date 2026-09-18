@@ -53,9 +53,13 @@ def lambda_handler(
         s3_client=s3,
     )
     LOGGER.info(
-        "collector done raw_rows=%s curated_appended=%s raw_keys=%s",
+        "collector done raw_rows=%s curated_appended=%s "
+        "legacy_migrated=%s features=%s labels=%s raw_keys=%s",
         summary["raw_rows"],
         summary["curated_appended"],
+        summary.get("legacy_migrated", 0),
+        summary.get("features_key"),
+        summary.get("labels_key"),
         summary["raw_keys"],
     )
     return summary
