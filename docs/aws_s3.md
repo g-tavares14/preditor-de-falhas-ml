@@ -2,7 +2,7 @@
 
 S3 é o “banco” do projeto: JSON bruto do Atlas e CSV curated da disciplina. Criado no mesmo stack CloudFormation de [S1.4](aws_secrets_iam.md) para a bucket policy usar o ARN da role da Lambda.
 
-**Custo (ordem de grandeza, não cotação):** o dataset Sprint 1 é milhares de linhas JSONL/CSV — volume pequeno em [S3 Standard](https://aws.amazon.com/s3/pricing/). Intelligent-Tiering **não** entra: a taxa de monitoramento por objeto pode superar o storage nesse tamanho. Versionamento está ligado para proteger `curated/log_rede.csv` de overwrite acidental (custo = versões retidas; aceitável neste volume). Lifecycle aborta multipart incompleto após 7 dias.
+**Custo (ordem de grandeza, não cotação):** o dataset Sprint 1 é milhares de linhas JSONL/CSV — volume pequeno em [S3 Standard](https://aws.amazon.com/s3/pricing/). Intelligent-Tiering **não** entra: a taxa de monitoramento por objeto pode superar o storage nesse tamanho. Versionamento está ligado para proteger os CSV curated de overwrite acidental (custo = versões retidas; aceitável neste volume). Lifecycle aborta multipart incompleto após 7 dias.
 
 ## Região e nome
 
@@ -15,19 +15,28 @@ S3 é o “banco” do projeto: JSON bruto do Atlas e CSV curated da disciplina.
 ```text
 s3://preditor-falhas-ml/
   raw/measurements/yyyy=/mm=/dd=/{msm_id}.jsonl
-  curated/log_rede.csv
+  curated/features.csv
+  curated/labels.csv
+  curated/log_rede.csv          # superseded (S2.1) — não gravar
 ```
 
 Exemplos (não são dados reais — não commitar medições no Git):
 
 ```text
 s3://preditor-falhas-ml/raw/measurements/yyyy=2026/mm=09/dd=11/12345678.jsonl
-s3://preditor-falhas-ml/curated/log_rede.csv
+s3://preditor-falhas-ml/curated/features.csv
+s3://preditor-falhas-ml/curated/labels.csv
 ```
 
 `yyyy=` / `mm=` / `dd=` são partições de data da **coleta** (UTC, S1.7). `{msm_id}` é o id da medição Atlas (os 8 IDs vêm do S1.8).
 
-Contrato curated (disciplina): ver hub Notion *Preditor de Falhas ML*. Este card só reserva o path.
+Contrato curated S2.1 (dois arquivos, join `(msm_id, timestamp, prb_id)`):
+
+- `curated/features.csv` — X + chave; **sem** `status_real`
+- `curated/labels.csv` — Y + chave (`status_real`)
+- `curated/log_rede.csv` — X+Y no mesmo arquivo; **superseded**. Migração: [migracao_curated_xy.md](migracao_curated_xy.md)
+
+Hub Notion *Preditor de Falhas ML* (card S2.1) é a origem da decisão. Este card reserva o path.
 
 Prefixos `raw/measurements/` e `curated/` ganham objetos vazios `.keep` no `deploy.sh` para o layout aparecer no console. Não são linhas do dataset.
 
@@ -45,7 +54,7 @@ Humanos do grupo **não** escrevem. Leitura: group `preditor-dados-leitura` — 
 | Object ownership | `BucketOwnerEnforced` (ACLs off) | [S3 security best practices](https://docs.aws.amazon.com/AmazonS3/latest/userguide/security-best-practices.html) |
 | Encryption | SSE-S3 (`AES256`) | default CFN; sem KMS extra neste volume |
 | Bucket policy | Deny `aws:SecureTransport=false`; Allow Get/Put na role S1.4 em `raw/*` e `curated/*`; Allow ListBucket na mesma role só nesses prefixos | alinhada à role (não “aplicar depois”) |
-| Versioning | Enabled | protege overwrite do CSV curated |
+| Versioning | Enabled | protege overwrite dos CSV curated |
 
 ## Deploy
 
