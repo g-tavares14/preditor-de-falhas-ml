@@ -76,12 +76,11 @@ o dataset de treino é formado pelo acumulo dos resultados obtidos por meio dos 
 ## 9. Destinos atuais do hub 
 
 Os destinos atualmente ultilizados do RIPE Atlas são:
-
-| Papel |  IP atual  |   Quem é | Notas |
------------------------------------------
-|Estável|94.140.14.14| AdGuard DNS| Tipicamente OK |
-|Estável|208.67.222.222|OpenDNS  | Tipicamente OK |
-|Caminho longo|202.12.28.131| APNIC| Perda ~100%-->FALHA|
+| Papel | IP atual | Quem é | Notas |
+|---|---|---|---|
+| Estável | `94.140.14.14` | AdGuard DNS | Tipicamente OK |
+| Estável | `208.67.222.222` | OpenDNS | Tipicamente OK |
+| Caminho longo | `202.12.28.131` | APNIC | Perda ~100% → FALHA |
 
 A intenção original utilizava os destinos `8.8.8.8`, `1.1.1.1` e `202.12.27.33`. Esses destinos foram substituídos e ficam registrados apenas como referência histórica.
 
@@ -106,17 +105,17 @@ Os resultados coletados são ultilizados para alimentar as camadas 'raw' e curat
 
 ## 12. Contribuição individual
 
-Distribuição das contribuições nesta etapa:
+Preencher pela equipe após a divisão das atividades:
 
-### Integrante 1 — `Alexandre Tiago de Oliveira`
+### Integrante 1 — `[Alexandre Tiago de Oliveira ]`
 - **O que fez nesta etapa:** `[]`
 - **Tempo dedicado (aprox.):** `[ex.: 3h30]`
 - **Evidência da contribuição** *(print de conversa, rascunho, e-mail, documento compartilhado etc.)*:
 `[]` 
 `[]`
 
-### Integrante 2 — `Ingrid Ferreira de Sousa`
-- **O que fez nesta etapa:** `[Realizei o preenchimento do memorando e organizei as informações fornecidas pela equipe.]`
+### Integrante 2 — `[Ingrid Ferreira de Sousa]`
+- **O que fez nesta etapa:** `[Alterei o memorando com os dados solicitados pelo orientador e analisei a comparação entre as fontes de dados.]`
 - **Tempo dedicado (aprox.):** `[ 4h ]`
 - **Evidência da contribuição** *(print de conversa, rascunho, e-mail, documento compartilhado etc.)*:
 `[Anotaçoes sobre a comparaçao:
@@ -134,8 +133,8 @@ tambem vai ter cobertura global
 -dependendo da frequencia tem um tempo maior ja que precisa criar a mediçao esperar rodar os pings e consultar o resultado
 -consegue dar controle total sobre a coleta ]` 
 
-### Integrante 3 — `Guilherme Leite Tavares`
-- **O que fez nesta etapa:** `[Realizei a pesquisa do banco de dados e levantei as informações sobre as fontes de dados analisadas.]`
+### Integrante 3 — `[Guilherme Leite Tavares]`
+- **O que fez nesta etapa:** `[]`
 - **Tempo dedicado (aprox.):** `[ex.: 3h30]`
 - **Evidência da contribuição** *(print de conversa, rascunho, e-mail, documento compartilhado etc.)*: 
 `[]` 
@@ -164,22 +163,6 @@ tambem vai ter cobertura global
 
 ---
 
-## 9. Complemento S1.8 — hub médio e volume
-
-Não muda a recomendação (Atlas como fonte) nem o limiar `status_real`
-(perda > 15 → FALHA; senão latência > 100 → RISCO; senão OK). O curated
-live estava OK / FALHA sem **RISCO**; o 4º hub e o volume fecham esse buraco.
-
-| Item | Estado |
-|---|---|
-| Piloto one-off BR (RTT/perda) | `4.2.2.1` na faixa 100–200 ms, perda 0% — ver `docs/dataset-fonte-atlas.md` |
-| 4º hub (médio / RISCO) | `4.2.2.1` Level3/Lumen; AdGuard / OpenDNS / APNIC mantidos |
-| Volume | intervalo 300 s; ping `packets=8`; traceroute 3; 2 probes BR |
-| Limiar `status_real` | intacto |
-| EventBridge / Lambda | cadência 15 min intacta; só a lista `RIPE_ATLAS_MSM_IDS` (6→8) |
-| Secret AWS | follow-up se o agente não tiver AWS CLI |
-
----
 
 ## Fontes consultadas
 
