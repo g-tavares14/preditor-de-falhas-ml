@@ -31,7 +31,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         description=(
             "Consulte créditos, leia resultados existentes (GET), "
             "crie ou pare as 8 medições periódicas do hub "
-            "(POST setup / DELETE stop) ou um ping one-off (POST demo)."
+            "(POST setup / DELETE stop), um ping one-off (POST demo) "
+            "ou migre curated/log_rede.csv para features.csv + labels.csv."
         ),
     )
     operations = parser.add_subparsers(dest="operation")
@@ -94,10 +95,25 @@ def main(argv: Sequence[str] | None = None) -> int:
     collect.add_argument("--start", type=int, required=True)
     collect.add_argument("--stop", type=int, required=True)
     collect.add_argument("--output-dir", type=Path, default=None)
+    migrate = operations.add_parser(
+        "migrateCurated",
+        help=(
+            "Migrar curated/log_rede.csv (superseded) para "
+            "curated/features.csv + curated/labels.csv. Idempotente. "
+            "Não cria medição Atlas e não liga EventBridge."
+        ),
+    )
+    migrate.add_argument(
+        "--bucket",
+        default=None,
+        help="Bucket S3. Default: S3_BUCKET ou preditor-falhas-ml.",
+    )
     args = parser.parse_args(argv)
     if args.operation is None:
         parser.print_help()
         return 0
+    if args.operation == "migrateCurated":
+        return _migrate_curated(args.bucket)
     api_key = os.environ["RIPE_ATLAS_API_KEY"]
     if args.operation == "getCredits":
         print(f"Créditos: {get_credits(api_key)}")
@@ -176,4 +192,27 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     append_data(frame, output_dir=args.output_dir)
     print(frame.to_string(index=False))
+    return 0
+
+
+def _migrate_curated(bucket_arg: str | None) -> int:
+    import boto3
+
+    from preditor_de_falhas_ml.collector import migrate_legacy_curated
+
+    bucket = bucket_arg or os.environ.get("S3_BUCKET") or "preditor-falhas-ml"
+    summary = migrate_legacy_curated(boto3.client("s3"), bucket)
+    print(
+        "migrateCurated "
+        f"bucket={summary['bucket']} "
+        f"source_found={summary['source_found']} "
+        f"source_rows={summary['source_rows']} "
+        f"features_appended={summary['features_appended']} "
+        f"labels_appended={summary['labels_appended']}"
+    )
+    if not summary["source_found"]:
+        print(
+            "curated/log_rede.csv ausente — no-op. "
+            "features.csv e labels.csv não foram alterados."
+        )
     return 0
