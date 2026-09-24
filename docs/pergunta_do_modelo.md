@@ -35,3 +35,15 @@ Eles **não** viram classes novas nem perguntas separadas do modelo.
 
 Alguém de fora da equipe precisa conseguir explicar a pergunta do modelo em
 uma frase, sem citar TTL ou hops.
+
+## Notebook didático de cálculo de Y
+
+`notebooks/03_calculo_status_real.ipynb` demonstra a criação de Y (`status_real`)
+a partir do arquivo local `data/raw/features.csv`, baixado do S3 para esta
+atividade. O notebook importa `status_real` de `src/preditor_de_falhas_ml/features.py`;
+essa função continua sendo a fonte canônica da regra e não é reimplementada nas
+células. O notebook exibe a distribuição resultante e casos de exemplo, sem
+alterar o CSV, gravar em S3 ou treinar o modelo. O comportamento para valores
+ausentes acompanha a função existente: `FALHA` se a perda conhecida passar de
+15%, `RISCO` se a latência conhecida passar de 100 ms e `OK` quando nenhuma
+condição for satisfeita.
