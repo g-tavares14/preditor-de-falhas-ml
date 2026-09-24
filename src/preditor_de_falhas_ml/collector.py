@@ -96,11 +96,11 @@ def _merge_raw_jsonl(
     records: list[dict[str, Any]],
 ) -> int:
     existing = _parse_jsonl(_s3_get_text(s3_client, bucket, key))
-    seen = {_raw_identity(item) for item in existing}
+    seen = {row_identity(item) for item in existing}
     merged = list(existing)
     added = 0
     for record in records:
-        identity = _raw_identity(record)
+        identity = row_identity(record)
         if identity in seen:
             continue
         seen.add(identity)
@@ -115,10 +115,6 @@ def _merge_raw_jsonl(
             content_type="application/x-ndjson",
         )
     return added
-
-
-def _raw_identity(record: dict[str, Any]) -> tuple[object, object, object]:
-    return (record.get("msm_id"), record.get("timestamp"), record.get("prb_id"))
 
 
 def _read_curated(s3_client: Any, bucket: str) -> list[dict[str, Any]]:
