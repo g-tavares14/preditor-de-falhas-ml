@@ -10,7 +10,7 @@ import pandas as pd
 import requests
 
 API = "https://atlas.ripe.net/api/v2/"
-DEFAULT_TARGET = "8.8.8.8" # Pode retirar porque não está sendo mais usado.
+DEFAULT_TARGET = "8.8.8.8"
 DEFAULT_OUTPUT_DIR = Path("data/raw")
 DEFAULT_MSM_IDS_PATH = Path("data/msm_ids.json")
 HUB_INTERVAL_SECONDS = 300
@@ -49,8 +49,8 @@ HUB_SPECS: tuple[HubSpec, ...] = (
 )
 
 
-def _request(method: str, url: str, api_key: str, **kwargs: Any) -> Any:
-    response = requests.request(
+def _request(method: str, url: str, api_key: str, **kwargs: Any) -> requests.Response:
+    return requests.request(
         method,
         url,
         headers={
@@ -60,16 +60,15 @@ def _request(method: str, url: str, api_key: str, **kwargs: Any) -> Any:
         timeout=30,
         **kwargs,
     )
-    return response.json()
 
 
 def get_credits(api_key: str) -> int:
-    return _request("GET", f"{API}credits/", api_key)["current_balance"]
+    return _request("GET", f"{API}credits/", api_key).json()["current_balance"]
 
 
 def fetch_measurement(api_key: str, msm_id: int) -> dict[str, Any]:
     """GET `/measurements/{msm_id}/` (metadados, inclusive status)."""
-    payload = _request("GET", f"{API}measurements/{msm_id}/", api_key)
+    payload = _request("GET", f"{API}measurements/{msm_id}/", api_key).json()
     if not isinstance(payload, dict):
         raise ValueError(
             f"GET /measurements/{msm_id}/ não devolveu objeto. Resposta: {payload}."
@@ -79,15 +78,7 @@ def fetch_measurement(api_key: str, msm_id: int) -> dict[str, Any]:
 
 def stop_measurement(api_key: str, msm_id: int) -> None:
     """DELETE `/measurements/{msm_id}/` — para a série; o histórico GET permanece."""
-    response = requests.request(
-        "DELETE",
-        f"{API}measurements/{msm_id}/",
-        headers={
-            "Authorization": f"Key {api_key}",
-            "Accept": "application/json",
-        },
-        timeout=30,
-    )
+    response = _request("DELETE", f"{API}measurements/{msm_id}/", api_key)
     if response.status_code == 204:
         return
     detail = ""
@@ -139,7 +130,7 @@ def fetch_measurement_results(
         f"{API}measurements/{msm_id}/results/",
         api_key,
         **extra,
-    )
+    ).json()
     return pd.DataFrame(results)
 
 
@@ -182,7 +173,7 @@ def create_periodic_measurements(api_key: str) -> list[int]:
             ],
             "is_oneoff": False,
         },
-    )
+    ).json()
     raw_ids = created.get("measurements") if isinstance(created, dict) else None
     if not isinstance(raw_ids, list) or len(raw_ids) != len(HUB_SPECS):
         raise ValueError(
@@ -262,7 +253,7 @@ def get_data(
             ],
             "is_oneoff": True,
         },
-    )
+    ).json()
     measurement_id = int(created["measurements"][0])
     frame = fetch_measurement_results(api_key, measurement_id)
     deadline = 30
