@@ -1,9 +1,10 @@
-"""Funções puras: registro Atlas bruto → vetor curated + status_real.
+"""Funções puras: registro Atlas bruto → features (X) e rótulo (Y).
 
 Sem HTTP, Path, CSV ou pandas. Entrada: dict (JSON Atlas ping/traceroute).
-O CSV curated da disciplina usa os nomes em português abaixo.
+Extração (``feature_row``) e rótulo (``label_row`` / ``status_real``) são
+APIs distintas: X não carrega a classe.
 
-Rótulo ``status_real`` (nesta ordem):
+Rótulo ``status_real`` (nesta ordem; limiares travados):
 
 1. ``perda_pacotes_pct`` > 15 → ``FALHA``
 2. senão ``latencia_ms`` > 100 → ``RISCO``
@@ -24,7 +25,10 @@ STATUS_OK = "OK"
 LOSS_FALHA_PCT = 15.0
 LATENCY_RISCO_MS = 100.0
 
-CURATED_COLUMNS: tuple[str, ...] = (
+JOIN_KEY_COLUMNS: tuple[str, ...] = ("msm_id", "timestamp", "prb_id")
+
+FEATURE_COLUMNS: tuple[str, ...] = (
+    "msm_id",
     "timestamp",
     "prb_id",
     "ip",
@@ -38,12 +42,12 @@ CURATED_COLUMNS: tuple[str, ...] = (
     "n_hops",
     "destino_respondeu",
     "pct_hops_timeout",
-    "status_real",
 )
 
-# msm_id entra no CSV só como chave operacional de idempotência (S1.7).
-# As 14 colunas da disciplina seguem na ordem canônica.
-CURATED_CSV_COLUMNS: tuple[str, ...] = ("msm_id", *CURATED_COLUMNS)
+LABEL_COLUMNS: tuple[str, ...] = (*JOIN_KEY_COLUMNS, "status_real")
+
+# Schema combinado só para ler curated/log_rede.csv (superseded, S2.1).
+LEGACY_CURATED_COLUMNS: tuple[str, ...] = (*FEATURE_COLUMNS, "status_real")
 
 
 def _valid_rtt(value: object) -> float | None:
@@ -66,8 +70,8 @@ def status_real(
     return STATUS_OK
 
 
-def curated_row(record: dict[str, Any]) -> dict[str, Any]:
-    """Converte um objeto Atlas (ping ou traceroute) no schema ampliado."""
+def feature_row(record: dict[str, Any]) -> dict[str, Any]:
+    """Converte um objeto Atlas (ping ou traceroute) no schema de features (X)."""
     kind = str(record.get("type") or "")
     rtts = _valid_rtts(record, kind)
     sent = _as_int(record.get("sent"))
@@ -96,13 +100,33 @@ def curated_row(record: dict[str, Any]) -> dict[str, Any]:
         "n_hops": n_hops,
         "destino_respondeu": destino,
         "pct_hops_timeout": pct_timeout,
-        "status_real": status_real(perda, latencia),
+    }
+
+
+def label_row(features: dict[str, Any]) -> dict[str, Any]:
+    """Aplica ``status_real`` ao vetor X. Não reparseia o JSON Atlas."""
+    return {
+        "msm_id": features.get("msm_id"),
+        "timestamp": features.get("timestamp"),
+        "prb_id": features.get("prb_id"),
+        "status_real": status_real(
+            _optional_number(features.get("perda_pacotes_pct")),
+            _optional_number(features.get("latencia_ms")),
+        ),
     }
 
 
 def row_identity(row: dict[str, Any]) -> tuple[object, object, object]:
-    """Chave de idempotência: msm_id + timestamp + prb_id."""
+    """Chave de junção / idempotência: msm_id + timestamp + prb_id."""
     return (row.get("msm_id"), row.get("timestamp"), row.get("prb_id"))
+
+
+def _optional_number(value: object) -> float | None:
+    if isinstance(value, bool) or value is None:
+        return None
+    if isinstance(value, int | float):
+        return float(value)
+    return None
 
 
 def _as_int(value: object) -> int | None:
