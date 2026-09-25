@@ -35,3 +35,14 @@ Eles **não** viram classes novas nem perguntas separadas do modelo.
 
 Alguém de fora da equipe precisa conseguir explicar a pergunta do modelo em
 uma frase, sem citar TTL ou hops.
+
+## Notebook didático de cálculo de Y
+
+`notebooks/03_calculo_status_real.ipynb` demonstra o cálculo de Y (`status_real`)
+com cópias locais dos arquivos canônicos `curated/features.csv` e
+`curated/labels.csv`, salvas em `data/curated/` para executar o notebook. X e Y
+são unidos 1:1 por `(msm_id, timestamp, prb_id)`. A regra continua em
+`src/preditor_de_falhas_ml/features.py`; o notebook recalcula o rótulo em memória,
+compara com Y armazenado e exibe a distribuição e casos de exemplo. Não altera
+os CSVs, grava no S3 ou treina o modelo. Valores ausentes seguem o comportamento
+da função oficial.
