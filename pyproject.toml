@@ -28,6 +28,7 @@ packages = ["src/preditor_de_falhas_ml"]
 target-version = "py312"
 line-length = 88
 src = ["src", "tests"]
+extend-exclude = ["notebooks"]  # disciplina; fora do pacote
 
 [tool.ruff.lint]
 select = [

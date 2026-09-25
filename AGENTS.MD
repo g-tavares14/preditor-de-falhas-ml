@@ -30,35 +30,43 @@ POST (uma vez / ao reconfigurar)     GET (sempre: local + Lambda)
 - **GET** — enche o dataset: `fetch` por `msm_id` + janela `start`/`stop`.
   Mesma função no driver local e na Lambda a cada 15 min (S1.2 / S1.7).
 - **Lambda / collector agendado: só GET.** Nunca POST no schedule.
-- Treino (sprints seguintes) consome o curated acumulado, não o payload do POST.
+- Treino (sprints seguintes) consome o curated acumulado (X e Y), não o payload do POST.
 
 ### Persistência
 
 - Local (smoke): `data/raw/measurements.jsonl` — append-only.
 - S3 (banco do projeto): bucket `preditor-falhas-ml`
-  - raw: `raw/measurements/yyyy=/mm=/dd=/{msm_id}.jsonl`
-  - curated: `curated/log_rede.csv`
+  - raw: `raw/measurements/yyyy=/mm=/dd=/{msm_id}.jsonl` — JSON Atlas, sem rótulo
+  - curated X: `curated/features.csv`
+  - curated Y: `curated/labels.csv`
+  - `curated/log_rede.csv` está **superseded** (X+Y no mesmo arquivo). Não
+    gravar. Migração: `python -m preditor_de_falhas_ml migrateCurated`
+    (`docs/migracao_curated_xy.md`).
 
-### Contrato curated (canônico — disciplina)
+### Contrato curated (canônico — disciplina, S2.1)
 
-Mínimo:
+Dois arquivos. Join 1:1 por `(msm_id, timestamp, prb_id)`.
 
-`timestamp, ip, latencia_ms, perda_pacotes_pct, jitter_ms, status_real`
+Features (`curated/features.csv` — X + chave; **sem** `status_real`):
 
-Ampliado (Sprint 1):
+`msm_id, timestamp, prb_id, ip, latencia_ms, rtt_min_ms, rtt_max_ms,`
+`perda_pacotes_pct, jitter_ms, ttl, dup, n_hops, destino_respondeu,`
+`pct_hops_timeout`
 
-`timestamp, prb_id, ip, latencia_ms, rtt_min_ms, rtt_max_ms, perda_pacotes_pct,`
-`jitter_ms, ttl, dup, n_hops, destino_respondeu, pct_hops_timeout, status_real`
+Labels (`curated/labels.csv` — Y + chave):
 
-Rótulo `status_real`:
+`msm_id, timestamp, prb_id, status_real`
+
+Rótulo `status_real` (limiares **inalterados**):
 
 1. `perda_pacotes_pct` > 15 → `FALHA`
 2. senão `latencia_ms` > 100 → `RISCO`
 3. senão → `OK`
 
-Aliases internos em inglês (`latency_ms`, `loss_pct`, `jitter_rtt_ms`) podem
-existir no código; o CSV curated / contrato da disciplina usa os nomes em
-português acima. Não inventar um terceiro schema.
+API pura: `feature_row` extrai X; `label_row` aplica `status_real` sobre o
+vetor X. Aliases internos em inglês (`latency_ms`, `loss_pct`,
+`jitter_rtt_ms`) podem existir no código; o CSV curated / contrato da
+disciplina usa os nomes em português acima. Não inventar um terceiro schema.
 
 Pergunta única do modelo: com base neste histórico, neste período, a rede está
 OK, em RISCO, ou FALHA? Extras (TTL, hops, destino longo vs estável) são
@@ -103,8 +111,9 @@ não escrever no README.
 ```text
 src/preditor_de_falhas_ml/
   atlas.py      _request, créditos, POST periódico / DELETE / one-off, GET results
-  features.py   S1.3: curated_row + status_real (puro; sem HTTP/Path/CSV/pandas)
-  collector.py  S1.7: orquestra GET + rótulo + S3 (sem POST)
+  features.py   S1.3/S2.1: feature_row (X) + label_row / status_real (Y);
+                puro; sem HTTP/Path/CSV/pandas
+  collector.py  S1.7/S2.1: GET + rótulo + S3 features.csv/labels.csv (sem POST)
   handler.py    Lambda: secret + janela + collect_measurements
   cli.py        argparse / env / stdout — um comando por superfície
 tests/          um módulo por superfície exercitada
@@ -118,9 +127,10 @@ periódico das 8 do hub; S1.6 / S1.8; `is_oneoff: false`, `interval` 300,
 ping 8);
 `write_measurement_ids` (JSON dos msm_id, sem a key); `get_data` (POST one-off
 + poll — demo, não é a série de treino); `fetch_measurement_results` (GET puro
-por `msm_id` + `start`/`stop`, sem poll); `append_data` (JSONL); `curated_row`
-/ `status_real` (S1.3); `collect_measurements` + `lambda_handler` (S1.7, GET +
-S3). O collector (`getResults` / Lambda) chama só o GET — nunca
+por `msm_id` + `start`/`stop`, sem poll); `append_data` (JSONL); `feature_row`
+/ `label_row` / `status_real` (S1.3 / S2.1); `collect_measurements` +
+`lambda_handler` (S1.7, GET + S3); `migrateCurated` (S2.1, log_rede → X/Y).
+O collector (`getResults` / Lambda) chama só o GET — nunca
 `create_periodic_measurements` nem `get_data`. O nome `get_data` **mistura**
 criação (POST) com leitura — não espelhar esse padrão em código novo.
 

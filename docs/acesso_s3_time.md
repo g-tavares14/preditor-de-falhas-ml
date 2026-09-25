@@ -36,7 +36,8 @@ Depois, no console IAM → Users → cada usuário → **Create login password**
 
 ```bash
 aws s3 ls s3://preditor-falhas-ml/curated/ --region sa-east-1
-aws s3 cp s3://preditor-falhas-ml/curated/log_rede.csv . --region sa-east-1
+aws s3 cp s3://preditor-falhas-ml/curated/features.csv . --region sa-east-1
+aws s3 cp s3://preditor-falhas-ml/curated/labels.csv . --region sa-east-1
 ```
 
 Não criem access key da **role da Lambda**. Não compartilhem `RIPE_ATLAS_API_KEY`.
@@ -57,7 +58,8 @@ CLI (região `sa-east-1`):
 
 ```bash
 aws s3 ls s3://preditor-falhas-ml/curated/ --region sa-east-1
-aws s3 cp s3://preditor-falhas-ml/curated/log_rede.csv . --region sa-east-1
+aws s3 cp s3://preditor-falhas-ml/curated/features.csv . --region sa-east-1
+aws s3 cp s3://preditor-falhas-ml/curated/labels.csv . --region sa-east-1
 ```
 
 Raw (debug da coleta), opcional:
@@ -66,10 +68,13 @@ Raw (debug da coleta), opcional:
 aws s3 ls s3://preditor-falhas-ml/raw/measurements/ --region sa-east-1
 ```
 
-Console: S3 → bucket `preditor-falhas-ml` → `curated/log_rede.csv` → Download.  
+Console: S3 → bucket `preditor-falhas-ml` → `curated/features.csv` e
+`curated/labels.csv` → Download.
+`curated/log_rede.csv` está superseded (S2.1); se ainda existir, é o CSV
+legado X+Y — não é o contrato atual.
 Se o bucket não aparecer na lista da home do S3, abra o objeto direto:
 
-`https://s3.console.aws.amazon.com/s3/object/preditor-falhas-ml?region=sa-east-1&prefix=curated/log_rede.csv`
+`https://s3.console.aws.amazon.com/s3/object/preditor-falhas-ml?region=sa-east-1&prefix=curated/features.csv`
 
 A policy **não** inclui `s3:ListAllMyBuckets` (de propósito).
 
