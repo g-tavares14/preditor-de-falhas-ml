@@ -7,5 +7,10 @@
       "command": "npx markserv ."
     }
   ],
-  "ports": [8642]
+  "ports": [
+    {
+      "name": "markdown-preview",
+      "port": 8642
+    }
+  ]
 }

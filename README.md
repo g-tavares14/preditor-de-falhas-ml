@@ -20,9 +20,10 @@ reimplementa HTTP nem chama `createPeriodic` / `get_data`.
 O dataset de treino é o acumulado dos GETs desses 8 `msm_id`. O POST é só
 setup. Detalhe e runbook: `docs/dataset-fonte-atlas.md`.
 
-`features.py` (S1.3) é a função pura `curated_row` / `status_real` (sem HTTP/Path):
-perda > 15 → `FALHA`; senão latência > 100 → `RISCO`; senão `OK`. A Lambda
-`preditor-falhas-collector` (S1.7) orquestra GET + rótulo + S3. PingER não
+`features.py` (S1.3 / S2.1) é puro (sem HTTP/Path): `feature_row` extrai X;
+`label_row` aplica `status_real` (perda > 15 → `FALHA`; senão latência > 100
+→ `RISCO`; senão `OK`). A Lambda `preditor-falhas-collector` (S1.7) orquestra
+GET + rótulo + S3 em `curated/features.csv` e `curated/labels.csv`. PingER não
 está integrado. Sem treino ML neste incremento.
 
 ## Notebooks da disciplina
@@ -64,13 +65,15 @@ uv run python -m preditor_de_falhas_ml getResults --help
 uv run python -m preditor_de_falhas_ml createPeriodic --help
 uv run python -m preditor_de_falhas_ml stopPeriodic --help
 uv run python -m preditor_de_falhas_ml getData --help
+uv run python -m preditor_de_falhas_ml migrateCurated --help
 ```
 
 Sem operação, ou com `--help`, mostra a ajuda e não acessa o Atlas.
 
 **Chave:** `getCredits`, `getResults`, `createPeriodic`, `stopPeriodic` e
-`getData` exigem `RIPE_ATLAS_API_KEY`. Os exemplos abaixo carregam `.env`
-com uv; se a variável já estiver no ambiente, remova `--env-file .env`.
+`getData` exigem `RIPE_ATLAS_API_KEY`. `migrateCurated` não — só S3.
+Os exemplos Atlas abaixo carregam `.env` com uv; se a variável já estiver
+no ambiente, remova `--env-file .env`.
 
 ```bash
 uv run --env-file .env python -m preditor_de_falhas_ml getCredits
@@ -80,6 +83,7 @@ uv run --env-file .env python -m preditor_de_falhas_ml createPeriodic --ids-file
 uv run --env-file .env python -m preditor_de_falhas_ml stopPeriodic --ids-file data/msm_ids.json
 uv run --env-file .env python -m preditor_de_falhas_ml getData
 uv run --env-file .env python -m preditor_de_falhas_ml getData --target 8.8.8.8 --af 4 --country-code BR --probe-count 1 --packets 16 --output-dir data/raw
+uv run python -m preditor_de_falhas_ml migrateCurated --bucket preditor-falhas-ml
 ```
 
 `getResults` (collector) exige `--msm-id`, `--start` e `--stop` (unix). Faz um
@@ -99,6 +103,12 @@ Não é o collector.
 204; não apaga `/results/`). IDs vêm de `--ids-file` ou
 `RIPE_ATLAS_MSM_IDS`. Atlas **não** reinicia medição Stopped — retomar é
 outro `createPeriodic` (novos ids).
+
+`migrateCurated` (S2.1) lê `curated/log_rede.csv` no S3, se existir, e
+grava `curated/features.csv` + `curated/labels.csv` com a mesma chave
+`(msm_id, timestamp, prb_id)`. Idempotente; no-op se o legado não existir.
+Não pede `RIPE_ATLAS_API_KEY` e **não** retoma Atlas/EventBridge. Runbook:
+`docs/migracao_curated_xy.md`.
 
 `getData` (demo one-off: `8.8.8.8`, IPv4, 16 pacotes, 1 probe no Brasil)
 **sempre cria** uma medição nova (consome créditos). Depois do POST, consulta
@@ -126,10 +136,11 @@ from pathlib import Path
 from preditor_de_falhas_ml import (
     append_data,
     create_periodic_measurements,
-    curated_row,
+    feature_row,
     fetch_measurement_results,
     get_credits,
     get_data,
+    label_row,
     status_real,
 )
 
@@ -137,7 +148,7 @@ key = os.environ["RIPE_ATLAS_API_KEY"]
 print(get_credits(key))
 frame = fetch_measurement_results(key, 12345, start=1710000000, stop=1710000900)
 append_data(frame, output_dir=Path("data/raw"))
-# curated_row(record) / status_real(perda, latencia) — S1.3, sem I/O
+# feature_row(record) / label_row(features) / status_real(perda, latencia)
 # create_periodic_measurements(key) — POST setup (S1.6), não o collector
 # get_data(key) cria medição one-off — não usar no collector nem no dataset
 ```
@@ -149,13 +160,15 @@ Runbook da Lambda: `docs/aws_lambda.md`.
 ```text
 src/preditor_de_falhas_ml/
   atlas.py      GET /credits/, POST periódico / DELETE stop / one-off, GET /results/, JSONL
-  features.py   S1.3: curated_row + status_real (puro; sem HTTP/Path)
-  collector.py  S1.7: GET + rótulo + I/O S3 (sem POST)
+  features.py   S1.3/S2.1: feature_row (X) + label_row / status_real (Y); puro
+  collector.py  S1.7/S2.1: GET + rótulo + I/O S3 features.csv/labels.csv (sem POST)
   handler.py    Lambda preditor-falhas-collector
-  cli.py        getCredits, getResults, createPeriodic, stopPeriodic, getData
+  cli.py        getCredits, getResults, createPeriodic, stopPeriodic, getData, migrateCurated
 infra/aws/      package.sh, deploy.sh, invoke.sh, verify.sh
 infra/cloudformation/s1-secrets-iam-s3.yaml   stack preditor-falhas-s1
 docs/aws_lambda.md                           runbook S1.7 + kill-switch
+docs/aws_s3.md                               layout raw + features/labels (S2.1)
+docs/migracao_curated_xy.md                  log_rede.csv → features + labels
 docs/dataset-fonte-atlas.md                  S1.6: POST = setup; dataset = GETs
 ```
 

@@ -319,3 +319,60 @@ def test_cli_stop_periodic_requires_ids(monkeypatch: pytest.MonkeyPatch) -> None
     monkeypatch.delenv("RIPE_ATLAS_MSM_IDS", raising=False)
     with pytest.raises(ValueError, match="--ids-file ou RIPE_ATLAS_MSM_IDS"):
         main(["stopPeriodic"])
+
+
+def test_cli_migrate_curated_does_not_need_atlas_key(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.delenv("RIPE_ATLAS_API_KEY", raising=False)
+    monkeypatch.delenv("S3_BUCKET", raising=False)
+    seen: list[tuple[object, str]] = []
+
+    def fake_migrate(s3_client: object, bucket: str) -> dict[str, object]:
+        seen.append((s3_client, bucket))
+        return {
+            "bucket": bucket,
+            "source_found": False,
+            "source_rows": 0,
+            "features_appended": 0,
+            "labels_appended": 0,
+        }
+
+    monkeypatch.setattr("boto3.client", lambda *_args, **_kwargs: object())
+    monkeypatch.setattr(
+        "preditor_de_falhas_ml.collector.migrate_legacy_curated",
+        fake_migrate,
+    )
+    code = main(["migrateCurated"])
+    assert code == 0
+    assert seen == [(seen[0][0], "preditor-falhas-ml")]
+    printed = capsys.readouterr().out
+    assert "source_found=False" in printed
+    assert "no-op" in printed
+
+
+def test_cli_migrate_curated_uses_bucket_arg(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("RIPE_ATLAS_API_KEY", raising=False)
+    captured: dict[str, str] = {}
+
+    def fake_migrate(_s3_client: object, bucket: str) -> dict[str, object]:
+        captured["bucket"] = bucket
+        return {
+            "bucket": bucket,
+            "source_found": True,
+            "source_rows": 2,
+            "features_appended": 2,
+            "labels_appended": 2,
+        }
+
+    monkeypatch.setattr("boto3.client", lambda *_args, **_kwargs: object())
+    monkeypatch.setattr(
+        "preditor_de_falhas_ml.collector.migrate_legacy_curated",
+        fake_migrate,
+    )
+    code = main(["migrateCurated", "--bucket", "outro-bucket"])
+    assert code == 0
+    assert captured["bucket"] == "outro-bucket"

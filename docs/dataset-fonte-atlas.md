@@ -9,7 +9,7 @@ sobre os 8 `msm_id` abaixo.
 POST createPeriodic (uma vez / ao reconfigurar)
   → 8 msm_id periódicos (fonte)
 GET getResults (sempre: local + Lambda)
-  → raw JSONL → curated/log_rede.csv
+  → raw JSONL → curated/features.csv + curated/labels.csv
   → dataset de treino
 ```
 
