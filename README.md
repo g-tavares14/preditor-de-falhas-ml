@@ -16,7 +16,7 @@ Este README cobre só o código: como rodar e o que ele produz.
 |---|---|
 | `src/preditor/` | Código-fonte do projeto (pipeline em PySpark) |
 | `docs/` | Documentação acadêmica e dos dados, com índice em [`docs/README.md`](docs/README.md) |
-| `notebooks/` | Entregas da primeira fase (GET e POST direto na API do RIPE Atlas), no formato pedido pela professora. Não usam o BigQuery nem `src/preditor` |
+| `notebooks/` | Entregas da primeira fase, no formato pedido pela professora: 01 (GET) e 02 (POST) direto na API do RIPE Atlas, 03 (rótulo `status_real` por limiar fixo). Não usam o BigQuery nem `src/preditor` |
 | `docs/data/processed/` | Saídas do pipeline (ignoradas pelo git) |
 
 ## Ambiente
