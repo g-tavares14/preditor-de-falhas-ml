@@ -6,7 +6,7 @@
 | Projeto integrador | Preditor de falhas ML |
 | Orientador(a) | Andrea Ono Sakai |
 | Data de entrega | 08/09/2026 |
-| Última atualização | 25/09/2026 |
+| Última atualização | 26/09/2026 |
 | Integrantes | Alexandre Tiago de Oliveira, Ingrid Ferreira de Sousa, Guilherme Leite Tavares, Kauan Garcia Dias de Oliveira, Lucas Eduardo Malachias Bagatela, Stephanie Vitoria Bessa dos Santos |
 
 > Este memorando registra a avaliação inicial entre PingER e RIPE Atlas e as decisões posteriores que levaram ao uso de medições públicas do RIPE Atlas no BigQuery. A estrutura de comparação, recomendação, justificativa, riscos, contribuições e fontes segue o template da disciplina.
@@ -77,7 +77,7 @@ A análise atual organiza as rotas por região de destino. Essa informação aju
 - **Âncoras regionais:** país e região são associados aos IPs selecionados para este recorte; a consulta não deduz a localização automaticamente.
 - **Mitigação:** manter a lista de endereços e sua classificação documentadas e revisar a cobertura efetivamente encontrada antes de interpretar resultados regionais.
 - **Rótulos:** a consulta BigQuery não calcula `status_real` nem transforma, por si só, os dados em evidência de predição.
-- **Mitigação:** derivar as métricas e aplicar o contrato de rotulagem em Python, registrando a regra usada e avaliando a distribuição das classes antes do treino.
+- **Mitigação:** derivar as métricas em Python (seção 9). A regra de rótulo está pendente de decisão; quando for definida, registrar a regra usada e avaliar a distribuição das classes antes do treino.
 
 ## 8. Contribuição individual
 
@@ -154,13 +154,20 @@ A decisão sobre a fonte mudou conforme o grupo observou os limites da coleta pr
 
 | Item | Decisão atual |
 |---|---|
-| Fonte e tabela | RIPE Atlas BigQuery — `ripencc-atlas.measurements.ping` |
+| Fonte e tabela | RIPE Atlas BigQuery — extração em `ripencc-atlas.measurements.ping` |
+| Tabela lida pelo pipeline | `atlas-ripe-509700.atlasRipe.atlas` (região EU), lida por `src/preditor` em PySpark; cobre 18/09 a 25/09/2026 |
 | Janela da consulta | Sete dias anteriores ao momento da execução |
 | Origem | 13 probes selecionadas no Brasil: `6349`, `6410`, `6602`, `6659`, `6790`, `6891`, `6977`, `7019`, `7113`, `7242`, `7307`, `7508` e `7708` |
 | Destinos | Brasil (`150.164.1.222`); Miami, EUA (`92.38.132.60`); Portugal (`91.209.16.127`); Alemanha (`129.143.66.65`); Singapura (`202.6.102.41`); Japão (`133.69.15.4`) |
 | Grupos regionais | `BR → BR`, `BR → América do Norte`, `BR → Europa` e `BR → Ásia` |
 | Saída da consulta | Medições brutas de ping IPv4 observadas para os filtros; não há rótulo calculado no SQL |
-| Preparação posterior | Derivar métricas e rótulos em Python após inspecionar a cobertura e a distribuição dos dados |
+| Baseline | Por fluxo (`prb_id`, destino e medição do Atlas), calculada só no Período A — as primeiras 108 h da tabela |
+| Features (X) | Métricas relativas à baseline de cada fluxo, calculadas no Período B: `latencia_relativa`, `aumento_pct`, `z_robusto`, `jitter_relativo` e, sobre as últimas cinco medições do fluxo, `n5_timeout`, `n5_aumento80`, `n5_moderado`, `tendencia` e `persistencia`. País e região são metadados, não features |
+| Rótulo (Y) | Pendente de decisão (tratamento de fluxos com MAD baixo). Nenhuma regra fixa de rótulo está vigente nesta etapa |
+
+As features relativas substituem o conjunto `curated/features.csv` + `curated/labels.csv` da primeira fase, que passa a ser legado. O rótulo por limiar fixo usado na primeira fase (notebook `03`) também não é aplicado por padrão ao recorte atual.
+
+A coleta ativa pela API do Atlas (primeira fase, com os quatro destinos citados no passo 3) é histórica: fica documentada pelos notebooks `01` (GET) e `02` (POST) e não é a fonte do dataset atual.
 
 A lista inicial de 433 probes públicas brasileiras não foi tratada como 433 probes ativas. O recorte final usa os 13 IDs selecionados e a consulta retorna somente combinações com registros correspondentes na tabela. A seleção de seis destinos também não significa que cada probe tenha consultado todos eles. A consulta é uma fotografia de uma janela histórica; não verifica o estado de conexão ao vivo.
 
