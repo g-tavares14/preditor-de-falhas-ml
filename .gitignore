@@ -8,9 +8,12 @@ dist/
 .env.*
 .DS_Store
 .aws/
-/data/*
-!/data/raw/
-/data/raw/*
-!/data/raw/.gitkeep
+/docs/data/*
+!/docs/data/README.md
+!/docs/data/docs/
+!/docs/data/raw/
+/docs/data/raw/*
+!/docs/data/raw/.gitkeep
 node_modules/
 npm-debug.log*
+.idea/
