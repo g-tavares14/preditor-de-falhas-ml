@@ -155,14 +155,17 @@ A decisão sobre a fonte mudou conforme o grupo observou os limites da coleta pr
 | Item | Decisão atual |
 |---|---|
 | Fonte e tabela | RIPE Atlas BigQuery — extração em `ripencc-atlas.measurements.ping` |
-| Tabela lida pelo pipeline | `atlas-ripe-509700.atlasRipe.atlas` (região EU), lida por `src/preditor` em PySpark; cobre 18/09 a 25/09/2026 |
+| Tabela lida pelo pipeline | `atlas-ripe-509700.atlasRipe.atlas` (região EU), lida por `src/preditor` em PySpark; cobre 18/09 a 25/09/2026. Se é materializada de `ripencc-atlas.measurements.ping`: não documentado na main |
 | Janela da consulta | Sete dias anteriores ao momento da execução |
 | Origem | 13 probes selecionadas no Brasil: `6349`, `6410`, `6602`, `6659`, `6790`, `6891`, `6977`, `7019`, `7113`, `7242`, `7307`, `7508` e `7708` |
 | Destinos | Brasil (`150.164.1.222`); Miami, EUA (`92.38.132.60`); Portugal (`91.209.16.127`); Alemanha (`129.143.66.65`); Singapura (`202.6.102.41`); Japão (`133.69.15.4`) |
+| Intervalo das medições | Não documentado na main |
 | Grupos regionais | `BR → BR`, `BR → América do Norte`, `BR → Europa` e `BR → Ásia` |
 | Saída da consulta | Medições brutas de ping IPv4 observadas para os filtros; não há rótulo calculado no SQL |
 | Baseline | Por fluxo (`prb_id`, destino e medição do Atlas), calculada só no Período A — as primeiras 108 h da tabela |
 | Features (X) | Métricas relativas à baseline de cada fluxo, calculadas no Período B: `latencia_relativa`, `aumento_pct`, `z_robusto`, `jitter_relativo` e, sobre as últimas cinco medições do fluxo, `n5_timeout`, `n5_aumento80`, `n5_moderado`, `tendencia` e `persistencia`. País e região são metadados, não features |
+| Parâmetros de X | Definidos em `src/preditor/config.py` a partir da RFC §8.4: `Z_RISCO=2.0`, `Z_FALHA=3.5`, `AUMENTO_RISCO_PCT=30`, `AUMENTO_FALHA_PCT=80`, `JITTER_RISCO=3.0` e `JANELA=5`. Alimentam `n5_aumento80`, `n5_moderado` e o relatório `limites_por_regiao.csv`. São candidatos à regra de Y, que não está travada |
+| Escala mínima | `ESCALA_MINIMA_MS=1.0`: hoje só entra quando o MAD é 0 (escala = max(IQR / 1,349; 1 ms)). Fluxos com MAD < 1 ms são o ponto em aberto, ligado à decisão pendente de Y |
 | Rótulo (Y) | Pendente de decisão (tratamento de fluxos com MAD baixo). Nenhuma regra fixa de rótulo está vigente nesta etapa |
 
 As features relativas substituem o conjunto `curated/features.csv` + `curated/labels.csv` da primeira fase, que passa a ser legado. O rótulo por limiar fixo usado na primeira fase (notebook `03`) também não é aplicado por padrão ao recorte atual.
