@@ -74,13 +74,16 @@ imprime os fluxos excluídos.
 
 ```text
 src/preditor/
-  config.py            parâmetros: tabela, corte A/B, piso, limiares da regra
-  spark.py             SparkSession local com o conector BigQuery
-  medicao.py           Medicoes         tabela bruta → 1 linha por medição (RTT, jitter, perda, período)
-  baseline.py          Baseline         ficha por fluxo, só com o Período A
-  features.py          Features         métricas relativas e janela das últimas 5 medições
-  relatorio_regiao.py  RelatorioRegiao  limites em ms por região
-  __main__.py          Pipeline         orquestra, grava e verifica
+  config.py                parâmetros globais: tabela, corte A/B, piso, limiares da regra
+  spark.py                 SparkSession local com o conector BigQuery
+  __main__.py              Pipeline         orquestra, grava e verifica
+  normalizacao/
+    medicao.py             Medicoes         tabela bruta → 1 linha por medição (RTT, jitter, perda, período)
+  calculo_x/
+    baseline.py            Baseline         ficha por fluxo, só com o Período A
+    features.py            Features         métricas relativas e janela das últimas 5 medições
+    relatorio_regiao.py    RelatorioRegiao  limites em ms por região (derivado do baseline)
+  calculo_y/               rótulo OK / RISCO / FALHA (ainda não implementado)
 ```
 
 As fórmulas seguem a RFC (§8.2 a §8.4). O código comenta cada passo e não

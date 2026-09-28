@@ -11,7 +11,7 @@ from pyspark.sql import DataFrame
 from pyspark.sql import functions as F
 
 from preditor import config
-from preditor.baseline import Baseline, mediana
+from preditor.calculo_x.baseline import Baseline, mediana
 
 
 class RelatorioRegiao:
