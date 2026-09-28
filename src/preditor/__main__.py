@@ -7,10 +7,10 @@ from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql import functions as F
 
 from preditor import config
-from preditor.baseline import Baseline
-from preditor.features import Features
-from preditor.medicao import Medicoes
-from preditor.relatorio_regiao import RelatorioRegiao
+from preditor.calculo_x.baseline import Baseline
+from preditor.calculo_x.features import Features
+from preditor.calculo_x.relatorio_regiao import RelatorioRegiao
+from preditor.normalizacao.medicao import Medicoes
 from preditor.spark import build_spark
 
 

@@ -10,7 +10,7 @@ from pyspark.sql import Column, DataFrame, Window
 from pyspark.sql import functions as F
 
 from preditor import config
-from preditor.baseline import Baseline
+from preditor.calculo_x.baseline import Baseline
 
 
 class Features:
