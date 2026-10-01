@@ -14,17 +14,19 @@ Este README cobre só o código: como rodar e o que ele produz.
 
 | Pasta | O que é |
 |---|---|
-| `src/preditor/` | Código-fonte do projeto (pipeline em PySpark) |
+| `src/preditor/` | Código-fonte do projeto: o pipeline de dados em PySpark e a árvore de decisão em scikit-learn (`modelo/`) |
 | `docs/` | Documentação acadêmica e dos dados, com índice em [`docs/README.md`](docs/README.md) |
 | `notebooks/` | Entregas da primeira fase, no formato pedido pela professora: 01 (GET) e 02 (POST) direto na API do RIPE Atlas, 03 (rótulo `status_real` por limiar fixo). Não usam o BigQuery nem `src/preditor` |
 | `docs/data/{bronze,silver,gold}/` | Saídas de cada camada do pipeline (ignoradas pelo git) |
+| `docs/data/modelo/` | Saídas da árvore de decisão (ignoradas pelo git) |
 
 ## Ambiente
 
 Pré-requisitos:
 
-- [uv](https://docs.astral.sh/uv/): gerencia Python 3.11 e as dependências (`pyspark` 3.5).
-- **Java 17**, exigido pelo Spark:
+- [uv](https://docs.astral.sh/uv/): gerencia Python 3.11 e as dependências (`pyspark` 3.5; `scikit-learn`, `pandas` e
+  `pyarrow` para a árvore).
+- **Java 17**, exigido pelo Spark (só o pipeline de dados; o comando `arvore` roda sem Java):
 
   ```bash
   brew install openjdk@17
@@ -90,13 +92,41 @@ contagens valem para o dataset de 7 dias atual: se a coleta for refeita, as chec
 de propósito (ver `src/preditor/config.py`). O Gold também imprime os fluxos excluídos, a
 contagem por classe e três exemplos reais (um OK, um RISCO e um FALHA) para o diário.
 
+### Árvore de decisão
+
+A árvore inicial (Tarefa 3, spec em [`SPEC-arvore.md`](SPEC-arvore.md)) é um comando à parte: lê o Gold do disco com
+pandas e treina com scikit-learn. Roda offline, sem Spark e sem Java, e **não** entra na execução sem argumento.
+
+```bash
+uv run python -m preditor arvore   # lê docs/data/gold/ e grava docs/data/modelo/ (offline)
+```
+
+Ela prevê a classe do mesmo fluxo 12 minutos à frente (`status_futuro`) com 8 métricas relativas ao baseline, e é
+medida na validação ao lado da persistência ("o futuro é igual ao `status_atual`"). Sem o Gold no disco, termina
+dizendo para rodar `uv run python -m preditor gold` antes. O bloco de teste fica fechado: aparece só como N.
+
+| Arquivo em `docs/data/modelo/` | Conteúdo |
+|---|---|
+| `busca_hiperparametros.csv` | As 28 combinações de `max_depth` × `min_samples_leaf`, com o F1 macro de treino e de validação; a primeira linha é a escolhida |
+| `arvore_oficial.json` | Critério, hiperparâmetros pedidos e obtidos, folhas, semente e as 8 colunas |
+| `regras_arvore_oficial.txt` | A árvore inteira em texto e as 3 regras em português, com N e pureza |
+| `matriz_validacao.csv` | Matriz 3×3 em contagem na validação (linha = verdadeiro, coluna = previsto): persistência, árvore oficial e árvore de contraste |
+| `metricas_validacao.csv` | Precisão, recall e F1 por classe, F1 macro, balanced accuracy e acurácia, dos mesmos três modelos |
+| `regras_arvore_contraste.txt` | A árvore de contraste em texto (8 colunas + `rtt` + região); não é o modelo e fica fora da entrega |
+
+Ao terminar, o comando confere por conta própria o que foi gravado (X só com as 8 colunas, nenhuma das 3 últimas
+medições de um fluxo em treino ou validação, `fit` só com o treino, a matriz soma o N da validação, cada regra em
+português seleciona exatamente as linhas da folha, mesma semente dá a mesma árvore) e imprime os resultados para o
+diário: N por bloco e classe, a busca, as divisões dos dois primeiros níveis, as matrizes, árvore × persistência, as
+3 regras e dois erros concretos.
+
 ## Como o código está dividido
 
 ```text
 src/preditor/
-  config.py                parâmetros globais: tabela, corte A/B, piso, limiares da regra, horizonte do futuro, recorte e caminhos
+  config.py                parâmetros globais: tabela, corte A/B, piso, limiares da regra, horizonte do futuro, recorte, colunas e grade da árvore e caminhos
   spark.py                 SparkSession local (o conector BigQuery só entra no bronze)
-  __main__.py              Pipeline         escolhe a camada, orquestra, grava e verifica
+  __main__.py              Pipeline         escolhe a camada (ou `arvore`), orquestra, grava e verifica
   bronze/
     ingestao.py            Bronze           tabela do BigQuery → Parquet, como está
   silver/
@@ -109,6 +139,12 @@ src/preditor/
     calculo_y/
       rotulo.py            Rotulo           `regra`, `status_atual` (RFC §8.4) e `status_futuro` (3ª medição à frente)
       recorte.py           Recorte          `bloco`: treino / validação / teste por dois cortes de tempo globais
+  modelo/                  fora do medalhão: lê o Gold com pandas, sem Spark
+    dados.py               DadosModelo      lê o dataset rotulado, aplica a folga, descarta futuro nulo, separa X e y por bloco
+    avaliacao.py           Avaliacao        matriz 3×3, métricas, persistência e os erros concretos
+    arvore.py              Arvore           busca na grade, treino, regras em texto; ArvoreContraste
+    regras.py              Regras           as 3 regras em português, lidas do caminho real da árvore
+    execucao.py            ExecucaoArvore   orquestra, grava em `docs/data/modelo/` e verifica
 ```
 
 As fórmulas seguem a RFC (§8.2 a §8.4). O código comenta cada passo e não
@@ -132,3 +168,7 @@ As decisões abaixo foram tomadas sobre o dataset atual e ainda não estão nos 
   medições no Período B e também fica fora do modelo (o Silver tem os 82).
 - **Região e país são metadados**, não features: a RFC proíbe usá-los na
   árvore.
+- **A árvore prevê `status_futuro`** (12 min à frente) e, para não olhar o bloco seguinte, descarta as 3 últimas
+  medições de cada fluxo em treino e validação (folga, RFC §9). Valor ausente fica ausente: nada é imputado.
+- **Sem balanceamento de classes** nesta primeira árvore: ele fica para o ajuste da Tarefa 4, medido contra ela. A
+  árvore é sempre comparada com a persistência, e só a validação escolhe os hiperparâmetros.

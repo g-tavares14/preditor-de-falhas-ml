@@ -5,6 +5,8 @@ Período A, features e rótulo do Período B). Com `bronze`: só a ingestão do 
 Com `silver`: só a normalização, lendo o Bronze do disco (sem rede).
 Com `gold`: só baseline, features e rótulo, lendo o Silver do disco (sem rede).
 Cada camada lê a anterior do disco, nunca da memória.
+Com `arvore`: a árvore de decisão, lendo o Gold do disco e gravando em `docs/data/modelo/` (sem rede, sem Spark e
+sem Java); não entra na execução sem argumento. O código dela fica em `preditor/modelo/`.
 """
 
 import argparse
@@ -20,6 +22,7 @@ from preditor.gold.calculo_x.features import Features
 from preditor.gold.calculo_x.relatorio_regiao import RelatorioRegiao
 from preditor.gold.calculo_y.recorte import BLOCOS, Recorte
 from preditor.gold.calculo_y.rotulo import Rotulo
+from preditor.modelo.execucao import ExecucaoArvore
 from preditor.silver.medicao import Medicoes
 from preditor.spark import build_spark
 
@@ -404,10 +407,16 @@ def main() -> None:
     analisador.add_argument(
         "camada",
         nargs="?",  # opcional: sem argumento roda o pipeline completo
-        choices=["bronze", "silver", "gold"],
-        help="camada a rodar isoladamente (sem argumento: pipeline completo)",
+        choices=["bronze", "silver", "gold", "arvore"],
+        help="camada a rodar isoladamente, ou `arvore` (sem argumento: pipeline completo)",
     )
     camada = analisador.parse_args().camada
+
+    # A árvore lê o Gold com pandas: desvia antes de `build_spark`, que exige Java.
+    # Por isso `arvore` também não entra na execução sem argumento.
+    if camada == "arvore":
+        ExecucaoArvore().executar()
+        return
 
     # O conector do BigQuery só é necessário quando a execução inclui o Bronze.
     spark = build_spark(com_bigquery=camada in (None, "bronze"))
