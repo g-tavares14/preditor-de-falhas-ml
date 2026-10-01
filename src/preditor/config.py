@@ -32,5 +32,24 @@ AUMENTO_FALHA_PCT = 80
 JITTER_RISCO = 3.0  # jitter atual / jitter típico
 JANELA = 5  # quantas medições recentes olhamos (a atual + 4 anteriores)
 
-# --- Saída ---------------------------------------------------------------------
-SAIDA = Path(__file__).resolve().parents[2] / "docs" / "data" / "processed"
+# --- Camadas de dados (arquitetura medalhão, SPEC-medalhao.md) ------------------
+DADOS = Path(__file__).resolve().parents[2] / "docs" / "data"
+BRONZE = DADOS / "bronze"  # cópia fiel da tabela do BigQuery, sem filtro nem cálculo
+ARQUIVO_BRONZE = BRONZE / "atlas.parquet"  # a tabela inteira, com `pings` aninhado
+SILVER = DADOS / "silver"  # uma linha por medição, já normalizada
+ARQUIVO_SILVER = SILVER / "medicoes.parquet"  # saída de `silver/medicao.py`
+GOLD = DADOS / "gold"  # baseline, features e rótulo: o que o modelo consome
+ARQUIVO_BASELINE = GOLD / "baseline_por_fluxo.parquet"  # a "ficha" de cada fluxo (Período A)
+ARQUIVO_FEATURES = GOLD / "features_B.parquet"  # o X do modelo (Período B)
+ARQUIVO_LIMITES = GOLD / "limites_por_regiao.csv"  # relatório para leitura humana
+
+# Checagem do Silver: fluxos distintos nas medições = os 81 do baseline + 1 fluxo
+# que só tem medições no Período B (7708|92.38.132.60|214331389). Decisão de
+# AGENTS.md, conferida no dataset de 7 dias (tasks/todo.md, "Números de referência").
+FLUXOS_SILVER = 82
+
+# Checagem do Gold: o baseline tem uma linha por fluxo com medições no Período A (81), e
+# 2 deles não chegam a 1.500 RTT válidos (`baseline_insuficiente`). Decisão de AGENTS.md,
+# conferida no dataset de 7 dias (tasks/todo.md, "Números de referência").
+FLUXOS_BASELINE = 81
+FLUXOS_INSUFICIENTES = 2

@@ -1,4 +1,4 @@
-"""Etapa 3: as features (o X do modelo) no Período B.
+"""Camada Gold, cálculo do X: as features (o X do modelo) no Período B.
 
 Cada medição do Período B é comparada com a ficha congelada do SEU fluxo.
 Por isso as features são relativas ("quanto piorou em relação ao normal
@@ -10,7 +10,7 @@ from pyspark.sql import Column, DataFrame, Window
 from pyspark.sql import functions as F
 
 from preditor import config
-from preditor.calculo_x.baseline import Baseline
+from preditor.gold.calculo_x.baseline import Baseline
 
 
 class Features:

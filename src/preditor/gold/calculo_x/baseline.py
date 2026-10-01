@@ -1,4 +1,4 @@
-"""Etapa 2: a "ficha" de cada fluxo — o que é normal para ele.
+"""Camada Gold, cálculo do X: a "ficha" de cada fluxo — o que é normal para ele.
 
 Calculada SÓ com o Período A e depois congelada. É ela que faz o "normal"
 mudar por região: BR→BR tem mediana ~9 ms, BR→Japão ~278 ms.

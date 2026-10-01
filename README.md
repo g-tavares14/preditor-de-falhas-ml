@@ -17,7 +17,7 @@ Este README cobre só o código: como rodar e o que ele produz.
 | `src/preditor/` | Código-fonte do projeto (pipeline em PySpark) |
 | `docs/` | Documentação acadêmica e dos dados, com índice em [`docs/README.md`](docs/README.md) |
 | `notebooks/` | Entregas da primeira fase, no formato pedido pela professora: 01 (GET) e 02 (POST) direto na API do RIPE Atlas, 03 (rótulo `status_real` por limiar fixo). Não usam o BigQuery nem `src/preditor` |
-| `docs/data/processed/` | Saídas do pipeline (ignoradas pelo git) |
+| `docs/data/{bronze,silver,gold}/` | Saídas de cada camada do pipeline (ignoradas pelo git) |
 
 ## Ambiente
 
@@ -28,11 +28,14 @@ Pré-requisitos:
 
   ```bash
   brew install openjdk@17
-  echo 'export JAVA_HOME=/opt/homebrew/opt/openjdk@17' >> ~/.zshrc
+  echo 'export JAVA_HOME=/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home' >> ~/.zshrc
   ```
 
-- **gcloud autenticado**: o conector do BigQuery usa as credenciais padrão, sem
-  arquivo de chave.
+  Se o `java` não estiver no PATH (o `openjdk@17` do Homebrew fica instalado mas não
+  linkado), exporte o `JAVA_HOME` acima antes de rodar o pipeline.
+
+- **gcloud autenticado** (só para a camada Bronze): o conector do BigQuery usa as
+  credenciais padrão, sem arquivo de chave.
 
   ```bash
   gcloud auth application-default login
@@ -53,37 +56,52 @@ uv sync --group notebook
 
 ## Executar
 
+O pipeline segue a arquitetura medalhão: três camadas, cada uma gravada em disco e
+lida pela seguinte (detalhes em [`SPEC-medalhao.md`](SPEC-medalhao.md)).
+
 ```bash
-uv run python -m preditor
+uv run python -m preditor          # bronze → silver → gold
+uv run python -m preditor bronze   # lê o BigQuery e grava docs/data/bronze/ (rede e gcloud)
+uv run python -m preditor silver   # lê o Bronze do disco e grava docs/data/silver/ (offline)
+uv run python -m preditor gold     # lê o Silver do disco e grava docs/data/gold/ (offline)
 ```
 
-Na primeira execução o Spark baixa o conector do BigQuery, o que leva alguns
-minutos. O pipeline lê `atlas-ripe-509700.atlasRipe.atlas` (região EU) e grava:
+Só o `bronze` precisa de rede e de credenciais. Na primeira execução o Spark baixa o
+conector do BigQuery, o que leva alguns minutos. `silver` e `gold` rodam offline, mas
+precisam da camada anterior no disco: sem ela, terminam dizendo qual comando rodar antes.
 
-| Arquivo | Uma linha por | Conteúdo |
-|---|---|---|
-| `baseline_por_fluxo.parquet` | fluxo | Ficha do Período A: mediana, MAD, IQR, jitter e perda típicos, taxa de resposta, `baseline_insuficiente` |
-| `features_B.parquet` | medição do Período B | O **X** do modelo: `latencia_relativa`, `aumento_pct`, `z_robusto`, `jitter_relativo`, `n5_*`, `tendencia`, `persistencia` |
-| `limites_por_regiao.csv` | rota / país | Os limiares da regra traduzidos para ms, por região (só para leitura) |
+| Camada | Arquivo | Uma linha por | Conteúdo |
+|---|---|---|---|
+| Bronze | `docs/data/bronze/atlas.parquet` | medição bruta | Cópia fiel de `atlas-ripe-509700.atlasRipe.atlas` (região EU), sem filtro, com `pings` aninhado |
+| Silver | `docs/data/silver/medicoes.parquet` | medição | `fluxo_id`, metadados da rota, `rtt`, `jitter`, `perda_pct` e `periodo` (A ou B) |
+| Gold | `docs/data/gold/baseline_por_fluxo.parquet` | fluxo | Ficha do Período A: mediana, MAD, IQR, jitter e perda típicos, taxa de resposta, `baseline_insuficiente` |
+| Gold | `docs/data/gold/features_B.parquet` | medição do Período B | O **X** do modelo: `latencia_relativa`, `aumento_pct`, `z_robusto`, `jitter_relativo`, `n5_*`, `tendencia`, `persistencia` |
+| Gold | `docs/data/gold/limites_por_regiao.csv` | rota / país | Os limiares da regra traduzidos para ms, por região (só para leitura) |
 
-No fim, o pipeline faz checagens automáticas: o Período A não pode vazar para
-as features e nenhum timeout (`rtt = 0`) pode entrar como RTT válido. Também
+Cada camada termina com checagens automáticas: o Bronze tem as mesmas linhas e colunas
+do BigQuery; o Silver não tem `rtt <= 0` (nenhum timeout entra como RTT válido) e tem 82
+fluxos; no Gold, o Período A não pode vazar para as features e o baseline tem 81 fluxos,
+2 deles insuficientes. Essas contagens valem para o dataset de 7 dias atual: se a coleta
+for refeita, as checagens falham de propósito (ver `src/preditor/config.py`). O Gold também
 imprime os fluxos excluídos.
 
 ## Como o código está dividido
 
 ```text
 src/preditor/
-  config.py                parâmetros globais: tabela, corte A/B, piso, limiares da regra
-  spark.py                 SparkSession local com o conector BigQuery
-  __main__.py              Pipeline         orquestra, grava e verifica
-  normalizacao/
-    medicao.py             Medicoes         tabela bruta → 1 linha por medição (RTT, jitter, perda, período)
-  calculo_x/
-    baseline.py            Baseline         ficha por fluxo, só com o Período A
-    features.py            Features         métricas relativas e janela das últimas 5 medições
-    relatorio_regiao.py    RelatorioRegiao  limites em ms por região (derivado do baseline)
-  calculo_y/               rótulo OK / RISCO / FALHA (ainda não implementado)
+  config.py                parâmetros globais: tabela, corte A/B, piso, limiares da regra e caminhos de cada camada
+  spark.py                 SparkSession local (o conector BigQuery só entra no bronze)
+  __main__.py              Pipeline         escolhe a camada, orquestra, grava e verifica
+  bronze/
+    ingestao.py            Bronze           tabela do BigQuery → Parquet, como está
+  silver/
+    medicao.py             Medicoes         Bronze → 1 linha por medição (RTT, jitter, perda, período)
+  gold/
+    calculo_x/
+      baseline.py          Baseline         ficha por fluxo, só com o Período A
+      features.py          Features         métricas relativas e janela das últimas 5 medições
+      relatorio_regiao.py  RelatorioRegiao  limites em ms por região (derivado do baseline)
+    calculo_y/             rótulo OK / RISCO / FALHA (ainda não implementado)
 ```
 
 As fórmulas seguem a RFC (§8.2 a §8.4). O código comenta cada passo e não
@@ -102,8 +120,8 @@ As decisões abaixo foram tomadas sobre o dataset atual e ainda não estão nos 
 - **RTT da medição** = média dos pings válidos da rajada (equivale ao campo
   `avg` do Atlas). **Jitter** = média de |Δrtt| entre pings consecutivos.
 - **`fluxo_id` = `prb_id|dst_addr|msm_id`.** Separa as séries quando mais de
-  uma medição do Atlas cobre o mesmo par. Com isso são 81 fluxos: 79 com
-  baseline e 2 marcados como `baseline_insuficiente`. Um terceiro fluxo só tem
-  medições no Período B e também fica fora do modelo.
+  uma medição do Atlas cobre o mesmo par. Com isso são 81 fluxos no baseline: 79
+  com baseline e 2 marcados como `baseline_insuficiente`. Um 82º fluxo só tem
+  medições no Período B e também fica fora do modelo (o Silver tem os 82).
 - **Região e país são metadados**, não features: a RFC proíbe usá-los na
   árvore.

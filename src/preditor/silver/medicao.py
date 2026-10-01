@@ -1,37 +1,21 @@
-"""Etapa 1: transformar a tabela bruta em uma linha por medição.
+"""Camada Silver: transformar a tabela do Bronze em uma linha por medição.
 
 Cada linha da tabela do RIPE Atlas é uma *medição*: uma rajada de 3 pings de
 uma probe para um destino, num instante. Os pings vêm dentro de uma lista
 (`pings`). Aqui resumimos essa lista em números simples: RTT, jitter e perda.
 """
 
-from pyspark.sql import Column, DataFrame, SparkSession
+from pyspark.sql import Column, DataFrame
 from pyspark.sql import functions as F
 
 from preditor import config
 
 
 class Medicoes:
-    def __init__(self, spark: SparkSession):
-        self.spark = spark
-
-    def carregar(self) -> DataFrame:
-        """Lê o BigQuery e devolve as medições prontas (etapa completa)."""
-        return self.transformar(self.ler_bigquery())
-
-    def ler_bigquery(self) -> DataFrame:
-        # O Spark é "preguiçoso": isto só descreve a leitura. Os dados só são
-        # baixados quando algo precisar do resultado (um write, count, show...).
-        return (
-            self.spark.read.format("bigquery")
-            .option("parentProject", config.PROJECT)
-            .option("location", config.LOCATION)
-            .load(config.TABLE)
-        )
-
-    def transformar(self, bruto: DataFrame) -> DataFrame:
+    def transformar(self, bronze: DataFrame) -> DataFrame:
+        """Recebe a tabela do Bronze (lida do Parquet) e devolve uma linha por medição."""
         df = (
-            bruto
+            bronze
             # rtts = lista só com os RTT válidos da rajada.
             # Atenção: no RIPE Atlas o ping que deu timeout vem com rtt = 0.0,
             # então "RTT válido" é rtt > 0 E timeout = false.
