@@ -51,10 +51,14 @@ FUTURO_MAX_S = 840  # 14 min, limite inclusivo
 FRACAO_TREINO = 0.5
 FRACAO_VALIDACAO = 0.2
 
-# --- Exemplos para o diário da Tarefa 2 (decisão de tasks/todo-calculo-y.md, Y5) -------------
+# --- Exemplos para o diário da Tarefa 2 (decisão do dono, 01/10/2026) -------------------------
+# Só escolhem QUAIS linhas são impressas como exemplo; não entram no rótulo nem no modelo.
 # O exemplo OK de "caminho longo" é a linha OK de maior RTT entre as de z baixo. "z baixo" =
 # |z_robusto| <= 1, metade do limiar de RISCO (Z_RISCO = 2): a medição está bem dentro do normal da rota.
 EXEMPLO_OK_Z_MAX = 1.0
+# O exemplo FALHA usa z com folga sobre o limiar (Z_FALHA = 3,5), para que a conferência à mão,
+# com mediana e MAD arredondados, não caia do outro lado do limiar.
+EXEMPLO_FALHA_Z_MIN = 5.0
 
 # --- Camadas de dados (arquitetura medalhão, SPEC-medalhao.md) ------------------
 DADOS = Path(__file__).resolve().parents[2] / "docs" / "data"

@@ -362,9 +362,13 @@ class Pipeline:
         exemplos = [
             (
                 "OK de caminho longo",
-                f"entre as linhas OK com |z_robusto| <= {config.EXEMPLO_OK_Z_MAX}, a de maior rtt",
-                rotulado.filter((F.col("status_atual") == "OK") & (F.abs("z_robusto") <= config.EXEMPLO_OK_Z_MAX))
-                .orderBy(F.desc("rtt"), "fluxo_id", "t"),
+                f"entre as linhas OK com |z_robusto| <= {config.EXEMPLO_OK_Z_MAX} e n5_moderado = 0, a de maior rtt",
+                # n5_moderado = 0: nenhuma das últimas 5 medições teve desvio, o OK mais "limpo" para o diário.
+                rotulado.filter(
+                    (F.col("status_atual") == "OK")
+                    & (F.abs("z_robusto") <= config.EXEMPLO_OK_Z_MAX)
+                    & (F.col("n5_moderado") == 0)
+                ).orderBy(F.desc("rtt"), "fluxo_id", "t"),
             ),
             (
                 "RISCO (regra 5)",
@@ -378,8 +382,10 @@ class Pipeline:
             ),
             (
                 "FALHA de caminho curto (regra 3)",
-                "entre as linhas da regra 3, a de menor rtt",
-                rotulado.filter(F.col("regra") == 3).orderBy("rtt", "fluxo_id", "t"),
+                f"entre as linhas da regra 3 com z_robusto >= {config.EXEMPLO_FALHA_Z_MIN}, a de menor rtt",
+                # z com folga sobre o limiar (3,5): refazer a conta com valores arredondados não muda a classe.
+                rotulado.filter((F.col("regra") == 3) & (F.col("z_robusto") >= config.EXEMPLO_FALHA_Z_MIN))
+                .orderBy("rtt", "fluxo_id", "t"),
             ),
         ]
 
