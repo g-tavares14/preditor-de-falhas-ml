@@ -52,6 +52,13 @@ class Medicoes:
                 (F.col("rtt").isNull() | (F.col("perda_pct") == 100)).cast("int"),
             )
             .transform(self._marcar_periodo)
+            # A tabela de origem às vezes traz a mesma medição mais de uma vez (mesmo fluxo,
+            # mesmo instante, mesmos valores). dropDuplicates() sem argumentos compara a linha
+            # INTEIRA e mantém só uma cópia das linhas totalmente idênticas. Sem isso, a cópia
+            # contaria duas vezes na janela das "últimas 5" e deixaria ambígua a "3ª medição à
+            # frente" do status futuro (SPEC-calculo-y.md). Linhas com o mesmo (fluxo_id, t) mas
+            # valores diferentes NÃO seriam removidas: a checagem do Silver pararia o programa.
+            .dropDuplicates()
         )
 
     # --- Cálculos de cada coluna -------------------------------------------------
