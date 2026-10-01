@@ -47,7 +47,7 @@ Sequencial: cada coluna depende da anterior e todas passam por `__main__.py` e `
 - [x] Y2: `regra` e `status_atual` no Gold
 
 ### Checkpoint A (revisão do dono)
-- [ ] Diferença antes/depois das duplicatas e distribuição das classes conferidas
+- [x] Diferença antes/depois das duplicatas e distribuição das classes conferidas
 
 ### Fase 2: alvo futuro e recorte
 - [x] Y3: `status_futuro`
@@ -57,7 +57,7 @@ Sequencial: cada coluna depende da anterior e todas passam por `__main__.py` e `
 - [x] Y5: Exemplos auditáveis e documentação
 
 ### Checkpoint final
-- [ ] Todos os critérios de sucesso da spec marcados
+- [x] Todos os critérios de sucesso da spec marcados
 
 ## Riscos e mitigações
 
