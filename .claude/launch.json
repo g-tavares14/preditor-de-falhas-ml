@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "replay-web",
+      "runtimeExecutable": "uv",
+      "runtimeArgs": ["run", "python", "-m", "preditor", "servir", "--porta", "8000"],
+      "port": 8000
+    }
+  ]
+}

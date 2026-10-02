@@ -172,3 +172,314 @@ PREFIXO_REGIAO = COLUNA_REGIAO_CONTRASTE + "_"
 MODELO_CONTRASTE = "arvore_contraste"  # nome na coluna `modelo` dos CSVs de matriz e métricas
 # Só o `export_text`: a árvore de contraste não vira modelo (sem JSON de parâmetros e sem regras em português).
 ARQUIVO_REGRAS_CONTRASTE = MODELO / "regras_arvore_contraste.txt"
+
+# --- Visualização: replay no mapa-múndi (SPEC-visualizacao.md; tasks/plan-visualizacao.md) ---------------
+# Bloco exibido (spec, "Bloco exibido: validação"): o teste fica fechado até a Tarefa 5. Trocar o bloco é decisão
+# do dono e exige rever as checagens de `visualizacao/execucao.py`, que hoje comparam com a validação.
+BLOCO_REPLAY = BLOCO_VALIDACAO
+WEB = Path(__file__).resolve().parents[2] / "web"  # a página estática (HTML, CSS e JS)
+ARQUIVO_REPLAY = WEB / "dados" / "replay.json"  # saída de `visualizacao/`; a pasta `web/dados/` é ignorada pelo git
+# Servidor local da página (`uv run python -m preditor servir`; `visualizacao/servidor.py`). O `python -m http.server` perdia
+# arquivos sob concorrência (revisão da V7): atende uma conexão por vez (HTTP/1.0), com fila de 5; com 5 navegadores abrindo
+# a página ao mesmo tempo, até 6,5 % das cargas falharam, e se a falha atinge um módulo importado a página fica presa em
+# "Carregando o replay..." sem mensagem. Com `ThreadingHTTPServer` + fila de 128 + HTTP/1.1, o revisor mediu 0 falhas em
+# 200 cargas (e a mesma coisa só com HTTP/1.1); a V7b repetiu essa medição (relatada na entrega).
+ENDERECO_SERVIDOR = "127.0.0.1"  # só a própria máquina: a página é local e não precisa de ninguém de fora
+PORTA_SERVIDOR = 8000  # a porta que a documentação e o `.claude/launch.json` já usavam; `--porta N` troca
+FILA_DO_SERVIDOR = 128  # `request_queue_size`: conexões esperando na fila (o padrão do Python é 5); 128 é o que o revisor mediu
+# Texto do aviso fixo da página (spec, "O que é real e o que é simulado").
+AVISO_ROTA = "Rota ilustrativa: os cabos existem, mas o caminho de cada fluxo é simulado."
+# Casas decimais do RTT no JSON: milésimo de ms. O RTT só serve para a duração do pulso na tela; mais casas
+# só engordariam o arquivo (decisão da V1).
+CASAS_RTT_REPLAY = 3
+# Casas decimais das 8 colunas do X de cada medição no JSON (`x`, só para o cartão do fluxo). 4 = as casas do limiar
+# impresso nas regras (`CASAS_LIMIAR_REGRA`): mais do que isso engordaria o arquivo sem mudar o que se lê. A execução
+# confere que o valor arredondado cai na MESMA folha que o exato (senão, aumente este número).
+CASAS_X_REPLAY = 4
+
+# Pontos candidatos do destino de cada país (spec, "Coordenadas"), em [longitude, latitude] (ordem do GeoJSON e do D3).
+# O dataset só tem o país do destino (`destination_country`), nunca a cidade: cada ponto é uma APROXIMAÇÃO, não uma
+# medição. Há um único `dst_addr` por país (conferido no Gold em 01/10/2026). Cada destino recebe depois um pequeno
+# deslocamento por `dst_addr` (`DESLOCAMENTO_DESTINO_GRAUS`) para não ficarem empilhados. Quando um país tem mais de um
+# ponto candidato, `visualizacao/rotas.py` escolhe entre eles junto com a rota (só entram as combinações fisicamente
+# possíveis: RTT mínimo teórico <= mediana real do baseline do fluxo).
+PONTOS_DESTINO = {
+    # Belo Horizonte: ESTE destino não é inferido, vem do registro do IP. 150.164.1.222 está no bloco 150.164.0.0/16, que
+    # o RDAP do Registro.br (https://rdap.registro.br/ip/150.164.1.222, conferido em 01/10/2026) registra em nome da
+    # Universidade Federal de Minas Gerais (UFMG), ASN 271354, o mesmo ASN da sonda 6891 (`sondas.csv`), que fica em
+    # Belo Horizonte e mede ~0,4 ms até ele. Ponto = centro da cidade (a UFMG fica na região da Pampulha, a poucos km).
+    "BR": [("Belo Horizonte", [-43.94, -19.92])],
+    "JP": [("Tóquio", [139.69, 35.69])],
+    "SG": [("Singapura", [103.82, 1.35])],
+    # ATENÇÃO, US: o ponto do destino é INFERIDO do RTT medido, NÃO vem do registro do IP. 92.38.132.60 é de um bloco
+    # da G-Core (RDAP do RIPE: GCL-CUSTOMER-US, "G-Core Labs Customer assignment"), provavelmente anycast, de
+    # localização desconhecida: o país "US" do dataset é o do registro, e o IP pode responder de qualquer ponto de
+    # presença. Pelo RTT, a sonda de Fortaleza (mediana de 65 ms) e a de BH (97 ms) chegam a ele mais depressa do que
+    # Nova York permite (RTT mínimo teórico de ~84 e ~103 ms pelos melhores cabos), então a Flórida (Miami) entra como
+    # segundo candidato. Nenhum dos dois pontos foi observado: quem escolhe entre eles é o filtro de RTT, e a página
+    # mostra o aviso de rota ilustrativa.
+    "US": [("Nova York", [-74.01, 40.71]), ("Miami", [-80.19, 25.76])],
+    "DE": [("Frankfurt", [8.68, 50.11])],
+    "PT": [("Lisboa", [-9.14, 38.72])],
+}
+
+# --- Visualização, V3: sondas (SPEC-visualizacao.md, "Decisões do dono", item 1) -------------------------
+# Coordenadas das sondas: consultadas UMA vez na API pública do RIPE Atlas (sem chave) por
+# `visualizacao/coletar_sondas.py` e versionadas neste CSV. O `replay` só lê o arquivo e continua offline.
+ARQUIVO_SONDAS = Path(__file__).resolve().parent / "visualizacao" / "sondas.csv"
+URL_API_SONDA = "https://atlas.ripe.net/api/v2/probes/{prb_id}/"  # documentação: https://atlas.ripe.net/docs/apis/rest-api-manual/probes/
+TIMEOUT_API_SEGUNDOS = 30  # espera máxima por resposta da API (decisão da V3)
+
+# --- Visualização, V3: rota simulada em trechos (SPEC-visualizacao.md, "Rota simulada") -----------------
+# A rota de um fluxo é SIMULADA: o dataset é de ping e não tem traceroute. Os cabos e os pontos de troca de tráfego
+# existem; o caminho que cada fluxo faz por eles é escolha nossa. Tudo em [longitude, latitude], com longitude
+# sempre em [-180, 180] (as rotas do Pacífico cruzam o meridiano 180: o haversine lida com isso, não "desdobre").
+
+# Distância e RTT mínimo teórico (spec, "Distância e RTT mínimo"). A luz anda na fibra a cerca de 2/3 da velocidade
+# dela no vácuo (~300.000 km/s), ou seja, ~200 km por ms. RTT mínimo = ida e volta = 2 × km / 200.
+VELOCIDADE_FIBRA_KM_POR_MS = 200
+RAIO_TERRA_KM = 6371.0088  # raio médio da Terra (valor da IUGG), usado na distância em círculo máximo (haversine)
+CASAS_KM = 1  # casas decimais dos km no JSON (decisão da V3: décimo de km é mais que suficiente)
+CASAS_COORDENADA = 4  # casas decimais das coordenadas no JSON: 0,0001° ~ 11 m (decisão da V3)
+# Deslocamento máximo, em graus, do destino em relação ao ponto do país, para os destinos do mesmo país não ficarem
+# empilhados. 0,2° ~ 22 km: dentro da região metropolitana da cidade (decisão da V3).
+DESLOCAMENTO_DESTINO_GRAUS = 0.2
+
+# Estações de aterragem (onde o cabo chega à costa), usadas pelos cabos abaixo. Coordenadas aproximadas da cidade, a
+# 0,01°, conferidas contra a posição das estações no mapa da TeleGeography (https://www.submarinecablemap.com): a
+# estação real fica a alguns km, o que não muda nada para a página. Nenhum arquivo de geometria da TeleGeography
+# (licença não comercial) foi copiado: o mapa só serviu para conferir.
+ATERRAGENS = {
+    "Fortaleza": [-38.54, -3.72],  # Fortaleza, Brasil
+    "Santos": [-46.33, -23.96],  # Santos, Brasil
+    "Praia Grande": [-46.41, -24.01],  # Praia Grande, Brasil
+    "Sines": [-8.87, 37.96],  # Sines, Portugal
+    "Bilbao": [-2.95, 43.30],  # Bilbao (Sopelana), Espanha
+    "Boca Raton": [-80.09, 26.35],  # Boca Raton, Flórida, EUA
+    "Wall Township": [-74.06, 40.15],  # Wall Township, Nova Jersey, EUA
+    "Virginia Beach": [-76.05, 36.80],  # Virginia Beach, Virgínia, EUA
+    "Bandon": [-124.41, 43.12],  # Bandon, Oregon, EUA
+    "Hermosa Beach": [-118.40, 33.86],  # Hermosa Beach, Califórnia, EUA
+    "Maruyama": [139.98, 35.01],  # Maruyama (Minamiboso), Japão
+    "Chikura": [139.95, 34.98],  # Chikura (Minamiboso), Japão
+    "Tuas": [103.65, 1.34],  # Tuas, Singapura
+}
+
+# Catálogo de cabos submarinos. Cada cabo foi conferido em 01/10/2026 na API pública do mapa da TeleGeography
+# (https://www.submarinecablemap.com/api/v3/cable/<slug>.json): nome, estações de aterragem usadas e "em serviço"
+# (`is_planned` = falso e ano de entrada em operação, "rfs", já passado). Cabo que não foi confirmado ficou de fora.
+# `pontos` é o traçado simplificado, escrito à mão, em ordem: o texto é uma estação de `ATERRAGENS` e a lista
+# [lon, lat] é um ponto no mar, só o suficiente para a linha não cortar continente (a rota usa o trecho entre duas
+# estações, em qualquer sentido). Os cabos reais fazem mais paradas do que as listadas aqui.
+CABOS = {
+    # Fonte: .../cable/ellalink: 6.200 km, em serviço desde 2021 (jun). Aterragens usadas aqui: Fortaleza e Sines
+    # (também tem Belém, São Luís, Praia, Funchal, Gran Canaria e outras, que não entram na rota).
+    # Pontos no mar: perto de Cabo Verde e das Canárias, como o cabo real, e a entrada em Sines por sudoeste.
+    "EllaLink": {
+        "fonte": "https://www.submarinecablemap.com/submarine-cable/ellalink",
+        "pontos": ["Fortaleza", [-30.0, 6.0], [-24.5, 15.5], [-19.0, 30.0], [-12.0, 36.5], "Sines"],
+    },
+    # Fonte: .../cable/monet: 10.556 km, em serviço desde 2017 (dez). Aterragens: Santos, Fortaleza e Boca Raton (as três).
+    # Pontos no mar: ao largo da costa brasileira, das Guianas e do Caribe (ao norte de Porto Rico) e a entrada em
+    # Boca Raton por cima do norte das Bahamas (a linha não passa por cima das ilhas).
+    "Monet": {
+        "fonte": "https://www.submarinecablemap.com/submarine-cable/monet",
+        "pontos": [
+            "Santos", [-44.0, -25.6], [-41.0, -23.9], [-37.5, -17.5], [-36.5, -13.0], [-33.0, -8.0], [-33.5, -5.0],
+            "Fortaleza",
+            [-37.0, 0.0], [-45.0, 6.0], [-54.0, 10.5], [-60.5, 18.8], [-66.0, 22.5], [-71.0, 25.5], [-76.0, 29.0],
+            "Boca Raton",
+        ],
+    },
+    # Fonte: .../cable/seabras-1: 10.800 km, em serviço desde 2017 (set). Aterragens: Praia Grande e Wall Township (as duas).
+    # Pontos no mar: sai para leste, sobe pelo Atlântico e entra em Nova Jersey a oeste das Bermudas.
+    "Seabras-1": {
+        "fonte": "https://www.submarinecablemap.com/submarine-cable/seabras-1",
+        "pontos": ["Praia Grande", [-39.0, -26.0], [-28.0, -6.0], [-40.0, 15.0], [-68.0, 33.5], "Wall Township"],
+    },
+    # Fonte: .../cable/marea: 6.605 km, em serviço desde 2018 (mai). Aterragens: Virginia Beach e Bilbao (as duas).
+    # Pontos no mar: um intermediário no Atlântico Norte, sem passar pelas ilhas, e um no Golfo da Biscaia (a linha direta
+    # de [-45, 41] até Bilbao cortaria a costa cantábrica; o ponto faz o cabo entrar em Bilbao pelo norte, pelo mar).
+    "MAREA": {
+        "fonte": "https://www.submarinecablemap.com/submarine-cable/marea",
+        "pontos": ["Virginia Beach", [-45.0, 41.0], [-5.0, 44.8], "Bilbao"],
+    },
+    # Fonte: .../cable/faster: 11.629 km, em serviço desde 2016 (jun). Aterragens usadas: Bandon e Chikura (também
+    # Shima e Tanshui). Pontos no mar: o arco norte do Pacífico, cruzando o meridiano 180, e a entrada em Chikura por leste.
+    "FASTER": {
+        "fonte": "https://www.submarinecablemap.com/submarine-cable/faster",
+        "pontos": ["Bandon", [-150.0, 47.0], [-178.0, 46.5], [160.0, 40.0], [146.0, 33.0], "Chikura"],
+    },
+    # Fonte: .../cable/jupiter: 14.557 km, em serviço desde 2020. Aterragens usadas: Hermosa Beach e Maruyama (também
+    # Cloverdale, Shima e Daet). Pontos no mar: o Pacífico em arco mais ao sul que o FASTER, cruzando o meridiano 180.
+    "JUPITER": {
+        "fonte": "https://www.submarinecablemap.com/submarine-cable/jupiter",
+        "pontos": ["Hermosa Beach", [-125.0, 33.0], [-150.0, 37.0], [-175.0, 39.5], [165.0, 38.5], [148.0, 33.0], "Maruyama"],
+    },
+    # Fonte: .../cable/southeast-asia-japan-cable-sjc: 8.900 km, em serviço desde 2013 (jun). Aterragens usadas: Chikura
+    # e Tuas (também Telisai, Chung Hom Kok, Shantou e Nasugbu). Pontos no mar: ao sul do Japão, pelo canal de Bashi,
+    # pelo Mar da China Meridional e pelo estreito de Singapura.
+    "SJC": {
+        "fonte": "https://www.submarinecablemap.com/submarine-cable/southeast-asia-japan-cable-sjc",
+        "pontos": [
+            "Chikura", [135.0, 31.5], [125.0, 22.0], [121.0, 20.0], [116.0, 16.0], [112.0, 8.0], [107.0, 5.0],
+            [104.6, 1.05], [104.0, 1.1],
+            "Tuas",
+        ],
+    },
+}
+
+# Pontos de troca de tráfego e cidades-hub por terra (nós `pop`). Cidade ou PTT/IX que existe (conferidos em
+# 01/10/2026 na API pública do PeeringDB, https://www.peeringdb.com/api/ix); a coordenada é a do centro da cidade.
+HUBS = {
+    "IX.br São Paulo": [-46.63, -23.55],
+    "IX.br Rio de Janeiro": [-43.17, -22.91],
+    "IX.br Belo Horizonte": [-43.94, -19.92],
+    "IX.br Fortaleza": [-38.54, -3.73],
+    "IX.br Salvador": [-38.50, -12.97],
+    "IX.br Porto Alegre": [-51.23, -30.03],
+    "IX.br Curitiba": [-49.27, -25.43],
+    "ESPANIX Madri": [-3.70, 40.42],
+    "Equinix Atlanta": [-84.39, 33.75],
+    "Equinix Ashburn": [-77.49, 39.04],
+    "Equinix Chicago": [-87.63, 41.88],
+    "Equinix Dallas": [-96.80, 32.78],
+}
+# O primeiro pop de toda rota: o IX.br mais perto da sonda (decisão da V3: a sonda sai pelo ponto de troca da região
+# dela; senão uma sonda de Fortaleza passaria por São Paulo para voltar a Fortaleza).
+IXS_BRASIL = (
+    "IX.br São Paulo", "IX.br Rio de Janeiro", "IX.br Belo Horizonte", "IX.br Fortaleza",
+    "IX.br Salvador", "IX.br Porto Alegre", "IX.br Curitiba",
+)
+# Quando o IX.br mais perto da sonda está no Sul, o backbone para o norte passa antes por outro IX.br: a reta direta
+# entre os dois pontos cortaria o mar na costa de Santa Catarina (decisão da V3, conferida contra o contorno do mapa).
+PASSAGEM_APOS_IX_LOCAL = {"IX.br Porto Alegre": "IX.br Curitiba"}
+
+# Rotas possíveis por país de destino (spec: 1 a 3 por região; os destinos do dataset são por país). Uma rota é uma
+# LISTA DE ETAPAS, em ordem, e cada etapa é um de dois formatos (o "mini-formato"):
+#   {"terrestre": nome, "via": [pops], "ate": estação ou "destino"}  → backbone por terra a partir de onde a rota está,
+#       passando pelos `via` (cidades-hub de `HUBS`, na ordem) até uma estação de `ATERRAGENS` ou o "destino";
+#       `ate` também pode ser uma LISTA de estações: vale a mais perto de onde a rota está (assim uma sonda de
+#       Fortaleza entra no Monet em Fortaleza, em vez de ir a Santos e voltar);
+#   {"cabo": nome, "ate": estação}                                    → cabo de `CABOS`, da estação onde a rota está
+#       até a estação `ate`, em qualquer sentido do cabo.
+# Uma opção ainda pode ter `"destinos": [cidades]` (nomes de `PONTOS_DESTINO`): ela só vale para esses pontos do país.
+# Sem a chave, vale para todos.
+#
+# Exemplo completo, a opção "Monet por Fortaleza" para Nova York, lida etapa por etapa (a sonda fica em BH):
+#   {"nome": "Monet por Fortaleza", "destinos": ["Nova York"], "etapas": [
+#       {"terrestre": "backbone BR", "via": [], "ate": "Fortaleza"},     # sonda → IX.br de BH → estação de Fortaleza
+#       {"cabo": "Monet", "ate": "Boca Raton"},                          # Fortaleza → Boca Raton (Flórida), pelo mar
+#       {"terrestre": "backbone EUA", "via": ["Equinix Atlanta"], "ate": "destino"},  # Boca Raton → Atlanta → Nova York
+#   ]}
+#
+# A primeira etapa começa na sonda e passa antes pelo IX.br mais perto dela (`IXS_BRASIL`). `visualizacao/rotas.py`
+# combina cada opção com cada ponto candidato do país, descarta as combinações com RTT mínimo teórico acima da mediana
+# real do fluxo (fisicamente impossíveis) e escolhe uma das que sobram com a semente do projeto + o `fluxo_id`. Região
+# = Brasil (BR), América do Norte (US), Europa (DE, PT) e Ásia (JP, SG). Os desvios por terra (Atlanta, Dallas,
+# Chicago, Ashburn, Madri) são nossa escolha, só para o backbone não cortar o mar nem dar a volta.
+ROTAS_POR_PAIS = {
+    # Dentro do Brasil não há cabo: a sonda sai pelo IX.br da região dela e segue por terra até o destino (Porto Alegre
+    # passa antes por Curitiba, `PASSAGEM_APOS_IX_LOCAL`). Uma opção só: "via IX.br São Paulo" era a mesma rota para as
+    # sondas de SP e um desvio sem motivo para as de BH e do Nordeste.
+    "BR": [
+        {"nome": "backbone BR", "etapas": [
+            {"terrestre": "backbone BR", "via": [], "ate": "destino"},
+        ]},
+    ],
+    # Os EUA têm dois pontos candidatos (ver `PONTOS_DESTINO`). Nova York vem pelo Seabras-1 (Nova Jersey) ou pelo Monet
+    # (Flórida, e sobe por Atlanta para o backbone não cortar o mar); Miami fica a poucos km de Boca Raton, só pelo Monet.
+    # O Monet tem duas entradas: "Monet" entra pela estação mais perto da sonda (Santos ou Fortaleza) e "Monet por
+    # Fortaleza" sempre por Fortaleza (BH e o Nordeste chegam lá por terra, mais perto que dar a volta por Santos).
+    # Para sondas já no Nordeste as duas dão a mesma rota, e `rotas.py` guarda só uma delas.
+    "US": [
+        {"nome": "Seabras-1", "destinos": ["Nova York"], "etapas": [
+            {"terrestre": "backbone BR", "via": [], "ate": "Praia Grande"},
+            {"cabo": "Seabras-1", "ate": "Wall Township"},
+            {"terrestre": "backbone EUA", "via": [], "ate": "destino"},
+        ]},
+        {"nome": "Monet", "destinos": ["Nova York"], "etapas": [
+            {"terrestre": "backbone BR", "via": [], "ate": ["Santos", "Fortaleza"]},
+            {"cabo": "Monet", "ate": "Boca Raton"},
+            {"terrestre": "backbone EUA", "via": ["Equinix Atlanta"], "ate": "destino"},
+        ]},
+        {"nome": "Monet por Fortaleza", "destinos": ["Nova York"], "etapas": [
+            {"terrestre": "backbone BR", "via": [], "ate": "Fortaleza"},
+            {"cabo": "Monet", "ate": "Boca Raton"},
+            {"terrestre": "backbone EUA", "via": ["Equinix Atlanta"], "ate": "destino"},
+        ]},
+        {"nome": "Monet", "destinos": ["Miami"], "etapas": [
+            {"terrestre": "backbone BR", "via": [], "ate": ["Santos", "Fortaleza"]},
+            {"cabo": "Monet", "ate": "Boca Raton"},
+            {"terrestre": "backbone EUA", "via": [], "ate": "destino"},
+        ]},
+        {"nome": "Monet por Fortaleza", "destinos": ["Miami"], "etapas": [
+            {"terrestre": "backbone BR", "via": [], "ate": "Fortaleza"},
+            {"cabo": "Monet", "ate": "Boca Raton"},
+            {"terrestre": "backbone EUA", "via": [], "ate": "destino"},
+        ]},
+    ],
+    "PT": [
+        {"nome": "EllaLink", "etapas": [
+            {"terrestre": "backbone BR", "via": [], "ate": "Fortaleza"},
+            {"cabo": "EllaLink", "ate": "Sines"},
+            {"terrestre": "backbone Portugal", "via": [], "ate": "destino"},
+        ]},
+        {"nome": "Seabras-1 + MAREA", "etapas": [
+            {"terrestre": "backbone BR", "via": [], "ate": "Praia Grande"},
+            {"cabo": "Seabras-1", "ate": "Wall Township"},
+            {"terrestre": "backbone EUA", "via": ["Equinix Ashburn"], "ate": "Virginia Beach"},
+            {"cabo": "MAREA", "ate": "Bilbao"},
+            {"terrestre": "backbone Europa", "via": [], "ate": "destino"},
+        ]},
+    ],
+    "DE": [
+        {"nome": "EllaLink", "etapas": [
+            {"terrestre": "backbone BR", "via": [], "ate": "Fortaleza"},
+            {"cabo": "EllaLink", "ate": "Sines"},
+            {"terrestre": "backbone Europa", "via": ["ESPANIX Madri"], "ate": "destino"},
+        ]},
+        {"nome": "Seabras-1 + MAREA", "etapas": [
+            {"terrestre": "backbone BR", "via": [], "ate": "Praia Grande"},
+            {"cabo": "Seabras-1", "ate": "Wall Township"},
+            {"terrestre": "backbone EUA", "via": ["Equinix Ashburn"], "ate": "Virginia Beach"},
+            {"cabo": "MAREA", "ate": "Bilbao"},
+            {"terrestre": "backbone Europa", "via": ["ESPANIX Madri"], "ate": "destino"},
+        ]},
+    ],
+    "JP": [
+        {"nome": "Monet + JUPITER", "etapas": [
+            {"terrestre": "backbone BR", "via": [], "ate": ["Santos", "Fortaleza"]},
+            {"cabo": "Monet", "ate": "Boca Raton"},
+            {"terrestre": "backbone EUA", "via": ["Equinix Atlanta", "Equinix Dallas"], "ate": "Hermosa Beach"},
+            {"cabo": "JUPITER", "ate": "Maruyama"},
+            {"terrestre": "backbone Japão", "via": [], "ate": "destino"},
+        ]},
+        {"nome": "Seabras-1 + FASTER", "etapas": [
+            {"terrestre": "backbone BR", "via": [], "ate": "Praia Grande"},
+            {"cabo": "Seabras-1", "ate": "Wall Township"},
+            {"terrestre": "backbone EUA", "via": ["Equinix Chicago"], "ate": "Bandon"},
+            {"cabo": "FASTER", "ate": "Chikura"},
+            {"terrestre": "backbone Japão", "via": [], "ate": "destino"},
+        ]},
+    ],
+    "SG": [
+        {"nome": "Monet + JUPITER + SJC", "etapas": [
+            {"terrestre": "backbone BR", "via": [], "ate": ["Santos", "Fortaleza"]},
+            {"cabo": "Monet", "ate": "Boca Raton"},
+            {"terrestre": "backbone EUA", "via": ["Equinix Atlanta", "Equinix Dallas"], "ate": "Hermosa Beach"},
+            {"cabo": "JUPITER", "ate": "Maruyama"},
+            {"terrestre": "backbone Japão", "via": [], "ate": "Chikura"},
+            {"cabo": "SJC", "ate": "Tuas"},
+            {"terrestre": "backbone Singapura", "via": [], "ate": "destino"},
+        ]},
+        {"nome": "Seabras-1 + FASTER + SJC", "etapas": [
+            {"terrestre": "backbone BR", "via": [], "ate": "Praia Grande"},
+            {"cabo": "Seabras-1", "ate": "Wall Township"},
+            {"terrestre": "backbone EUA", "via": ["Equinix Chicago"], "ate": "Bandon"},
+            {"cabo": "FASTER", "ate": "Chikura"},
+            {"cabo": "SJC", "ate": "Tuas"},
+            {"terrestre": "backbone Singapura", "via": [], "ate": "destino"},
+        ]},
+    ],
+}

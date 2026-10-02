@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <!-- Só recursos da própria origem (a página não usa internet). Não há script nem estilo inline: tudo vem de arquivos.
+       `base-uri 'none'`: nenhum <base> pode redirecionar os caminhos relativos (default-src não cobre essa diretiva). -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'none'">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Preditor de falhas: replay</title>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <link rel="stylesheet" href="estilo.css">
+</head>
+<body>
+  <!-- Cabeçalho: o título e o que está sendo exibido, e ao lado o aviso fixo (SPEC-visualizacao.md). O texto do aviso
+       fica aqui no HTML e nenhum script o altera. Na mesma faixa para sobrar altura à página (1280x720, sem rolagem). -->
+  <header class="cabecalho">
+    <div class="titulo">
+      <h1>Preditor de falhas de rede</h1>
+      <p class="subtitulo">Replay da validação &middot; grupo 16</p>
+    </div>
+    <p class="aviso" role="note">Rota ilustrativa: os cabos existem, mas o caminho de cada fluxo é simulado.</p>
+  </header>
+
+  <!-- A ordem dos blocos abaixo é a ordem do Tab e da leitura: primeiro os controles do relógio, depois o mapa (com o
+       filtro de regiões na frente dele), o cartão do fluxo e, por fim, os painéis de dados (placar, matriz e feed).
+       No computador, o CSS põe o relógio e os painéis na coluna da direita; no celular, tudo empilha nesta ordem. -->
+  <main class="palco">
+    <!-- Relógio e controles: tocar / pausar, barra de tempo e velocidade. Montados pelo app.js (só com textContent). -->
+    <section class="cartao relogio" aria-label="Relógio e controles do replay">
+      <h2>Relógio (UTC) <span class="relogio-velocidade">&middot; velocidade <span class="numero" id="velocidade">--</span>&times;</span></h2>
+      <div class="relogio-linha">
+        <div>
+          <p class="relogio-data numero" id="relogio-data">----/--/--</p>
+          <p class="relogio-hora numero" id="relogio-hora">--:--:--</p>
+        </div>
+        <div class="relogio-controle">
+          <button type="button" class="botao" id="botao-tocar" aria-keyshortcuts="Space" title="Tocar ou pausar (tecla Espaço)" disabled>Tocar</button>
+        </div>
+      </div>
+      <!-- Barra de tempo: arrastar (ou usar as setas, de 1 em 1 minuto) leva o relógio ao instante escolhido. O
+           `aria-valuetext` (data e hora) é escrito pelo app.js. -->
+      <input type="range" class="barra" id="barra-tempo" min="0" max="1" step="60" value="0" disabled aria-label="Posição no tempo do replay">
+      <div class="controle-linha" role="group" aria-label="Velocidade do replay">
+        <span class="controle-nome" aria-hidden="true">Velocidade</span>
+        <span class="velocidades" id="velocidades"></span>
+      </div>
+    </section>
+
+    <div class="coluna-mapa">
+      <!-- Cartão do mapa: o filtro de regiões (sobre o canto vazio do mapa, no computador), o mapa (SVG com o mapa-base e as
+           rotas, canvas com os pulsos e os selos) e a legenda. Em janela estreita o filtro e a legenda saem de cima do mapa e
+           viram faixas comuns. -->
+      <section class="cartao cartao-mapa" aria-label="Mapa-múndi com os pulsos de cada medição">
+        <!-- Filtro por região: uma caixa por região de destino que existe no JSON (criadas pelo app.js). Desligar uma
+             esconde os fluxos dela no mapa; o placar não muda. -->
+        <div class="filtro-regioes" role="group" aria-label="Regiões exibidas no mapa">
+          <span class="controle-nome" aria-hidden="true">Mostrar</span>
+          <span class="regioes" id="regioes"></span>
+        </div>
+        <!-- Mapa: o SVG (mapa-base) e o canvas (pulsos) ficam empilhados no mesmo retângulo. O SVG é um grupo (não uma
+             imagem) para os selos e os cabos, que recebem foco, serem anunciados um a um. -->
+        <div class="mapa" id="mapa">
+          <svg id="mapa-svg" role="group" aria-label="Mapa-múndi em traço, com as rotas, os cabos submarinos e os selos de previsão"></svg>
+          <canvas id="mapa-canvas" aria-hidden="true"></canvas>
+          <!-- Cartão do trecho sob o mouse, o toque ou o foco: o app.js só escreve nele com textContent. É só visual:
+               o leitor de tela já recebe o nome do cabo pelo próprio elemento focado. -->
+          <div class="detalhe-trecho" id="detalhe-trecho" aria-hidden="true" hidden>
+            <span class="detalhe-tipo" id="detalhe-tipo"></span>
+            <span class="detalhe-nome" id="detalhe-nome"></span>
+            <span class="detalhe-km numero" id="detalhe-km"></span>
+          </div>
+        </div>
+        <!-- Legenda fixa, sobre o canto do mapa sem rotas (Pacífico Sul). Os ícones dos nós são desenhados pelo mapa.js
+             com as mesmas formas do mapa (svg[data-forma]); os dois tipos de trecho usam as mesmas classes do mapa. -->
+        <section class="legenda" id="legenda" aria-label="Legenda do mapa">
+          <h2>Legenda</h2>
+          <ul class="lista-legenda">
+            <li><span class="icone icone-pulso" aria-hidden="true"></span>Pulso (cor = classe)</li>
+            <li><span class="icone icone-timeout" aria-hidden="true">&times;</span>Timeout</li>
+            <li><span class="icone-veredito" aria-hidden="true">&#10003; &#10007;</span>Acertou / errou</li>
+            <li><svg class="legenda-icone" data-forma="sonda" viewBox="0 0 24 24" aria-hidden="true"></svg>Sonda</li>
+            <li><svg class="legenda-icone" data-forma="destino" viewBox="0 0 24 24" aria-hidden="true"></svg>Destino</li>
+            <li><svg class="legenda-icone" data-forma="pop" viewBox="0 0 24 24" aria-hidden="true"></svg>Ponto de troca</li>
+            <li><svg class="legenda-icone" data-forma="aterragem" viewBox="0 0 24 24" aria-hidden="true"></svg>Aterragem do cabo</li>
+            <li><svg class="legenda-icone" viewBox="0 0 24 24" aria-hidden="true"><line class="trecho-linha trecho-terrestre-amostra" x1="1" y1="12" x2="23" y2="12"></line></svg>Trecho terrestre</li>
+            <li><svg class="legenda-icone" viewBox="0 0 24 24" aria-hidden="true"><line class="trecho-linha trecho-submarino-amostra" x1="1" y1="12" x2="23" y2="12"></line></svg>Cabo submarino</li>
+            <li class="legenda-selo"><span class="icone-selo" aria-hidden="true">R</span>Selo = previsão da árvore para daqui a 12 min (O = OK, R = RISCO, F = FALHA)</li>
+          </ul>
+        </section>
+        <!-- Estado do carregamento e mensagens de erro: elementos à parte, para nunca tocar no aviso acima. -->
+        <p class="status" id="status" role="status">Carregando o replay...</p>
+        <noscript><p class="erro">Esta página precisa de JavaScript para tocar o replay.</p></noscript>
+        <p class="erro" id="erro" role="alert" hidden></p>
+        <p class="alerta" id="alerta" role="status" hidden></p>
+      </section>
+
+      <!-- Cartão do fluxo selecionado: fica sob o mapa, sempre com a mesma altura no computador, para a página não pular
+           quando ele abre ou fecha. O app.js o preenche só com textContent. Recebe o foco (tabindex -1) quando abre por
+           teclado; Esc fecha e devolve o foco a quem o abriu. -->
+      <section class="cartao fluxo-cartao" id="fluxo-cartao" aria-label="Fluxo selecionado" tabindex="-1">
+        <div class="fluxo-vazio" id="fluxo-vazio">
+          <p>Nenhum fluxo selecionado. Clique no quadradinho de previsão de um destino, no mapa, ou numa linha do feed.</p>
+          <p class="dica-teclado">Teclado: <kbd>Espaço</kbd> toca e pausa &middot; <kbd>Tab</kbd> leva ao mapa &middot; setas trocam de selo &middot; <kbd>Enter</kbd> abre o cartão &middot; <kbd>Esc</kbd> o fecha.</p>
+          <label class="escolha-fluxo">
+            <span>Ou escolha um fluxo</span>
+            <select id="fluxo-escolha"><option value="">Escolher...</option></select>
+          </label>
+        </div>
+        <div class="fluxo-corpo" id="fluxo-corpo" hidden>
+          <button type="button" class="fluxo-fechar" id="fluxo-fechar" aria-label="Fechar o cartão do fluxo" title="Fechar (Esc)">&times;</button>
+          <div class="fluxo-rota">
+            <h2 id="fluxo-titulo"></h2>
+            <p class="fluxo-opcao"><span id="fluxo-opcao"></span> &middot; <span class="numero" id="fluxo-km"></span></p>
+            <p class="fluxo-trechos" id="fluxo-trechos"></p>
+            <p class="fluxo-rtt" id="fluxo-rtt"></p>
+            <p class="fluxo-nota">mínimo físico (rota simulada) &times; mediana medida</p>
+          </div>
+          <div class="fluxo-medicao">
+            <h3>Última medição <span class="numero" id="fluxo-hora"></span></h3>
+            <p>RTT <span class="numero" id="fluxo-rtt-atual"></span></p>
+            <p>Status atual <span id="fluxo-atual"></span></p>
+            <p>Previsão p/ 12 min <span id="fluxo-previsto"></span></p>
+            <p class="fluxo-situacao" id="fluxo-situacao"></p>
+            <h3>Última previsão conferida</h3>
+            <p class="fluxo-conferida" id="fluxo-conferida"></p>
+          </div>
+          <div class="fluxo-arvore">
+            <h3>O que a árvore viu <span class="numero" id="fluxo-folha"></span></h3>
+            <dl class="fluxo-x" id="fluxo-x"></dl>
+            <p class="fluxo-regra numero" id="fluxo-regra"></p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Contadores das medições exibidas até o instante do relógio, numa faixa só sob o cartão do fluxo. Não recebem foco e
+           não anunciam nada sozinhos. -->
+      <section class="cartao contadores" aria-label="Medições exibidas por classe">
+        <h2>Medições (status atual)</h2>
+        <ul class="lista-classes-linha">
+          <li><span class="selo selo-ok" aria-hidden="true"></span>OK <span class="numero" id="conta-OK">0</span></li>
+          <li><span class="selo selo-risco" aria-hidden="true"></span>RISCO <span class="numero" id="conta-RISCO">0</span></li>
+          <li><span class="selo selo-falha" aria-hidden="true"></span>FALHA <span class="numero" id="conta-FALHA">0</span></li>
+        </ul>
+        <p class="resumo"><span class="numero" id="conta-total">0</span>/<span class="numero" id="conta-geral">0</span>
+          &middot; timeout <span class="numero" id="conta-timeout">0</span>
+          &middot; sem futuro <span class="numero" id="conta-sem-futuro">0</span></p>
+      </section>
+    </div>
+
+    <!-- Painéis de dados: placar da árvore e da persistência, matriz 3x3 da árvore e feed das últimas conferências. A
+         matriz e o feed são montados pelo app.js (só com textContent). -->
+    <div class="painel">
+      <section class="cartao placar" aria-label="Placar acumulado">
+        <h2 class="titulo-com-nota"><span>Placar: acertos / conferidas</span><small>todos os fluxos</small></h2>
+        <div class="placar-colunas">
+          <div class="placar-modelo">
+            <h3>Árvore</h3>
+            <p class="placar-numeros numero"><span id="arvore-acertos">0</span> / <span id="arvore-conferidas">0</span></p>
+            <p class="placar-pct numero"><span id="arvore-pct">--</span></p>
+          </div>
+          <div class="placar-modelo">
+            <h3>Persistência</h3>
+            <p class="placar-numeros numero"><span id="persistencia-acertos">0</span> / <span id="persistencia-conferidas">0</span></p>
+            <p class="placar-pct numero"><span id="persistencia-pct">--</span> <small>futuro = atual</small></p>
+          </div>
+        </div>
+      </section>
+
+      <section class="cartao matriz-cartao" aria-label="Matriz de confusão da árvore">
+        <h2 class="titulo-com-nota"><span>Matriz da árvore</span><small>todos os fluxos</small></h2>
+        <table class="matriz" id="matriz">
+          <caption>Linha = o que aconteceu; coluna = o que a árvore previu</caption>
+        </table>
+      </section>
+
+      <section class="cartao feed-cartao" aria-label="Últimas conferências">
+        <h2 class="titulo-com-nota">
+          <span>Últimas conferências</span>
+          <label class="so-erros"><input type="checkbox" id="so-erros" checked> só erros</label>
+        </h2>
+        <p class="legenda-nota">previsto 12 min antes &rarr; aconteceu &middot; &#10003; acertou, &#10007; errou<span id="feed-filtrado" hidden> &middot; só regiões ligadas</span></p>
+        <ol class="feed" id="feed"></ol>
+      </section>
+    </div>
+  </main>
+
+  <!-- Aviso para leitor de tela, escrito só quando o replay para ou recomeça, quando acaba ou quando um fluxo é aberto (nunca
+       a cada quadro). Fica fora da tela. O app.js escreve nele com textContent. -->
+  <p class="so-leitor" id="anuncio" role="status" aria-live="polite"></p>
+
+  <!-- Bibliotecas locais (web/vendor/): criam os globais `d3` e `topojson`. Sem CDN, a página funciona offline. -->
+  <script src="vendor/d3.min.js"></script>
+  <script src="vendor/topojson-client.min.js"></script>
+  <script type="module" src="app.js"></script>
+  <!-- Rede de segurança: script clássico, que avisa se o app.js não chegar a habilitar o botão Tocar. -->
+  <script src="verificar-carga.js"></script>
+</body>
+</html>

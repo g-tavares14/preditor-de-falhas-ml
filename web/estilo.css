@@ -1,0 +1,1465 @@
+/* Estilo neo-brutalista (SPEC-visualizacao.md, "Visual: neo-brutalismo"): fundo creme chapado, bordas pretas grossas,
+   cantos retos, sombras duras sem desfoque, tipografia pesada e cores saturadas sem gradiente.
+   Só fontes do sistema: a página não usa internet.
+
+   Como o arquivo está organizado: 1) cores e medidas (variáveis), 2) base e tipografia, 3) componentes comuns (cartão,
+   botão, caixa de marcar, foco), 4) cada bloco da página, 5) telas estreitas e movimento reduzido. */
+
+/* --- 1. Cores e medidas -------------------------------------------------------------------------------- */
+
+:root {
+  /* Cores chapadas, sem gradiente. As três classes (--ok, --risco, --falha) têm cor E texto na página (nunca só cor).
+     Todo texto é --tinta (preto) sobre estas cores. Razões de contraste medidas (WCAG, mínimo 4,5 para texto):
+     tinta sobre creme 16,8; papel 18,2; ok 9,6; risco 13,4; falha 5,3; aviso 9,4; acao 7,8; papel sobre tinta 18,2.
+     Elementos gráficos (mínimo 3): toda forma colorida (selos, pulsos, chips, quadrados de cor) tem contorno preto, que
+     contrasta 16,8 a 18,2 com o fundo; o preenchimento sozinho (ok 1,9; risco 1,4; falha 3,4 sobre o papel) não carrega
+     informação sozinha: a classe também vem em texto (OK, RISCO, FALHA, O, R, F) ou em forma (✓ e ✗). */
+  --creme: #fff1cc; /* fundo da página */
+  --papel: #fffbea; /* fundo dos cartões */
+  --tinta: #111111; /* texto e bordas */
+  --ok: #2fd36b;
+  --risco: #ffd60a;
+  --falha: #ff3b3b;
+  --aviso: #c9a7ff; /* o aviso de rota ilustrativa: lilás, para não se confundir com as classes */
+  --acao: #6ea8ff; /* botões e sondas */
+
+  /* Três espessuras de borda e três tamanhos de sombra (só deslocamento, sem desfoque), usados em TODOS os blocos:
+     cartões 4 px e sombra 6 px; peças menores (botões, legenda, filtro) 3 px e sombra 4 px; detalhes dentro de um cartão 3 px. */
+  --b-cartao: 4px;
+  --b-peca: 3px; /* (separadores finos de linha, como no feed, usam 2 px: são traços, não bordas de peças) */
+  --sombra-cartao: 6px 6px 0 var(--tinta);
+  --sombra-peca: 4px 4px 0 var(--tinta);
+  --sombra-pequena: 3px 3px 0 var(--tinta);
+
+  --espaco: 8px; /* distância entre cartões */
+  --tamanho-fechar: 26px; /* botão de fechar o cartão do fluxo (44 px em tela estreita, alvo de toque) */
+  /* Coluna da direita (relógio, placar, matriz, feed): 400 px a 1280 de largura, mais estreita em janelas menores. A largura
+     de 400 é a que deixa o nome do fluxo do feed ("6349 → BR Belo Horizonte") inteiro, sem reticências, em 1280x720. */
+  --largura-painel: clamp(340px, 31vw, 400px);
+
+  --fonte-titulo: "Arial Black", "Helvetica Neue", Impact, system-ui, sans-serif;
+  --fonte-texto: "Helvetica Neue", Arial, system-ui, sans-serif;
+  --fonte-numero: ui-monospace, "SF Mono", Menlo, Consolas, "Courier New", monospace;
+}
+
+/* --- 2. Base e tipografia ------------------------------------------------------------------------------ */
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 6px 16px 6px; /* margens enxutas: cada pixel de altura conta em 1280x720 */
+  background: var(--creme);
+  color: var(--tinta);
+  font-family: var(--fonte-texto);
+  font-weight: 700;
+  font-size: 15px;
+  line-height: 1.25;
+}
+
+h1,
+h2 {
+  margin: 0;
+  font-family: var(--fonte-titulo);
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+h1 {
+  font-size: 26px;
+}
+
+h2 {
+  margin-bottom: 4px;
+  font-size: 13px;
+}
+
+h3 {
+  margin: 0;
+  font-family: var(--fonte-titulo);
+  font-size: 11px;
+  text-transform: uppercase;
+}
+
+p {
+  margin: 0;
+}
+
+.numero {
+  font-family: var(--fonte-numero);
+  font-weight: 800;
+}
+
+/* Texto só para leitor de tela: fora da tela, mas ainda lido. */
+.so-leitor,
+.matriz caption {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* Tecla citada no texto (ex.: Espaço). */
+kbd {
+  padding: 0 4px;
+  background: var(--creme);
+  border: 2px solid var(--tinta);
+  font-family: var(--fonte-numero);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+/* --- 3. Componentes comuns ----------------------------------------------------------------------------- */
+
+/* Cartão: papel com borda de 4 px e sombra dura. */
+.cartao {
+  padding: 8px 12px;
+  background: var(--papel);
+  border: var(--b-cartao) solid var(--tinta);
+  box-shadow: var(--sombra-cartao);
+}
+
+/* Foco do teclado: o mesmo anel em todos os controles (preto, grosso, afastado 3 px para não colar na borda). Sobre o
+   creme e o papel ele tem contraste de sobra; sobre o mapa, o foco dos selos usa também uma moldura clara (selos.js). */
+:focus-visible {
+  outline: 4px solid var(--tinta);
+  outline-offset: 3px;
+}
+
+/* Botões (Tocar, velocidades): borda de 3 a 4 px, sombra dura, e ao apertar a sombra "afunda". */
+.botao,
+.botao-velocidade,
+.fluxo-fechar {
+  color: var(--tinta);
+  border: var(--b-peca) solid var(--tinta);
+  font-family: var(--fonte-titulo);
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.botao {
+  width: 100%;
+  padding: 6px 10px;
+  background: var(--acao);
+  border-width: var(--b-cartao);
+  box-shadow: var(--sombra-peca);
+  font-size: 16px;
+}
+
+.botao:hover:not(:disabled) {
+  background: var(--risco);
+}
+
+.botao:active:not(:disabled) {
+  transform: translate(4px, 4px);
+  box-shadow: 0 0 0 var(--tinta);
+}
+
+.botao:disabled {
+  background: var(--creme);
+  cursor: not-allowed;
+}
+
+/* Caixa de marcar no mesmo idioma dos botões: quadrado de borda grossa; marcada, um "visto" preto. É o <input
+   type="checkbox"> de verdade (teclado e leitor de tela continuam funcionando), só pintado por nós. */
+.so-erros input,
+.regiao input {
+  display: inline-grid;
+  place-content: center;
+  flex: none;
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  background: var(--papel);
+  border: var(--b-peca) solid var(--tinta);
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+}
+
+.so-erros input::after,
+.regiao input::after {
+  content: "";
+  width: 11px;
+  height: 11px;
+  background: var(--tinta);
+  clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0%, 43% 62%);
+  transform: scale(0);
+}
+
+.so-erros input:checked::after,
+.regiao input:checked::after {
+  transform: scale(1);
+}
+
+/* Classe como etiqueta de texto com cor chapada (a cor sempre vem com o nome da classe). */
+.chip {
+  padding: 0 4px;
+  border: 2px solid var(--tinta); /* única exceção às bordas de 3 a 4 px: a etiqueta é pequena (11 px) e em fila no feed */
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.chip-ok {
+  background: var(--ok);
+}
+
+.chip-risco {
+  background: var(--risco);
+}
+
+.chip-falha {
+  background: var(--falha);
+}
+
+/* --- 4a. Cabeçalho e aviso ----------------------------------------------------------------------------- */
+
+/* O título à esquerda e o aviso à direita, na mesma faixa: sobra altura para o resto da página em 1280x720. */
+.cabecalho {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 4px;
+}
+
+.subtitulo {
+  font-family: var(--fonte-titulo);
+  font-size: 13px;
+  text-transform: uppercase;
+}
+
+/* Aviso fixo: sempre visível, em cor própria (lilás). */
+.aviso {
+  padding: 8px 12px;
+  background: var(--aviso);
+  border: var(--b-cartao) solid var(--tinta);
+  box-shadow: var(--sombra-peca);
+  font-weight: 800;
+}
+
+/* --- 4b. Palco: relógio e painéis à direita, mapa à esquerda ------------------------------------------- */
+
+/* A ordem no HTML é a do Tab e da leitura (relógio, mapa, painéis). No computador, o mapa ocupa a coluna da esquerda
+   inteira e o relógio e os painéis ficam empilhados na da direita. */
+.palco {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--largura-painel);
+  grid-template-areas:
+    "mapa relogio"
+    "mapa painel";
+  grid-template-rows: auto 1fr;
+  gap: var(--espaco) 20px;
+  align-items: start;
+}
+
+.relogio {
+  grid-area: relogio;
+}
+
+.coluna-mapa {
+  grid-area: mapa;
+  display: grid;
+  gap: var(--espaco);
+  min-width: 0;
+  align-content: start;
+}
+
+.painel {
+  grid-area: painel;
+  display: grid;
+  /* Trilho fixo na largura da coluna: sem isto, uma linha larga do feed alargaria o painel inteiro. */
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--espaco);
+}
+
+/* Cartões levemente desalinhados, como na spec: uma rotação pequena, alternando o lado (o mapa fica reto, porque o canvas
+   e os cartões flutuantes dependem de coordenadas retas). */
+.relogio {
+  transform: rotate(-0.5deg);
+}
+
+.placar {
+  transform: rotate(0.5deg);
+}
+
+.matriz-cartao {
+  transform: rotate(-0.4deg);
+}
+
+.feed-cartao {
+  transform: rotate(0.4deg);
+}
+
+.fluxo-cartao {
+  transform: rotate(-0.25deg);
+}
+
+/* --- 4c. Relógio e controles --------------------------------------------------------------------------- */
+
+.relogio-data {
+  font-size: 14px;
+}
+
+.relogio-hora {
+  font-size: 28px;
+  line-height: 1.05;
+}
+
+.relogio-linha {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.relogio-controle {
+  display: grid;
+  gap: 3px;
+  justify-items: stretch;
+  min-width: 140px;
+  text-align: center;
+}
+
+.relogio-velocidade {
+  font-family: var(--fonte-texto);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+/* Barra de tempo: trilho e cursor quadrados, de borda grossa (o visual do resto da página). */
+.barra {
+  display: block;
+  width: 100%;
+  height: 24px;
+  margin: 6px 0 4px;
+  background: transparent;
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+}
+
+.barra::-webkit-slider-runnable-track {
+  height: 12px;
+  background: var(--creme);
+  border: var(--b-peca) solid var(--tinta);
+}
+
+.barra::-webkit-slider-thumb {
+  width: 16px;
+  height: 22px;
+  margin-top: -7px;
+  background: var(--acao);
+  border: var(--b-peca) solid var(--tinta);
+  box-shadow: 2px 2px 0 var(--tinta);
+  -webkit-appearance: none;
+}
+
+.barra::-moz-range-track {
+  height: 12px;
+  background: var(--creme);
+  border: var(--b-peca) solid var(--tinta);
+}
+
+.barra::-moz-range-thumb {
+  width: 16px;
+  height: 22px;
+  background: var(--acao);
+  border: var(--b-peca) solid var(--tinta);
+  border-radius: 0;
+  box-shadow: 2px 2px 0 var(--tinta);
+}
+
+.barra:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.controle-linha {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.controle-nome {
+  flex: none;
+  width: 80px;
+  font-family: var(--fonte-titulo);
+  font-size: 11px;
+  text-transform: uppercase;
+}
+
+.velocidades {
+  display: flex;
+  gap: 8px;
+}
+
+.botao-velocidade {
+  min-width: 56px;
+  padding: 2px 8px;
+  background: var(--papel);
+  box-shadow: var(--sombra-pequena);
+  font-size: 13px;
+}
+
+/* A velocidade em uso fica "afundada" e invertida: preto com texto creme (o estado também é dito no título do cartão e
+   no aria-pressed). */
+.botao-velocidade[aria-pressed="true"] {
+  background: var(--tinta);
+  color: var(--papel);
+  transform: translate(3px, 3px);
+  box-shadow: none;
+}
+
+/* --- 4d. Mapa, filtro, contadores e legenda ------------------------------------------------------------ */
+
+/* O cartão do mapa é um "container": o filtro e a legenda decidem se ficam SOBRE os cantos vazios do mapa ou em faixas
+   comuns pela LARGURA DO CARTÃO (não da janela), então funcionam em qualquer layout (ver o fim do arquivo). */
+.cartao-mapa {
+  position: relative; /* os blocos sobre o mapa se posicionam em relação ao cartão */
+  display: flex;
+  flex-direction: column;
+  gap: var(--espaco);
+  padding: 6px;
+  container-type: inline-size;
+  container-name: mapa;
+}
+
+/* O mapa e o canvas dos pulsos têm o mesmo retângulo; a proporção vem de mapa.js (`aspectRatio`). */
+.mapa {
+  position: relative;
+  order: 2;
+  width: 100%;
+  background: var(--papel);
+}
+
+.mapa > svg,
+.mapa > canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.mapa > canvas {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.mapa-esfera {
+  fill: var(--papel);
+  stroke: var(--tinta);
+  stroke-width: 3;
+}
+
+.mapa-paises {
+  fill: var(--creme);
+  stroke: var(--tinta);
+  stroke-width: 0.7;
+}
+
+/* Trechos: terrestre = linha cheia; submarino = linha tracejada. Os dois se distinguem pelo traço, não pela cor. */
+.trecho-linha {
+  fill: none;
+  stroke: var(--tinta);
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+
+.trecho-terrestre .trecho-linha,
+.trecho-terrestre-amostra {
+  stroke-width: 2.5;
+}
+
+.trecho-submarino .trecho-linha,
+.trecho-submarino-amostra {
+  stroke-width: 2.5;
+  stroke-dasharray: 9 5;
+}
+
+/* Linha larga e transparente por baixo de cada trecho: área de toque maior que a linha fina. `non-scaling-stroke`
+   mede a largura em pixels da TELA (não em unidades do mapa): no celular o mapa encolhe, e a área de toque não. */
+.trecho-alvo {
+  fill: none;
+  stroke: transparent;
+  stroke-width: 22px;
+  vector-effect: non-scaling-stroke;
+  pointer-events: stroke;
+  cursor: help;
+}
+
+.trecho:hover .trecho-linha,
+.trecho:focus .trecho-linha {
+  stroke-width: 5;
+}
+
+.trecho:focus {
+  outline: none; /* o foco aparece como a linha mais grossa acima, mais o halo abaixo e o cartão do cabo (detalhe-trecho) */
+}
+
+/* Foco do TECLADO no cabo: além da linha mais grossa, um halo azul translúcido de 16 px ao redor dela (a linha preta fica
+   visível por baixo), para o foco se ver de longe sobre o mapa. Usa a linha larga do alvo de toque, que está por cima. */
+.trecho:focus-visible .trecho-alvo {
+  stroke: var(--acao);
+  stroke-opacity: 0.55;
+  stroke-width: 16px;
+}
+
+.cabo-rotulo {
+  font-family: var(--fonte-numero);
+  font-weight: 800;
+  font-size: 11px;
+  text-anchor: middle;
+  fill: var(--tinta);
+  paint-order: stroke;
+  stroke: var(--papel);
+  stroke-width: 4px;
+  pointer-events: none;
+}
+
+/* Nós: a forma (quadrado, cruz, triângulo, círculo) diz o tipo; a cor é só enfeite. */
+.no {
+  stroke: var(--tinta);
+  stroke-width: 2;
+}
+
+.no-sonda {
+  fill: var(--acao);
+}
+
+.no-pop {
+  fill: var(--papel);
+}
+
+.no-aterragem {
+  fill: var(--aviso);
+}
+
+.no-destino {
+  fill: var(--papel);
+  stroke-width: 3;
+}
+
+.marca-rotulo {
+  font-family: var(--fonte-numero);
+  font-weight: 800;
+  font-size: 13px;
+  fill: var(--tinta);
+  paint-order: stroke;
+  stroke: var(--papel);
+  stroke-width: 4px;
+}
+
+/* Filtro por região e legenda: duas "peças" no mesmo estilo (papel, borda de 3 px, sombra de 4 px). No computador ficam
+   sobre os cantos do mapa onde nenhuma rota passa (filtro no alto à esquerda, legenda embaixo à esquerda); na tela
+   estreita viram faixas comuns (ver o fim do arquivo). */
+.filtro-regioes,
+.legenda {
+  position: absolute;
+  z-index: 1;
+  padding: 4px 10px 6px;
+  background: var(--papel);
+  border: var(--b-peca) solid var(--tinta);
+  box-shadow: var(--sombra-peca);
+}
+
+.filtro-regioes {
+  top: 16px;
+  left: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.filtro-regioes .controle-nome {
+  width: auto;
+}
+
+.regioes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 12px;
+}
+
+.regiao {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+/* Contadores: uma faixa só sob o cartão do fluxo (título, três classes e o resumo na mesma linha, quando cabe). */
+.contadores {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 2px 18px;
+  padding: 4px 12px;
+}
+
+.contadores h2 {
+  margin: 0;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.contadores .resumo {
+  font-size: 12px;
+}
+
+/* Contadores por classe em uma linha (o quadrado de cor sempre acompanha o texto da classe). */
+.lista-classes-linha {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 14px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.lista-classes-linha li {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--fonte-titulo);
+  font-weight: 900;
+  font-size: 13px;
+}
+
+.lista-classes-linha .numero {
+  font-size: 14px;
+}
+
+/* Quadrado de cor ao lado do rótulo de texto (a cor nunca vem sozinha). */
+.selo {
+  width: 16px;
+  height: 16px;
+  border: var(--b-peca) solid var(--tinta);
+}
+
+.selo-ok {
+  background: var(--ok);
+}
+
+.selo-risco {
+  background: var(--risco);
+}
+
+.selo-falha {
+  background: var(--falha);
+}
+
+.legenda {
+  bottom: 16px;
+  left: 16px;
+}
+
+.legenda h2 {
+  margin-bottom: 4px;
+  font-size: 12px;
+}
+
+/* 5 colunas x 2 linhas e a linha do selo embaixo: baixa e larga, para ficar só no mar vazio. */
+.lista-legenda {
+  display: grid;
+  grid-template-columns: repeat(5, auto);
+  gap: 2px 14px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.lista-legenda li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+/* A linha do selo ocupa a largura toda da legenda: o texto com o horizonte e as letras é longo. */
+.lista-legenda .legenda-selo {
+  grid-column: 1 / -1;
+  white-space: normal;
+}
+
+/* Ícone da legenda desenhado em SVG (nós e trechos): usa as mesmas classes do mapa. */
+.legenda-icone {
+  width: 22px;
+  height: 22px;
+}
+
+.icone {
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  border: 3px solid var(--tinta);
+  background: var(--ok);
+  text-align: center;
+  line-height: 12px;
+  font-weight: 900;
+}
+
+/* Losango = o formato do pulso no canvas. */
+.icone-pulso {
+  transform: rotate(45deg) scale(0.8);
+}
+
+.icone-timeout {
+  background: transparent;
+  border: none;
+  font-size: 22px;
+  line-height: 18px;
+}
+
+.icone-veredito {
+  font-size: 14px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+/* Selo de previsão no mapa: quadrado com a letra da classe prevista (aqui, RISCO, em amarelo). */
+.icone-selo {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  background: var(--risco);
+  border: var(--b-peca) solid var(--tinta);
+  font-family: var(--fonte-numero);
+  font-size: 11px;
+  font-weight: 900;
+  line-height: 10px;
+  text-align: center;
+}
+
+.status {
+  order: 5;
+  font-family: var(--fonte-numero);
+  font-size: 13px;
+}
+
+.erro,
+.alerta {
+  order: 5;
+  padding: 12px;
+  background: var(--falha);
+  border: var(--b-peca) solid var(--tinta);
+  font-family: var(--fonte-numero);
+  font-weight: 800;
+}
+
+/* Alerta (não impede a página de funcionar, ex.: rota cruzando a borda do mapa): amarelo, não o vermelho do erro. */
+.alerta {
+  background: var(--risco);
+}
+
+/* Cartão do trecho (mouse, toque ou foco): só visual; o leitor de tela lê o nome do cabo pelo próprio elemento. */
+.detalhe-trecho {
+  position: absolute;
+  z-index: 2;
+  display: grid;
+  gap: 2px;
+  padding: 6px 10px;
+  background: var(--papel);
+  border: var(--b-peca) solid var(--tinta);
+  box-shadow: var(--sombra-peca);
+  pointer-events: none; /* nunca rouba o ponteiro do trecho, senão o cartão piscaria */
+  white-space: nowrap;
+}
+
+.detalhe-trecho[hidden] {
+  display: none;
+}
+
+.detalhe-tipo {
+  font-size: 11px;
+  text-transform: uppercase;
+}
+
+.detalhe-nome {
+  font-family: var(--fonte-titulo);
+  font-weight: 900;
+  font-size: 15px;
+}
+
+.detalhe-km {
+  font-size: 13px;
+}
+
+/* O filtro por região esconde o que não pertence a nenhum fluxo ligado. */
+.oculto {
+  display: none;
+}
+
+/* Alvo de clique e de foco de cada selo de previsão (um <rect> do SVG, por baixo do canvas). Transparente; o anel do
+   foco do teclado é desenhado pelo canvas (selos.js), por cima de tudo. */
+.selo-alvo {
+  fill: transparent;
+  stroke: transparent;
+  stroke-width: 3;
+  pointer-events: all;
+  cursor: pointer;
+  outline: none;
+}
+
+.selo-alvo:hover {
+  stroke: var(--tinta);
+}
+
+/* --- 4e. Cartão do fluxo selecionado (sob o mapa) ------------------------------------------------------ */
+
+/* Altura mínima em janela larga (1200 px ou mais): a página não pula quando o cartão abre ou fecha, e 162 px é o que
+   sobra de uma janela de 720 px de altura depois do mapa e da faixa de contadores. É mínima, não fixa: quando a regra da
+   folha é longa o cartão cresce alguns pixels em vez de cortar o texto (a regra tem de aparecer inteira). O cartão também
+   é um "container": o arranjo das colunas dele depende da LARGURA DELE (ver mais abaixo), não da janela. */
+.fluxo-cartao {
+  position: relative;
+  min-height: 120px;
+  padding: 6px 12px;
+  container-type: inline-size;
+  container-name: fluxo;
+}
+
+@media (min-width: 1200px) {
+  .fluxo-cartao {
+    min-height: 162px;
+  }
+}
+
+.fluxo-vazio {
+  display: grid;
+  gap: 6px;
+  justify-items: center;
+  align-content: center;
+  min-height: 100px;
+  height: 100%;
+  font-size: 13px;
+  text-align: center;
+}
+
+.fluxo-vazio[hidden],
+.fluxo-corpo[hidden] {
+  display: none;
+}
+
+.dica-teclado {
+  font-size: 12px;
+}
+
+.escolha-fluxo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.escolha-fluxo select {
+  max-width: 100%;
+  min-height: 32px;
+  padding: 2px 6px;
+  background: var(--papel);
+  color: var(--tinta);
+  border: var(--b-peca) solid var(--tinta);
+  box-shadow: var(--sombra-pequena);
+  font-family: var(--fonte-texto);
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.fluxo-corpo {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.05fr) minmax(0, 1.55fr);
+  grid-template-areas: "rota medicao arvore";
+  gap: 12px;
+  height: 100%;
+}
+
+.fluxo-rota {
+  grid-area: rota;
+}
+
+.fluxo-medicao {
+  grid-area: medicao;
+}
+
+.fluxo-arvore {
+  grid-area: arvore;
+}
+
+.fluxo-corpo > div {
+  min-width: 0;
+}
+
+.fluxo-medicao,
+.fluxo-arvore {
+  padding-left: 10px;
+  border-left: var(--b-peca) solid var(--tinta);
+}
+
+.fluxo-corpo h2 {
+  margin: 0 0 2px;
+  padding-right: calc(var(--tamanho-fechar) + 4px); /* não passa por baixo do botão de fechar */
+  font-size: 13px;
+  overflow-wrap: anywhere; /* "Sonda 6349 → Belo Horizonte, BR" quebra de linha em vez de terminar em reticências */
+}
+
+.fluxo-corpo h3 {
+  margin: 0 0 1px;
+  font-size: 11px;
+}
+
+.fluxo-medicao h3:not(:first-child) {
+  margin-top: 4px;
+}
+
+.fluxo-corpo p {
+  font-size: 12px;
+  line-height: 1.3;
+}
+
+.fluxo-opcao {
+  font-weight: 900;
+}
+
+/* A lista de trechos quebra em quantas linhas precisar (o nome inteiro, nunca cortado). */
+.fluxo-trechos {
+  overflow-wrap: anywhere;
+}
+
+.fluxo-rtt {
+  font-family: var(--fonte-numero);
+  font-weight: 800;
+}
+
+.fluxo-corpo .fluxo-nota {
+  font-size: 11px;
+  font-weight: 700;
+}
+
+/* "Erro" também pela forma (barra preta à esquerda e o texto ERROU), não só pelo símbolo. */
+.fluxo-conferida {
+  font-weight: 900;
+}
+
+.fluxo-conferida.fluxo-errou {
+  padding-left: 5px;
+  box-shadow: inset 4px 0 0 var(--tinta);
+}
+
+/* As 8 colunas do X: duas colunas de quatro linhas, com o nome à esquerda e o valor à direita, para o nome (até
+   "jitter_relativo", 15 letras) caber inteiro, sem reticências nem quebra no meio da palavra. */
+.fluxo-x {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); /* 2 colunas se couberem; senão 1 */
+  gap: 0 12px;
+  margin: 0;
+}
+
+.fluxo-x > div {
+  display: flex;
+  flex-wrap: wrap; /* se nem assim couber, o valor desce para baixo do nome em vez de cobri-lo */
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px;
+  border-bottom: 2px solid var(--tinta);
+}
+
+.fluxo-x dt {
+  font-family: var(--fonte-numero);
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.fluxo-x dd {
+  margin: 0;
+  font-family: var(--fonte-numero);
+  font-size: 13px;
+  font-weight: 800;
+  text-align: right;
+}
+
+/* Valor ausente (null no JSON): itálico e tracejado, para nunca parecer um zero. */
+.fluxo-x dd.ausente {
+  font-style: italic;
+  text-decoration: underline dashed;
+}
+
+.fluxo-corpo p.fluxo-regra {
+  margin-top: 4px;
+  font-size: 11px;
+  line-height: 1.25;
+}
+
+.fluxo-fechar {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  z-index: 1;
+  width: var(--tamanho-fechar);
+  height: var(--tamanho-fechar);
+  padding: 0;
+  background: var(--papel);
+  font-size: 16px;
+  line-height: 1;
+}
+
+.fluxo-fechar:hover {
+  background: var(--falha);
+}
+
+/* No computador o botão de fechar fica no canto do cartão, sobre a coluna da árvore: o título dela reserva a altura e a
+   largura dele, para o botão nunca cobrir um valor do X. */
+.fluxo-arvore h3 {
+  min-height: var(--tamanho-fechar);
+  padding-right: calc(var(--tamanho-fechar) + 8px);
+}
+
+/* --- 4f. Placar: árvore e persistência lado a lado ----------------------------------------------------- */
+
+.titulo-com-nota {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.titulo-com-nota small,
+.so-erros {
+  font-family: var(--fonte-texto);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.placar-colunas {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 10px;
+}
+
+.placar-modelo {
+  padding: 2px 8px 3px;
+  border: var(--b-peca) solid var(--tinta);
+  background: var(--creme);
+}
+
+.placar-modelo h3 {
+  white-space: nowrap;
+}
+
+/* Definição da persistência, ao lado da porcentagem (a linha tem espaço de sobra; o título não tem). */
+.placar-modelo small {
+  font-family: var(--fonte-texto);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.placar-numeros {
+  font-size: 16px; /* "10878 / 13490" (o maior caso, 5 dígitos) tem de caber na caixa */
+  white-space: nowrap;
+}
+
+.placar-pct {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 6px;
+  font-size: 20px;
+  line-height: 1.05;
+}
+
+/* --- 4g. Matriz 3x3 da árvore -------------------------------------------------------------------------- */
+
+.matriz {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.matriz th,
+.matriz td {
+  padding: 1px 4px;
+  line-height: 1.15;
+  border: var(--b-peca) solid var(--tinta);
+  text-align: right;
+}
+
+.matriz thead th,
+.matriz tbody th {
+  font-family: var(--fonte-titulo);
+  font-size: 11px;
+  text-transform: uppercase;
+}
+
+.matriz thead th {
+  text-align: center;
+}
+
+.matriz tbody th {
+  text-align: left;
+}
+
+.matriz td {
+  font-family: var(--fonte-numero);
+  font-weight: 800;
+  font-size: 14px;
+}
+
+/* A diagonal (a árvore acertou) é mais forte: fundo preto, número creme em negrito maior. Cor neutra de propósito: um
+   acerto de RISCO ou de FALHA em verde seria lido como "OK". */
+.matriz td.acerto {
+  background: var(--tinta);
+  color: var(--papel);
+  font-size: 15px;
+  font-weight: 900;
+}
+
+.matriz .canto {
+  font-family: var(--fonte-texto);
+  font-size: 10px;
+  line-height: 1.1;
+  text-align: left;
+  text-transform: none;
+}
+
+/* --- 4h. Feed das últimas conferências ----------------------------------------------------------------- */
+
+.legenda-nota {
+  margin: -2px 0 4px;
+  font-size: 11px;
+}
+
+.so-erros {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.feed {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Cada linha é um botão (abre o cartão do fluxo): o visual de botão é desfeito, fica só a linha do feed. */
+.feed-linha {
+  display: grid;
+  grid-template-columns: 60px minmax(0, 1fr) auto auto 16px;
+  align-items: center;
+  gap: 5px;
+  width: 100%;
+  min-height: 24px;
+  margin: 0;
+  padding: 0 0 0 6px; /* espaço da marca de erro (abaixo), igual em todas as linhas para as colunas alinharem */
+  background: transparent;
+  color: var(--tinta);
+  border: none;
+  border-bottom: 2px solid var(--tinta);
+  font-family: var(--fonte-texto);
+  font-weight: 800;
+  font-size: 12px;
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.feed-linha:hover .feed-fluxo {
+  text-decoration: underline;
+}
+
+.feed-linha:focus-visible {
+  outline-offset: -4px;
+}
+
+/* Linha ainda sem conferência: invisível, mas ocupa o lugar (o painel não muda de altura enquanto o feed enche). */
+.feed-linha.feed-vazia {
+  visibility: hidden;
+}
+
+.feed li:last-child .feed-linha {
+  border-bottom: none;
+}
+
+.feed-hora {
+  font-family: var(--fonte-numero);
+}
+
+/* O nome do fluxo ("7242 → BR Belo Horizonte") tem de caber inteiro: sem reticências. Se faltar largura (janela
+   estreita), quebra em duas linhas e a linha cresce; no computador o painel tem largura para uma linha só. */
+.feed-fluxo {
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.feed-real::before {
+  content: "\2192\00a0"; /* seta: previsto -> aconteceu */
+}
+
+.feed-marca {
+  font-size: 14px;
+  font-weight: 900;
+  text-align: center;
+}
+
+/* Erro em destaque também pela forma (borda e negrito), não só pelo símbolo. */
+.feed-linha.feed-erro {
+  background: var(--creme);
+  box-shadow: inset 4px 0 0 var(--tinta);
+}
+
+/* --- 5. Telas estreitas, toque e movimento reduzido ---------------------------------------------------- */
+
+/* Filtro e legenda SOBRE o mapa só quando o cartão do mapa é largo o bastante para eles caberem nos cantos vazios sem
+   cobrir nenhum nó, nome ou selo (largura medida, ver a conferência no relatório da V7). Abaixo disso viram faixas comuns
+   do cartão: filtro no alto, depois o mapa e a legenda. */
+@container mapa (max-width: 790px) {
+  .filtro-regioes,
+  .legenda {
+    position: static;
+    box-shadow: var(--sombra-pequena);
+  }
+
+  .filtro-regioes {
+    order: 1;
+    flex-wrap: wrap;
+  }
+
+  .legenda {
+    order: 3;
+  }
+
+  .lista-legenda {
+    grid-template-columns: repeat(3, auto);
+    justify-content: start;
+  }
+}
+
+/* Faixa de legenda em duas colunas, com o texto podendo quebrar, quando o cartão do mapa é bem estreito (celular). */
+@container mapa (max-width: 560px) {
+  .lista-legenda {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 4px 10px;
+  }
+
+  .lista-legenda li {
+    white-space: normal;
+  }
+}
+
+/* Com o mapa estreito (celular), nomes de cabos e de cidades ficariam com ~4 a 6 px: somem do desenho (o nome do cabo
+   aparece no cartão ao tocar nele e o do destino, no cartão do fluxo e na lista de fluxos). A regra é pela largura do
+   MAPA, não da janela: um tablet de 768 px tem mapa de 701 px e os nomes ainda se leem. `visibility` e não `display`: o
+   mapa.js mede o texto (getBBox) para posicionar os nomes, e um texto com `display: none` mede zero. */
+@container mapa (max-width: 560px) {
+  .cabo-rotulo,
+  .marca-rotulo {
+    visibility: hidden;
+  }
+}
+
+/* Arranjo das colunas do cartão do fluxo pela largura do próprio cartão: três colunas (rota, medição, árvore) quando há
+   espaço para os 8 valores do X em duas colunas sem cortar o nome da coluna; duas (rota e medição empilhadas, árvore ao
+   lado) em largura média; uma em largura pequena. */
+@container fluxo (max-width: 770px) {
+  .fluxo-corpo {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-areas:
+      "rota arvore"
+      "medicao arvore";
+    align-items: start;
+  }
+
+  .fluxo-medicao {
+    padding-left: 0;
+    border-left: none;
+  }
+
+  .fluxo-medicao h3:first-child {
+    margin-top: 2px;
+  }
+}
+
+@container fluxo (max-width: 520px) {
+  .fluxo-corpo {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "rota"
+      "medicao"
+      "arvore";
+  }
+
+  .fluxo-medicao,
+  .fluxo-arvore {
+    padding-left: 0;
+    padding-top: 6px;
+    border-left: none;
+    border-top: var(--b-peca) solid var(--tinta);
+  }
+
+  .fluxo-arvore h3 {
+    min-height: 0;
+    padding-right: 0;
+  }
+}
+
+/* Janela estreita (até 900 px): tudo em uma coluna, na ordem do HTML (relógio, mapa, cartão, painéis). */
+@media (max-width: 900px) {
+  .palco {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "relogio"
+      "mapa"
+      "painel";
+    grid-template-rows: none;
+  }
+
+  .cabecalho {
+    flex-wrap: wrap;
+  }
+
+  /* Alvos de toque de 40 px ou mais nos controles. */
+  .botao,
+  .botao-velocidade {
+    min-height: 44px;
+  }
+
+  .botao-velocidade {
+    min-width: 72px;
+  }
+
+  .regiao,
+  .so-erros {
+    min-height: 40px;
+    gap: 8px;
+    font-size: 14px;
+  }
+
+  .so-erros input,
+  .regiao input {
+    width: 28px;
+    height: 28px;
+  }
+
+  .so-erros input::after,
+  .regiao input::after {
+    width: 16px;
+    height: 16px;
+  }
+
+  .barra {
+    height: 40px;
+  }
+
+  .barra::-webkit-slider-thumb {
+    width: 24px;
+    height: 36px;
+    margin-top: -13px;
+  }
+
+  .barra::-moz-range-thumb {
+    width: 24px;
+    height: 36px;
+  }
+
+  /* Botão de fechar de 44 px (alvo de toque): os títulos que ele pode cobrir reservam o espaço (ver `--tamanho-fechar`). */
+  :root {
+    --tamanho-fechar: 44px;
+  }
+
+  .fluxo-fechar {
+    font-size: 22px;
+  }
+
+  .escolha-fluxo {
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+  }
+
+  .escolha-fluxo select {
+    min-height: 44px;
+    font-size: 15px;
+  }
+
+  /* O feed em duas linhas por fluxo, com linhas de 44 px (alvo de toque). */
+  .feed-linha {
+    grid-template-columns: 60px minmax(0, 1fr) auto auto 20px;
+    height: auto;
+    min-height: 44px;
+    padding-top: 4px;
+    padding-bottom: 4px;
+    white-space: normal;
+  }
+}
+
+/* Telas muito estreitas (celular em pé): empilha o que está lado a lado. */
+@media (max-width: 480px) {
+  body {
+    padding: 8px 12px;
+  }
+
+  h1 {
+    font-size: 22px;
+  }
+
+  .aviso {
+    font-size: 14px;
+  }
+
+  .relogio-linha {
+    flex-wrap: wrap;
+  }
+
+  .relogio-controle {
+    flex: 1 1 140px;
+  }
+
+  .controle-linha {
+    flex-wrap: wrap;
+  }
+
+  .velocidades {
+    flex-wrap: wrap;
+  }
+
+  .placar-colunas {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .cartao {
+    padding: 8px 10px;
+  }
+}
+
+/* Quem pede menos movimento (prefers-reduced-motion): sem cartões inclinados, sem botão "afundando" e, no JS, pulsos
+   sem rastro. O replay em si começa pausado e só anda se a pessoa apertar Tocar. */
+@media (prefers-reduced-motion: reduce) {
+  .relogio,
+  .placar,
+  .matriz-cartao,
+  .feed-cartao,
+  .fluxo-cartao {
+    transform: none;
+  }
+
+  .botao:active:not(:disabled),
+  .botao-velocidade[aria-pressed="true"] {
+    transform: none;
+  }
+
+  .icone-pulso {
+    transform: none;
+  }
+}

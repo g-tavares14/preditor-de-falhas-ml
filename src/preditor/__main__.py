@@ -7,6 +7,9 @@ Com `gold`: só baseline, features e rótulo, lendo o Silver do disco (sem rede)
 Cada camada lê a anterior do disco, nunca da memória.
 Com `arvore`: a árvore de decisão, lendo o Gold do disco e gravando em `data/modelo/` (sem rede, sem Spark e
 sem Java); não entra na execução sem argumento. O código dela fica em `preditor/modelo/`.
+Com `replay`: refaz a árvore oficial e grava `web/dados/replay.json` (o replay da validação no mapa), lendo o Gold
+do disco; também sem rede, sem Spark e sem Java, e fora da execução sem argumento. O código fica em `preditor/visualizacao/`.
+Com `servir`: serve a página `web/` em http://127.0.0.1:8000/ (`--porta N` troca a porta), só com a biblioteca padrão.
 """
 
 import argparse
@@ -25,6 +28,8 @@ from preditor.gold.calculo_y.rotulo import Rotulo
 from preditor.modelo.execucao import ExecucaoArvore
 from preditor.silver.medicao import Medicoes
 from preditor.spark import build_spark
+from preditor.visualizacao.execucao import ExecucaoReplay
+from preditor.visualizacao.servidor import Servidor
 
 
 class Pipeline:
@@ -407,15 +412,30 @@ def main() -> None:
     analisador.add_argument(
         "camada",
         nargs="?",  # opcional: sem argumento roda o pipeline completo
-        choices=["bronze", "silver", "gold", "arvore"],
-        help="camada a rodar isoladamente, ou `arvore` (sem argumento: pipeline completo)",
+        choices=["bronze", "silver", "gold", "arvore", "replay", "servir"],
+        help="camada a rodar isoladamente, ou `arvore` / `replay` / `servir` (sem argumento: pipeline completo)",
     )
-    camada = analisador.parse_args().camada
+    analisador.add_argument(
+        "--porta",
+        type=int,
+        default=config.PORTA_SERVIDOR,
+        help=f"só com `servir`: porta da página (padrão {config.PORTA_SERVIDOR})",
+    )
+    argumentos = analisador.parse_args()
+    camada = argumentos.camada
 
     # A árvore lê o Gold com pandas: desvia antes de `build_spark`, que exige Java.
     # Por isso `arvore` também não entra na execução sem argumento.
     if camada == "arvore":
         ExecucaoArvore().executar()
+        return
+    # O replay também só lê o Gold com pandas e refaz a árvore: mesmo desvio, mesma razão.
+    if camada == "replay":
+        ExecucaoReplay().executar()
+        return
+    # O servidor da página só usa a biblioteca padrão: também fica antes de `build_spark`.
+    if camada == "servir":
+        Servidor().servir(argumentos.porta)
         return
 
     # O conector do BigQuery só é necessário quando a execução inclui o Bronze.

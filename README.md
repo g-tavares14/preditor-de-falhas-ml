@@ -120,6 +120,34 @@ português seleciona exatamente as linhas da folha, mesma semente dá a mesma á
 diário: N por bloco e classe, a busca, as divisões dos dois primeiros níveis, as matrizes, árvore × persistência, as
 3 regras e dois erros concretos.
 
+### Visualização (replay no mapa-múndi)
+
+Uma página web reproduz o bloco de validação em tempo acelerado (spec em
+[`SPEC-visualizacao.md`](SPEC-visualizacao.md)): cada medição vira um pulso que vai da sonda ao destino e volta, a
+árvore prevê a classe 12 minutos à frente e, quando esse futuro chega, a página mostra se acertou. São dois comandos,
+os dois offline, sem Spark e sem Java:
+
+```bash
+uv run python -m preditor replay   # lê data/gold/, refaz a árvore e grava web/dados/replay.json
+uv run python -m preditor servir   # serve a página em http://127.0.0.1:8000/ (--porta N troca a porta)
+```
+
+Use o `servir`, não o `python -m http.server`: a página carrega vários módulos ao mesmo tempo e o servidor padrão do
+Python perde arquivos quando mais de um navegador abre a página.
+
+O que é real e o que é simulado: as medições, os rótulos e as previsões vêm do Gold e da árvore oficial; os cabos
+submarinos existem (conferidos no mapa da TeleGeography), mas **o caminho de cada fluxo por eles é simulado**, porque
+o dataset é de ping e não tem traceroute. A página mantém esse aviso sempre visível.
+
+Na página: tocar / pausar (ou Espaço), velocidades de 60×, 300× e 900×, barra de tempo, filtro por região, placar da
+árvore ao lado da persistência, matriz 3×3 e as últimas conferências. Clicar num selo do mapa ou numa linha do feed
+abre o cartão do fluxo: rota, km, RTT mínimo teórico ao lado da mediana real, as 8 colunas que a árvore viu e a regra
+em português da folha. Ao fim do replay, o placar e a matriz são iguais aos de `metricas_validacao.csv` e
+`matriz_validacao.csv`.
+
+As coordenadas das sondas ficam em `src/preditor/visualizacao/sondas.csv`. Para refazê-las (única etapa com rede):
+`uv run python -m preditor.visualizacao.coletar_sondas`.
+
 ## Como o código está dividido
 
 ```text
