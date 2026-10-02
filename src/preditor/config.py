@@ -6,7 +6,7 @@ from pathlib import Path
 PROJECT = "atlas-ripe-509700"
 TABLE = f"{PROJECT}.atlasRipe.atlas"
 LOCATION = "EU"
-ORIGEM = "BR"  # todas as probes do recorte são brasileiras (docs/data/README.md)
+ORIGEM = "BR"  # todas as probes do recorte são brasileiras (data/README.md)
 
 # --- Divisão temporal --------------------------------------------------------
 # Período A = primeiras 108 h da tabela: serve só para calcular o "normal"
@@ -61,7 +61,7 @@ EXEMPLO_OK_Z_MAX = 1.0
 EXEMPLO_FALHA_Z_MIN = 5.0
 
 # --- Camadas de dados (arquitetura medalhão, SPEC-medalhao.md) ------------------
-DADOS = Path(__file__).resolve().parents[2] / "docs" / "data"
+DADOS = Path(__file__).resolve().parents[2] / "data"
 BRONZE = DADOS / "bronze"  # cópia fiel da tabela do BigQuery, sem filtro nem cálculo
 ARQUIVO_BRONZE = BRONZE / "atlas.parquet"  # a tabela inteira, com `pings` aninhado
 SILVER = DADOS / "silver"  # uma linha por medição, já normalizada
@@ -140,7 +140,7 @@ GRADE_PROFUNDIDADE = [2, 3, 4, 5, 6, 8, 10]  # `max_depth`
 GRADE_FOLHA_MINIMA = [50, 100, 200, 500]  # `min_samples_leaf`
 NIVEIS_DIVISOES = 2  # quantos níveis de divisões a saída mostra (diário, seção 2: "os dois primeiros")
 
-# Saídas da árvore oficial em `docs/data/modelo/`. As métricas dela entram nos CSVs de matriz e métricas
+# Saídas da árvore oficial em `data/modelo/`. As métricas dela entram nos CSVs de matriz e métricas
 # (acima), ao lado da persistência, com este nome na coluna `modelo`.
 MODELO_ARVORE = "arvore_oficial"
 ARQUIVO_BUSCA = MODELO / "busca_hiperparametros.csv"  # as 28 combinações; a primeira linha é a escolhida

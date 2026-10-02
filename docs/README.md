@@ -4,9 +4,9 @@ Este diretório reúne a documentação sobre os dados, as decisões do grupo e 
 
 ## Pastas
 
-### [`data/`](data/README.md)
+### [`../data`](../data/README.md)
 
-Documenta a fonte e o recorte dos dados usados pelo projeto. O README registra a tabela do RIPE Atlas BigQuery, os IDs das probes e os destinos selecionados. Em [`data/docs/`](data/docs/query.md) estão a história da exploração e as consultas SQL; o documento [`dataset-fonte-atlas.md`](data/docs/dataset-fonte-atlas.md) registra a evolução da fonte de dados.
+Documenta a fonte e o recorte dos dados usados pelo projeto. O README registra a tabela do RIPE Atlas BigQuery, os IDs das probes e os destinos selecionados. Em [`../data`](../data/docs/query.md) estão a história da exploração e as consultas SQL; o documento [`dataset-fonte-atlas.md`](../data/docs/dataset-fonte-atlas.md) registra a evolução da fonte de dados.
 
 ### [`memorando/`](memorando/memorando_de_decisao_grupo16.md)
 
@@ -24,8 +24,8 @@ Contém o passo a passo enviado pela professora para o projeto acadêmico, inclu
 
 ## Referências principais
 
-- [Consultas BigQuery e histórico da seleção regional](data/docs/query.md)
-- [Evolução da fonte de dados](data/docs/dataset-fonte-atlas.md)
+- [Consultas BigQuery e histórico da seleção regional](../data/docs/query.md)
+- [Evolução da fonte de dados](../data/docs/dataset-fonte-atlas.md)
 - [Guia de coleta RIPE Atlas enviado pela professora](projeto_preditor_redes/Guia_Coleta_RIPE_Atlas.md)
 - [RFC do preditor de degradação de rede](projeto_preditor_redes/RFC_Preditor_Degradacao_Rede.md)
 - [Memorando de decisões do grupo 16](memorando/memorando_de_decisao_grupo16.md)

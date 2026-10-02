@@ -14,7 +14,7 @@ adicionar em `config.py` os caminhos `DADOS`, `BRONZE`, `SILVER`, `GOLD` (com co
 `SAIDA` por enquanto.
 
 **Critérios de aceite:**
-- [ ] `docs/data/_referencia/` contém `baseline_por_fluxo.parquet`, `features_B.parquet` e
+- [ ] `data/_referencia/` contém `baseline_por_fluxo.parquet`, `features_B.parquet` e
       `limites_por_regiao.csv` gerados pelo código atual nesta data
 - [ ] O corte A/B e as contagens impressas pelo pipeline (fluxos, insuficientes, linhas de features) estão
       anotados no fim deste arquivo, em "Números de referência"
@@ -22,7 +22,7 @@ adicionar em `config.py` os caminhos `DADOS`, `BRONZE`, `SILVER`, `GOLD` (com co
 
 **Verificação:**
 - [ ] `uv run python -m preditor` termina sem erro (antes da cópia)
-- [ ] `git status` não mostra `docs/data/_referencia/` (ignorada por `/docs/data/*`)
+- [ ] `git status` não mostra `data/_referencia/` (ignorada por `/data/*`)
 
 **Dependências:** nenhuma
 **Arquivos:** `src/preditor/config.py`, `tasks/todo.md`
@@ -31,12 +31,12 @@ adicionar em `config.py` os caminhos `DADOS`, `BRONZE`, `SILVER`, `GOLD` (com co
 ## ✅ T2: Camada Bronze e CLI por camada
 
 **Descrição:** Criar `bronze/ingestao.py` com a leitura do BigQuery (movida de `Medicoes.ler_bigquery()`) e a
-gravação fiel em `docs/data/bronze/atlas.parquet`. Dar ao `__main__.py` um argumento opcional de camada com
+gravação fiel em `data/bronze/atlas.parquet`. Dar ao `__main__.py` um argumento opcional de camada com
 `argparse`. Nesta tarefa só `bronze` existe como camada isolada; sem argumento, roda o Bronze e depois o fluxo
 de hoje, já lendo as medições a partir do Parquet do Bronze.
 
 **Critérios de aceite:**
-- [ ] `uv run python -m preditor bronze` grava `docs/data/bronze/atlas.parquet` com as mesmas colunas da
+- [ ] `uv run python -m preditor bronze` grava `data/bronze/atlas.parquet` com as mesmas colunas da
       tabela (incluindo `pings` aninhado)
 - [ ] Checagem automática: número de linhas do Parquet = número de linhas lidas do BigQuery
 - [ ] O tamanho do Bronze em disco é informado ao dono (risco "tabela grande demais")
@@ -59,20 +59,20 @@ de hoje, já lendo as medições a partir do Parquet do Bronze.
 ## ✅ T3: Camada Silver lendo do Bronze
 
 **Descrição:** Mover `normalizacao/medicao.py` para `silver/medicao.py`. A camada lê o Bronze do disco, aplica
-`transformar()` e grava `docs/data/silver/medicoes.parquet`. Adicionar o comando `silver`, a mensagem de erro
+`transformar()` e grava `data/silver/medicoes.parquet`. Adicionar o comando `silver`, a mensagem de erro
 quando o Bronze não existe e as checagens do Silver. O cálculo do X passa a ler o Silver do disco (ainda
 gravando em `processed/`). Remover o `spark` sem uso de `Medicoes.__init__` (achado da revisão da T2).
 
 **Critérios de aceite:**
-- [ ] `uv run python -m preditor silver` roda sem rede e grava `docs/data/silver/medicoes.parquet`
-- [ ] Sem `docs/data/bronze/`, o comando termina com mensagem mandando rodar `bronze` antes
+- [ ] `uv run python -m preditor silver` roda sem rede e grava `data/silver/medicoes.parquet`
+- [ ] Sem `data/bronze/`, o comando termina com mensagem mandando rodar `bronze` antes
 - [ ] Checagens automáticas: nenhum `rtt <= 0`; `periodo` só `A` ou `B`; 82 `fluxo_id` distintos (81 do baseline + 1 fluxo só com Período B)
 - [ ] `src/preditor/normalizacao/` não existe mais
 - [ ] O corte A/B impresso é o mesmo da referência
 
 **Verificação:**
 - [ ] `uv run python -m preditor silver` com a rede desligada (ou sem credenciais)
-- [ ] Renomear `docs/data/bronze` temporariamente e conferir a mensagem de erro
+- [ ] Renomear `data/bronze` temporariamente e conferir a mensagem de erro
 
 **Dependências:** T2
 **Arquivos:** `src/preditor/silver/__init__.py`, `src/preditor/silver/medicao.py`, `src/preditor/__main__.py`,
@@ -83,11 +83,11 @@ gravando em `processed/`). Remover o `spark` sem uso de `Medicoes.__init__` (ach
 
 **Descrição:** Mover `calculo_x/` e `calculo_y/` para dentro de `gold/` e ajustar os imports. O comando `gold`
 lê o Silver do disco e grava `baseline_por_fluxo.parquet`, `features_B.parquet` e `limites_por_regiao.csv` em
-`docs/data/gold/`. Remover `SAIDA` de `config.py`. Sem argumento, o `__main__` roda bronze → silver → gold.
+`data/gold/`. Remover `SAIDA` de `config.py`. Sem argumento, o `__main__` roda bronze → silver → gold.
 
 **Critérios de aceite:**
-- [ ] `uv run python -m preditor gold` roda sem rede e grava os três arquivos em `docs/data/gold/`
-- [ ] Sem `docs/data/silver/`, o comando termina com mensagem mandando rodar `silver` antes
+- [ ] `uv run python -m preditor gold` roda sem rede e grava os três arquivos em `data/gold/`
+- [ ] Sem `data/silver/`, o comando termina com mensagem mandando rodar `silver` antes
 - [ ] Checagens automáticas: Período A não vaza para `features_B`; 81 fluxos no baseline, 2 com
       `baseline_insuficiente`
 - [ ] `src/preditor/calculo_x/` e `src/preditor/calculo_y/` não existem mais na raiz do pacote
@@ -107,7 +107,7 @@ BigQuery só é declarado no `bronze` e no pipeline completo, para `silver`/`gol
 
 ## ✅ T5: Comparação do Gold com a referência
 
-**Descrição:** Comparar `docs/data/gold/` com `docs/data/_referencia/` usando um script descartável (fora do
+**Descrição:** Comparar `data/gold/` com `data/_referencia/` usando um script descartável (fora do
 repositório): mesmas colunas, mesmo número de linhas e `exceptAll` vazio nos dois sentidos para o baseline e
 para `features_B`; `diff` para o CSV.
 
@@ -135,14 +135,14 @@ para `features_B`; `diff` para o CSV.
 ## ✅ T6: Documentação e limpeza
 
 **Descrição:** Atualizar `AGENTS.md` e `README.md` (camadas, comandos, estrutura de pastas, regra de não
-commitar dados). Apagar `docs/data/processed/`, `docs/data/_referencia/` e os `__pycache__` das pastas
+commitar dados). Apagar `data/processed/`, `data/_referencia/` e os `__pycache__` das pastas
 removidas. Marcar os critérios de sucesso na spec.
 
 **Critérios de aceite:**
 - [ ] `AGENTS.md`: seções Commands, Conventions e Security rules falam de `bronze/`, `silver/`, `gold/`
 - [ ] `README.md`: tabela de pastas e árvore de `src/preditor/` atualizadas
-- [ ] `grep -rn "processed" AGENTS.md README.md docs/README.md docs/data/README.md src/` não retorna nada
-- [ ] `docs/data/processed/` e `docs/data/_referencia/` apagadas (só depois do Checkpoint B aprovado)
+- [ ] `grep -rn "processed" AGENTS.md README.md docs/README.md data/README.md src/` não retorna nada
+- [ ] `data/processed/` e `data/_referencia/` apagadas (só depois do Checkpoint B aprovado)
 
 **Verificação:**
 - [ ] `uv run python -c "import preditor.__main__"`
@@ -161,7 +161,7 @@ removidas. Marcar os critérios de sucesso na spec.
 ## Números de referência
 
 Saída do pipeline atual (`uv run python -m preditor`, sem alterar código), rodado em 30/09/2026 na T1.
-A cópia em `docs/data/_referencia/` foi apagada na T6, depois de a T5 confirmar o Gold idêntico (código de origem: commit `505723e`).
+A cópia em `data/_referencia/` foi apagada na T6, depois de a T5 confirmar o Gold idêntico (código de origem: commit `505723e`).
 
 - Corte A/B: `2026-09-22 14:10:03`
 - Fluxos: 81 | com baseline: 79 | insuficientes: 2 (contagem do baseline; as medições têm 82 `fluxo_id`, contando o fluxo sem Período A)

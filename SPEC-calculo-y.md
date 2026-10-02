@@ -99,7 +99,7 @@ src/preditor/
   gold/calculo_y/rotulo.py       → classe Rotulo: regra, status_atual, status_futuro
   gold/calculo_y/recorte.py      → classe Recorte: coluna bloco
   __main__.py                    → executar_gold grava e verifica as saídas novas
-docs/data/gold/
+data/gold/
   dataset_rotulado_B.parquet     → features + regra + status_atual + status_futuro + bloco
   contagem_classes.csv           → bloco × classe, com os instantes de corte (leitura humana)
 ```

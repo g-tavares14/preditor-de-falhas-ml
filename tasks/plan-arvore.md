@@ -37,7 +37,7 @@ checagens automáticas. Prazo do diário da Tarefa 3: 04/10/2026.
   fixadas pelo treino.
 - **Constantes novas em `config.py`, com a origem:** `COLUNAS_ARVORE`, `COLUNAS_PROIBIDAS`, `COLUNAS_CONTRASTE`,
   `ALVO`, `CLASSES`, `CRITERIO`, `SEMENTE`, `GRADE_PROFUNDIDADE`, `GRADE_FOLHA_MINIMA`, `MODELO` e os caminhos dos
-  arquivos de `docs/data/modelo/`. Reaproveita `PASSOS_FUTURO` (folga) e `EXEMPLO_OK_Z_MAX` ("estável").
+  arquivos de `data/modelo/`. Reaproveita `PASSOS_FUTURO` (folga) e `EXEMPLO_OK_Z_MAX` ("estável").
 - **CSVs com `pandas.DataFrame.to_csv`**: `RelatorioRegiao.salvar_csv` recebe DataFrame do Spark e não serve aqui.
 
 ## Ordem e dependências

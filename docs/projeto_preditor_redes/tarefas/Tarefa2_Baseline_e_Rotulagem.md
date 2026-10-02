@@ -7,7 +7,7 @@
 **Scrum Master da tarefa:**  
 **Repositório GitHub:**
 
-> Esta tarefa lê o `../../data` da Tarefa 1. Não troca a coleta sem versionar.
+> Esta tarefa lê o `../../../data` da Tarefa 1. Não troca a coleta sem versionar.
 >
 > O trabalho é **obter o baseline de cada fluxo e rotular o Período B** com a tabela desta página. A árvore não entra aqui. País, IP e rota não entram na tabela que a árvore vai ler.
 >
@@ -20,7 +20,7 @@
 
 |           | Artefato                                                              | Origem / destino                            |
 | --------- | --------------------------------------------------------------------- | ------------------------------------------- |
-| **Entra** | `../../data` e dicionário v0.1                                         | Tarefa 1                                    |
+| **Entra** | `../../../data` e dicionário v0.1                                         | Tarefa 1                                    |
 | **Sai**   | `baseline_por_fluxo.csv` (uma ficha por `fluxo_id`)                   | Tarefas 3 a 5                               |
 | **Sai**   | Dataset rotulado do Período B, com a classe e as métricas abaixo      | Tarefa 3 **usa este arquivo e este rótulo** |
 | **Sai**   | Recorte temporal dentro de B (treino mais antigo, teste mais recente) | Tarefas 3 a 5 — **o mesmo corte**           |
@@ -37,7 +37,7 @@
 
 ## 1. Inspeção do bruto (ainda sem rótulo)
 
-`../../data` permanece intocado. A auditoria vai para o diário; a tabela de trabalho, para `../../data`.
+`../../../data` permanece intocado. A auditoria vai para o diário; a tabela de trabalho, para `../../../data`.
 
 - [ ] Contagem de linhas, fluxos, duplicatas e RTT vazio
 - [ ] Nenhum RTT ausente foi gravado como 0

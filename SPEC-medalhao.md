@@ -8,9 +8,9 @@ Separar o pipeline em três camadas de dados gravadas em disco, no padrão medal
 
 | Camada | O que guarda | Quem produz | Formato / local |
 |---|---|---|---|
-| **Bronze** | Cópia fiel da tabela `atlas-ripe-509700.atlasRipe.atlas` (mesmas colunas, `pings` ainda aninhado, sem filtro nem cálculo) | `bronze/` | `docs/data/bronze/atlas.parquet` |
-| **Silver** | Medições normalizadas: uma linha por medição com `fluxo_id`, metadados de rota, `t`, `rtt`, `jitter`, `perda_pct`, `timeout_atual`, `periodo` | `silver/` (hoje `normalizacao/`) | `docs/data/silver/medicoes.parquet` |
-| **Gold** | Tabelas prontas para o modelo: `baseline_por_fluxo`, `features_B`, o Y quando existir (`calculo_y`), `limites_por_regiao.csv` | `gold/` (hoje `calculo_x/` e `calculo_y/`) | `docs/data/gold/…` |
+| **Bronze** | Cópia fiel da tabela `atlas-ripe-509700.atlasRipe.atlas` (mesmas colunas, `pings` ainda aninhado, sem filtro nem cálculo) | `bronze/` | `data/bronze/atlas.parquet` |
+| **Silver** | Medições normalizadas: uma linha por medição com `fluxo_id`, metadados de rota, `t`, `rtt`, `jitter`, `perda_pct`, `timeout_atual`, `periodo` | `silver/` (hoje `normalizacao/`) | `data/silver/medicoes.parquet` |
+| **Gold** | Tabelas prontas para o modelo: `baseline_por_fluxo`, `features_B`, o Y quando existir (`calculo_y`), `limites_por_regiao.csv` | `gold/` (hoje `calculo_x/` e `calculo_y/`) | `data/gold/…` |
 
 **Por quê:**
 
@@ -35,9 +35,9 @@ dependência nova.
 ```bash
 uv sync
 uv run python -m preditor            # roda bronze → silver → gold
-uv run python -m preditor bronze     # lê o BigQuery e grava docs/data/bronze/ (precisa de rede e gcloud)
-uv run python -m preditor silver     # lê bronze do disco, grava docs/data/silver/
-uv run python -m preditor gold       # lê silver do disco, grava docs/data/gold/
+uv run python -m preditor bronze     # lê o BigQuery e grava data/bronze/ (precisa de rede e gcloud)
+uv run python -m preditor silver     # lê bronze do disco, grava data/silver/
+uv run python -m preditor gold       # lê silver do disco, grava data/gold/
 uv run python -c "import preditor.__main__"   # verificação mínima sem rede
 ```
 
@@ -60,8 +60,8 @@ src/preditor/
   gold/
     calculo_x/         → baseline.py, features.py, relatorio_regiao.py (movidos de calculo_x/)
     calculo_y/         → placeholder atual (movido de calculo_y/)
-docs/data/
-  bronze/ silver/ gold/  → saídas (já ignoradas pelo git via /docs/data/*)
+data/
+  bronze/ silver/ gold/  → saídas (já ignoradas pelo git via /data/*)
   processed/             → removida (substituída pelas três camadas)
 ```
 
@@ -75,7 +75,7 @@ transformações legíveis e explicadas. Exemplo do tamanho de mudança esperado
 
 ```python
 # config.py
-DADOS = Path(__file__).resolve().parents[2] / "docs" / "data"
+DADOS = Path(__file__).resolve().parents[2] / "data"
 BRONZE = DADOS / "bronze"  # cópia fiel do BigQuery (medalhão, SPEC-medalhao.md)
 SILVER = DADOS / "silver"  # uma linha por medição
 GOLD = DADOS / "gold"      # baseline, features e rótulo: o que o modelo consome
@@ -91,33 +91,33 @@ Não há framework de testes no projeto (e esta spec não adiciona um). A verifi
    - Gold: o Período A não vaza para `features_B` (checagem que já existe); 81 fluxos no baseline, 2 com
      `baseline_insuficiente`.
 2. **Comparação com a saída atual** (feita uma vez, na migração): antes de mudar o código, guardar uma cópia de
-   `docs/data/processed/`. Depois comparar `baseline_por_fluxo` e `features_B` do Gold com essa cópia. Tem de haver
+   `data/processed/`. Depois comparar `baseline_por_fluxo` e `features_B` do Gold com essa cópia. Tem de haver
    as mesmas linhas, as mesmas colunas e os mesmos valores (`exceptAll` vazio nos dois sentidos).
 
 ## Limites
 
-- **Sempre:** manter as fórmulas e os números idênticos; gravar só em `docs/data/{bronze,silver,gold}/`; atualizar
+- **Sempre:** manter as fórmulas e os números idênticos; gravar só em `data/{bronze,silver,gold}/`; atualizar
   `AGENTS.md` e `README.md` com os novos comandos e pastas.
 - **Perguntar antes:** adicionar dependências ou framework de testes; mudar colunas ou valores de qualquer saída;
-  gravar qualquer coisa no BigQuery; apagar `docs/data/processed/` antes de a comparação passar.
+  gravar qualquer coisa no BigQuery; apagar `data/processed/` antes de a comparação passar.
 - **Nunca:** commitar dados de nenhuma camada; versionar credenciais; mexer nos notebooks `01`–`03`; usar
   região/país como feature.
 
 ## Critérios de sucesso
 
-- [x] `uv run python -m preditor bronze` grava `docs/data/bronze/atlas.parquet` com o mesmo número de linhas da
-      tabela no BigQuery.
+- [x] `uv run python -m preditor bronze` grava `data/bronze/atlas.parquet` com o mesmo número de linhas da
+  tabela no BigQuery.
 - [x] `uv run python -m preditor silver` e `… gold` rodam **sem rede** (com o Bronze já no disco).
 - [x] Rodar `silver` sem o Bronze no disco falha com uma mensagem que manda rodar `bronze` antes, e o mesmo vale
       para `gold` sem o Silver.
 - [x] `uv run python -m preditor` (sem argumento) roda as três camadas em sequência e passa em todas as checagens.
-- [x] `baseline_por_fluxo` e `features_B` do Gold são idênticos aos de `docs/data/processed/` de antes da mudança.
+- [x] `baseline_por_fluxo` e `features_B` do Gold são idênticos aos de `data/processed/` de antes da mudança.
 - [x] O código está em `src/preditor/{bronze,silver,gold}/`; `normalizacao/` e as pastas `calculo_*` da raiz não
       existem mais.
 - [x] `AGENTS.md` e `README.md` descrevem as camadas e os comandos novos; nenhuma referência a
-      `docs/data/processed/` sobra no código ou na documentação.
+      `data/processed/` sobra no código ou na documentação.
 
 ## Decisões fechadas
 
 1. **Bronze completo:** copia a tabela inteira como está, sem filtrar probes nem destinos.
-2. **Relatório por região no Gold:** `limites_por_regiao.csv` fica em `docs/data/gold/`.
+2. **Relatório por região no Gold:** `limites_por_regiao.csv` fica em `data/gold/`.

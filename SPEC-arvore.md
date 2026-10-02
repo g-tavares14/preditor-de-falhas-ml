@@ -7,7 +7,7 @@ Status: **aprovada pelo dono em 01/10/2026**.
 Treinar a primeira árvore de decisão do projeto e entregar o que o diário da Tarefa 3 pede
 (`docs/projeto_preditor_redes/tarefas/Tarefa3_Arvore_Inicial.md`, prazo 04/10/2026): a árvore, as regras lidas em
 português, a matriz 3×3 na validação e uma árvore de contraste. Nada do X nem do Y é recalculado: a entrada é
-`docs/data/gold/dataset_rotulado_B.parquet`, como está.
+`data/gold/dataset_rotulado_B.parquet`, como está.
 
 ### Alvo: `status_futuro` (decisão do dono, 01/10/2026)
 
@@ -87,7 +87,7 @@ Python 3.11+ e `uv`. O pipeline de dados continua em PySpark. A árvore é trein
 
 ```bash
 uv sync
-uv run python -m preditor arvore   # docs/data/gold/ → docs/data/modelo/ (offline, sem Spark nem Java)
+uv run python -m preditor arvore   # data/gold/ → data/modelo/ (offline, sem Spark nem Java)
 ```
 
 `arvore` não entra na execução sem argumento (que continua sendo bronze → silver → gold). Sem o Gold no disco,
@@ -97,7 +97,7 @@ termina com a mensagem "Rode antes: uv run python -m preditor gold".
 
 ```
 src/preditor/
-  config.py              → colunas da árvore, colunas proibidas, grade, semente, caminhos de docs/data/modelo/
+  config.py              → colunas da árvore, colunas proibidas, grade, semente, caminhos de data/modelo/
   modelo/__init__.py
   modelo/dados.py        → classe DadosModelo: lê o Gold, aplica a folga, descarta futuro nulo, separa X e y por bloco
   modelo/arvore.py       → classe Arvore: busca na grade, treino, regras em texto e em português
@@ -105,7 +105,7 @@ src/preditor/
   modelo/avaliacao.py    → classe Avaliacao: matriz 3×3, métricas, persistência, erros concretos
   modelo/execucao.py     → classe ExecucaoArvore: orquestra, grava e verifica (decisão do plano)
   __main__.py            → opção `arvore`: chama ExecucaoArvore sem subir o Spark
-docs/data/modelo/        (ignorado pelo git)
+data/modelo/        (ignorado pelo git)
   busca_hiperparametros.csv   → as 28 combinações com F1 macro de treino e de validação
   arvore_oficial.json         → critério, hiperparâmetros, profundidade, folhas, semente, colunas
   regras_arvore_oficial.txt   → a árvore inteira em texto + as 3 regras em português

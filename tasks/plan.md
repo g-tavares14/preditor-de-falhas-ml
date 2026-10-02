@@ -4,14 +4,14 @@ Spec: [`SPEC-medalhao.md`](../SPEC-medalhao.md) (aprovada em 30/09/2026). Tarefa
 
 ## Visão geral
 
-Hoje `python -m preditor` lê o BigQuery, calcula tudo em memória e grava em `docs/data/processed/`. O plano
+Hoje `python -m preditor` lê o BigQuery, calcula tudo em memória e grava em `data/processed/`. O plano
 introduz uma camada por vez, de baixo para cima (Bronze → Silver → Gold). Ao fim de cada tarefa o pipeline
 completo continua rodando, e no final os números do Gold são comparados com uma referência tirada antes de
 qualquer mudança.
 
 ## Decisões de arquitetura
 
-- **Referência antes de tudo (T1).** Roda-se o pipeline atual e guarda-se a saída em `docs/data/_referencia/`
+- **Referência antes de tudo (T1).** Roda-se o pipeline atual e guarda-se a saída em `data/_referencia/`
   (ignorada pelo git). É contra ela que o Gold é comparado; sem ela não há como provar que nada mudou.
 - **A fronteira Bronze/Silver já existe no código.** `Medicoes.ler_bigquery()` vai para `bronze/ingestao.py`;
   `Medicoes.transformar()` fica em `silver/medicao.py` e passa a receber o Parquet do Bronze.

@@ -5,7 +5,7 @@ Período A, features e rótulo do Período B). Com `bronze`: só a ingestão do 
 Com `silver`: só a normalização, lendo o Bronze do disco (sem rede).
 Com `gold`: só baseline, features e rótulo, lendo o Silver do disco (sem rede).
 Cada camada lê a anterior do disco, nunca da memória.
-Com `arvore`: a árvore de decisão, lendo o Gold do disco e gravando em `docs/data/modelo/` (sem rede, sem Spark e
+Com `arvore`: a árvore de decisão, lendo o Gold do disco e gravando em `data/modelo/` (sem rede, sem Spark e
 sem Java); não entra na execução sem argumento. O código dela fica em `preditor/modelo/`.
 """
 

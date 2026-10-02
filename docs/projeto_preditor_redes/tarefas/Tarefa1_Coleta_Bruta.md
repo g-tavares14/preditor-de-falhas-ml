@@ -20,7 +20,7 @@
 | **Entra** | RFC do projeto | — |
 | **Sai** | RFC preenchido pelo grupo (problema, horizonte, custo de errar FALHA, fora de escopo) | Tarefas 2 e 5 |
 | **Sai** | Dicionário v0.1 só com colunas **brutas** da medição | Tarefa 2 |
-| **Sai** | `../../data` + `config/` + `requirements.txt` | Tarefa 2 **é obrigada a usar este bruto** |
+| **Sai** | `../../../data` + `config/` + `requirements.txt` | Tarefa 2 **é obrigada a usar este bruto** |
 | **Sai** | Este diário | Tarefas seguintes |
 
 **Não sai daqui:** baseline, rótulo, `z_robusto`, split, árvore, métrica de modelo.
@@ -113,7 +113,7 @@ Regras da coleta:
 - Link do RFC:
 - Link do dicionário v0.1:
 - Link dos commits:
-- Link de `../../data` e do `config/`:
+- Link de `../../../data` e do `config/`:
 
 ---
 

@@ -1,6 +1,6 @@
 """Modelo: a árvore de decisão treinada com o Gold (SPEC-arvore.md).
 
-Fora do medalhão: lê `docs/data/gold/` do disco, sem Spark, e grava em `docs/data/modelo/`.
+Fora do medalhão: lê `data/gold/` do disco, sem Spark, e grava em `data/modelo/`.
 Comando: `uv run python -m preditor arvore`.
 
 - `dados.py`: lê o dataset rotulado, aplica a folga e monta X e y por bloco (o teste fica fechado).

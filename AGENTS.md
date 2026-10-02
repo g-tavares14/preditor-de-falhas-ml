@@ -40,12 +40,12 @@ uv sync --group notebook
 # run (pipeline completo: bronze → silver → gold):
 uv run python -m preditor
 # run (uma camada; cada uma lê a anterior do disco):
-uv run python -m preditor bronze   # BigQuery → docs/data/bronze/ (rede + gcloud)
-uv run python -m preditor silver   # docs/data/bronze/ → docs/data/silver/ (offline)
-uv run python -m preditor gold     # docs/data/silver/ → docs/data/gold/ (offline; inclui dataset_rotulado_B.parquet
+uv run python -m preditor bronze   # BigQuery → data/bronze/ (rede + gcloud)
+uv run python -m preditor silver   # data/bronze/ → data/silver/ (offline)
+uv run python -m preditor gold     # data/silver/ → data/gold/ (offline; inclui dataset_rotulado_B.parquet
                                    # e contagem_classes.csv)
 # run (a árvore; comando à parte, não entra na execução sem argumento):
-uv run python -m preditor arvore   # docs/data/gold/ → docs/data/modelo/ (offline, sem Spark nem Java)
+uv run python -m preditor arvore   # data/gold/ → data/modelo/ (offline, sem Spark nem Java)
 # typecheck: não há
 # lint: não há
 # test: não há — a verificação é rodar o pipeline; cada camada termina com checagens automáticas
@@ -74,8 +74,8 @@ verifique ao menos a importação: `uv run python -c "import preditor.__main__"`
   (orquestra, grava e verifica). Lê o Gold do disco com pandas, sem Spark.
 - Todo "número mágico" vai para `src/preditor/config.py`, com comentário dizendo a origem (seção da RFC ou decisão).
 - O código comenta cada passo, mas não repete a teoria da RFC: referencia a seção.
-- Saídas vão para `docs/data/{bronze,silver,gold}/` (ignoradas pelo git): Parquet para dados, CSV só para leitura humana.
-  As da árvore vão para `docs/data/modelo/` (também ignoradas): CSV, JSON e TXT para leitura.
+- Saídas vão para `data/{bronze,silver,gold}/` (ignoradas pelo git): Parquet para dados, CSV só para leitura humana.
+  As da árvore vão para `data/modelo/` (também ignoradas): CSV, JSON e TXT para leitura.
 - O dono está começando em PySpark: prefira transformações legíveis e explicadas a construções compactas.
 
 ## Decisions
@@ -134,7 +134,7 @@ verifique ao menos a importação: `uv run python -c "import preditor.__main__"`
 
 - Nunca versionar credenciais: `RIPE_ATLAS_API_KEY` fica no ambiente ou em `.env` (ignorado pelo git); o BigQuery
   usa as credenciais padrão do gcloud, sem arquivo de chave no repositório.
-- Não commitar dados de nenhuma camada (`docs/data/raw/*`, `docs/data/{bronze,silver,gold}/`), só os READMEs e docs.
+- Não commitar dados de nenhuma camada (`data/raw/*`, `data/{bronze,silver,gold}/`), só os READMEs e docs.
 - Não imprimir chaves ou tokens em logs, notebooks ou saídas de célula.
 
 ## Agent workflow

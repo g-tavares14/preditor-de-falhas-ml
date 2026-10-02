@@ -164,7 +164,7 @@ A decisão sobre a fonte mudou conforme o grupo observou os limites da coleta pr
 
 A lista inicial de 433 probes públicas brasileiras não foi tratada como 433 probes ativas. O recorte final usa os 13 IDs selecionados e a consulta retorna somente combinações com registros correspondentes na tabela. A seleção de seis destinos também não significa que cada probe tenha consultado todos eles. A consulta é uma fotografia de uma janela histórica; não verifica o estado de conexão ao vivo.
 
-As consultas e a explicação passo a passo estão em [`../data/docs/query.md`](../data/docs/query.md). A história da mudança de fonte está em [`../data/docs/dataset-fonte-atlas.md`](../data/docs/dataset-fonte-atlas.md), e a lista dos IDs e destinos está em [`../data/README.md`](../data/README.md).
+As consultas e a explicação passo a passo estão em [`../../data`](../../data/docs/query.md). A história da mudança de fonte está em [`../../data`](../../data/docs/dataset-fonte-atlas.md), e a lista dos IDs e destinos está em [`../../data`](../../data/README.md).
 
 ---
 
@@ -178,8 +178,8 @@ As consultas e a explicação passo a passo estão em [`../data/docs/query.md`](
 6. [RIPE Atlas — Measurement Results](https://atlas.ripe.net/docs/apis/rest-api-reference/measurements/measurements_results)
 7. [RIPE Atlas — Measurement Result Format](https://atlas.ripe.net/docs/apis/measurement-result-format/)
 8. [RIPE NCC — repositório de documentação do BigQuery Atlas](https://github.com/RIPE-NCC/ripe-atlas-bigquery)
-9. [Consultas BigQuery e histórico do recorte regional](../data/docs/query.md)
-10. [Evolução da fonte de dados](../data/docs/dataset-fonte-atlas.md)
-11. [README dos dados, probes e destinos selecionados](../data/README.md)
+9. [Consultas BigQuery e histórico do recorte regional](../../data/docs/query.md)
+10. [Evolução da fonte de dados](../../data/docs/dataset-fonte-atlas.md)
+11. [README dos dados, probes e destinos selecionados](../../data/README.md)
 12. [Guia de coleta RIPE Atlas enviado pela professora](../projeto_preditor_redes/Guia_Coleta_RIPE_Atlas.md)
 13. [RFC do projeto acadêmico](../projeto_preditor_redes/RFC_Preditor_Degradacao_Rede.md)

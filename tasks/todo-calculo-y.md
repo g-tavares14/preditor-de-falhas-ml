@@ -96,7 +96,7 @@ rotulado. Gravar `contagem_classes.csv` (bloco × classe, com os instantes de co
 - [ ] Checagens automáticas: o maior `t` do treino é menor que o menor `t` da validação, e o mesmo entre validação
       e teste; os três blocos têm OK, RISCO e FALHA (senão o programa para)
 - [ ] O pipeline imprime os dois instantes de corte e o N de cada bloco por classe
-- [ ] `contagem_classes.csv` gravado em `docs/data/gold/`, legível por humano
+- [ ] `contagem_classes.csv` gravado em `data/gold/`, legível por humano
 
 **Verificação:**
 - [ ] `uv run python -m preditor gold`

@@ -17,7 +17,7 @@ e devolve X (as 8 colunas) e y por bloco. Criar `modelo/execucao.py` (`ExecucaoA
 
 **Critérios de aceite:**
 - [ ] `config.py` tem `COLUNAS_ARVORE` (8 colunas, origem: diário da Tarefa 3, seção 1), `COLUNAS_PROIBIDAS`, `ALVO`,
-      `CLASSES`, `MODELO` (pasta `docs/data/modelo/`); a folga usa `PASSOS_FUTURO`
+      `CLASSES`, `MODELO` (pasta `data/modelo/`); a folga usa `PASSOS_FUTURO`
 - [ ] O comando roda sem Java e sem criar sessão Spark; sem o Gold, termina com "Rode antes: uv run python -m
       preditor gold"
 - [ ] Checagens automáticas: X com exatamente `COLUNAS_ARVORE`; nenhuma coluna proibida; nenhum `status_futuro`
@@ -48,7 +48,7 @@ F1 macro, balanced accuracy e acurácia. Aplicar à persistência (previsão = `
 - [ ] Checagens automáticas: a matriz soma o N da validação; o F1 macro bate com a média dos 3 F1 recalculados da
       matriz; nenhuma linha de `teste` é medida (a função recusa)
 - [ ] Saída impressa legível: matriz com rótulos de linha e coluna, tabela por classe
-- [ ] Os dois CSVs gravados em `docs/data/modelo/`, com uma coluna dizendo o modelo (`persistencia`)
+- [ ] Os dois CSVs gravados em `data/modelo/`, com uma coluna dizendo o modelo (`persistencia`)
 
 **Verificação:**
 - [ ] `uv run python -m preditor arvore`
@@ -75,7 +75,7 @@ medir cada uma na validação e escolher a de maior F1 macro (empate: menor prof
 - [ ] Sem `class_weight` (decisão do dono, 01/10/2026)
 
 **Verificação:**
-- [ ] Rodar duas vezes e comparar `docs/data/modelo/` com `diff`
+- [ ] Rodar duas vezes e comparar `data/modelo/` com `diff`
 - [ ] Prova de que uma checagem falha com dado errado (ex.: incluir `rtt` nas colunas, só em memória)
 
 **Dependências:** A2
@@ -134,19 +134,19 @@ acrescentar as métricas a `metricas_validacao.csv`.
 ## ✅ A6: Documentação e fechamento
 
 **Descrição:** Atualizar `AGENTS.md` (estágio atual, stack, comando `arvore`, decisões: alvo `status_futuro`, folga,
-sem balanceamento, comparação com a persistência) e `README.md` (comando e saídas de `docs/data/modelo/`). Marcar os
+sem balanceamento, comparação com a persistência) e `README.md` (comando e saídas de `data/modelo/`). Marcar os
 critérios de sucesso de `SPEC-arvore.md` e anotar os números de referência no fim deste arquivo.
 
 **Critérios de aceite:**
 - [ ] `AGENTS.md` não diz mais "A árvore vem depois"
-- [ ] `README.md` lista o comando `arvore` e os arquivos de `docs/data/modelo/`
+- [ ] `README.md` lista o comando `arvore` e os arquivos de `data/modelo/`
 - [ ] Números de referência anotados: N por bloco depois da folga, hiperparâmetros escolhidos, F1 macro da árvore,
       da persistência e do contraste
 - [ ] Critérios de sucesso de `SPEC-arvore.md` marcados
 
 **Verificação:**
 - [ ] `uv run python -c "import preditor.__main__"` e `uv run python -m preditor arvore`
-- [ ] `git status` sem nada de `docs/data/`
+- [ ] `git status` sem nada de `data/`
 
 **Dependências:** A5
 **Arquivos:** `AGENTS.md`, `README.md`, `SPEC-arvore.md`, `tasks/todo-arvore.md`
@@ -160,7 +160,7 @@ critérios de sucesso de `SPEC-arvore.md` e anotar os números de referência no
 
 ## Números de referência
 
-Lidos da execução de `uv run python -m preditor arvore` (01/10/2026) e de `docs/data/modelo/`. São resultado, não
+Lidos da execução de `uv run python -m preditor arvore` (01/10/2026) e de `data/modelo/`. São resultado, não
 constantes: se o Gold for refeito, mudam. Dataset de 7 dias, semente 16, sem `class_weight`.
 
 **N por bloco (alvo `status_futuro`, depois da folga)**

@@ -17,8 +17,8 @@ Este README cobre só o código: como rodar e o que ele produz.
 | `src/preditor/` | Código-fonte do projeto: o pipeline de dados em PySpark e a árvore de decisão em scikit-learn (`modelo/`) |
 | `docs/` | Documentação acadêmica e dos dados, com índice em [`docs/README.md`](docs/README.md) |
 | `notebooks/` | Entregas da primeira fase, no formato pedido pela professora: 01 (GET) e 02 (POST) direto na API do RIPE Atlas, 03 (rótulo `status_real` por limiar fixo). Não usam o BigQuery nem `src/preditor` |
-| `docs/data/{bronze,silver,gold}/` | Saídas de cada camada do pipeline (ignoradas pelo git) |
-| `docs/data/modelo/` | Saídas da árvore de decisão (ignoradas pelo git) |
+| `data/{bronze,silver,gold}/` | Saídas de cada camada do pipeline (ignoradas pelo git) |
+| `data/modelo/` | Saídas da árvore de decisão (ignoradas pelo git) |
 
 ## Ambiente
 
@@ -63,9 +63,9 @@ lida pela seguinte (detalhes em [`SPEC-medalhao.md`](SPEC-medalhao.md)).
 
 ```bash
 uv run python -m preditor          # bronze → silver → gold
-uv run python -m preditor bronze   # lê o BigQuery e grava docs/data/bronze/ (rede e gcloud)
-uv run python -m preditor silver   # lê o Bronze do disco e grava docs/data/silver/ (offline)
-uv run python -m preditor gold     # lê o Silver do disco e grava docs/data/gold/ (offline)
+uv run python -m preditor bronze   # lê o BigQuery e grava data/bronze/ (rede e gcloud)
+uv run python -m preditor silver   # lê o Bronze do disco e grava data/silver/ (offline)
+uv run python -m preditor gold     # lê o Silver do disco e grava data/gold/ (offline)
 ```
 
 Só o `bronze` precisa de rede e de credenciais. Na primeira execução o Spark baixa o
@@ -74,13 +74,13 @@ precisam da camada anterior no disco: sem ela, terminam dizendo qual comando rod
 
 | Camada | Arquivo | Uma linha por | Conteúdo |
 |---|---|---|---|
-| Bronze | `docs/data/bronze/atlas.parquet` | medição bruta | Cópia fiel de `atlas-ripe-509700.atlasRipe.atlas` (região EU), sem filtro, com `pings` aninhado |
-| Silver | `docs/data/silver/medicoes.parquet` | medição | `fluxo_id`, metadados da rota, `rtt`, `jitter`, `perda_pct` e `periodo` (A ou B); linhas duplicadas da tabela de origem são removidas |
-| Gold | `docs/data/gold/baseline_por_fluxo.parquet` | fluxo | Ficha do Período A: mediana, MAD, IQR, jitter e perda típicos, taxa de resposta, `baseline_insuficiente` |
-| Gold | `docs/data/gold/features_B.parquet` | medição do Período B | O **X** do modelo: `latencia_relativa`, `aumento_pct`, `z_robusto`, `jitter_relativo`, `n5_*`, `tendencia`, `persistencia` |
-| Gold | `docs/data/gold/limites_por_regiao.csv` | rota / país | Os limiares da regra traduzidos para ms, por região (só para leitura) |
-| Gold | `docs/data/gold/dataset_rotulado_B.parquet` | medição do Período B | O X (`features_B`) mais o **Y**: `regra` (1 a 6, a linha da tabela da RFC §8.4 que decidiu), `status_atual` (OK / RISCO / FALHA), `status_futuro` (o `status_atual` da 3ª medição à frente, 12 min depois; nulo se não existir ou houver lacuna) e `bloco` (treino / validacao / teste, por dois cortes de tempo iguais para todos os fluxos) |
-| Gold | `docs/data/gold/contagem_classes.csv` | bloco | N de cada bloco por classe, com início, fim e os dois instantes de corte (só para leitura) |
+| Bronze | `data/bronze/atlas.parquet` | medição bruta | Cópia fiel de `atlas-ripe-509700.atlasRipe.atlas` (região EU), sem filtro, com `pings` aninhado |
+| Silver | `data/silver/medicoes.parquet` | medição | `fluxo_id`, metadados da rota, `rtt`, `jitter`, `perda_pct` e `periodo` (A ou B); linhas duplicadas da tabela de origem são removidas |
+| Gold | `data/gold/baseline_por_fluxo.parquet` | fluxo | Ficha do Período A: mediana, MAD, IQR, jitter e perda típicos, taxa de resposta, `baseline_insuficiente` |
+| Gold | `data/gold/features_B.parquet` | medição do Período B | O **X** do modelo: `latencia_relativa`, `aumento_pct`, `z_robusto`, `jitter_relativo`, `n5_*`, `tendencia`, `persistencia` |
+| Gold | `data/gold/limites_por_regiao.csv` | rota / país | Os limiares da regra traduzidos para ms, por região (só para leitura) |
+| Gold | `data/gold/dataset_rotulado_B.parquet` | medição do Período B | O X (`features_B`) mais o **Y**: `regra` (1 a 6, a linha da tabela da RFC §8.4 que decidiu), `status_atual` (OK / RISCO / FALHA), `status_futuro` (o `status_atual` da 3ª medição à frente, 12 min depois; nulo se não existir ou houver lacuna) e `bloco` (treino / validacao / teste, por dois cortes de tempo iguais para todos os fluxos) |
+| Gold | `data/gold/contagem_classes.csv` | bloco | N de cada bloco por classe, com início, fim e os dois instantes de corte (só para leitura) |
 
 Cada camada termina com checagens automáticas: o Bronze tem as mesmas linhas e colunas
 do BigQuery; o Silver não tem `rtt <= 0` (nenhum timeout entra como RTT válido), não repete
@@ -98,14 +98,14 @@ A árvore inicial (Tarefa 3, spec em [`SPEC-arvore.md`](SPEC-arvore.md)) é um c
 pandas e treina com scikit-learn. Roda offline, sem Spark e sem Java, e **não** entra na execução sem argumento.
 
 ```bash
-uv run python -m preditor arvore   # lê docs/data/gold/ e grava docs/data/modelo/ (offline)
+uv run python -m preditor arvore   # lê data/gold/ e grava data/modelo/ (offline)
 ```
 
 Ela prevê a classe do mesmo fluxo 12 minutos à frente (`status_futuro`) com 8 métricas relativas ao baseline, e é
 medida na validação ao lado da persistência ("o futuro é igual ao `status_atual`"). Sem o Gold no disco, termina
 dizendo para rodar `uv run python -m preditor gold` antes. O bloco de teste fica fechado: aparece só como N.
 
-| Arquivo em `docs/data/modelo/` | Conteúdo |
+| Arquivo em `data/modelo/` | Conteúdo |
 |---|---|
 | `busca_hiperparametros.csv` | As 28 combinações de `max_depth` × `min_samples_leaf`, com o F1 macro de treino e de validação; a primeira linha é a escolhida |
 | `arvore_oficial.json` | Critério, hiperparâmetros pedidos e obtidos, folhas, semente e as 8 colunas |
@@ -144,7 +144,7 @@ src/preditor/
     avaliacao.py           Avaliacao        matriz 3×3, métricas, persistência e os erros concretos
     arvore.py              Arvore           busca na grade, treino, regras em texto; ArvoreContraste
     regras.py              Regras           as 3 regras em português, lidas do caminho real da árvore
-    execucao.py            ExecucaoArvore   orquestra, grava em `docs/data/modelo/` e verifica
+    execucao.py            ExecucaoArvore   orquestra, grava em `data/modelo/` e verifica
 ```
 
 As fórmulas seguem a RFC (§8.2 a §8.4). O código comenta cada passo e não
