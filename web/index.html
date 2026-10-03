@@ -182,6 +182,23 @@
         <ol class="feed" id="feed"></ol>
       </section>
     </div>
+
+    <!-- Painel da árvore (SPEC-arvore-na-pagina.md): o diagrama da árvore escolhida e o caminho da última medição do fluxo
+         selecionado. Mapa, cartões e placar continuam na árvore oficial; o seletor muda só este painel. Montado pelo
+         arvore.js (só com textContent e createElementNS). -->
+    <section class="cartao arvore-cartao" aria-label="Árvore de decisão">
+      <h2 class="titulo-com-nota">
+        <span>Árvore de decisão</span>
+        <span class="arv-seletor" id="arvore-seletor" role="radiogroup" aria-label="Árvore exibida no painel"></span>
+      </h2>
+      <p class="legenda-nota">Só este painel muda com o seletor: mapa, cartão e placar seguem a árvore oficial. Esquerda = sim (coluna &le; limiar).</p>
+      <p class="arv-situacao" id="arvore-situacao" aria-live="off"></p>
+      <svg class="arv-svg" id="arvore-svg" role="img" aria-label="Diagrama da árvore"></svg>
+      <div class="arv-texto">
+        <ol class="arv-passos numero" id="arvore-passos" aria-label="Caminho da medição na árvore"></ol>
+        <p class="arv-regra numero" id="arvore-regra"></p>
+      </div>
+    </section>
   </main>
 
   <!-- Aviso para leitor de tela, escrito só quando o replay para ou recomeça, quando acaba ou quando um fluxo é aberto (nunca

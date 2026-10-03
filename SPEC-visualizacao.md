@@ -239,3 +239,16 @@ console; legível em tela de projetor e em janela estreita).
 - **Mapa centrado em 105° O,** para nenhuma rota do Pacífico ser cortada pela borda.
 - **Fora da spec original, acrescentados:** feed "só erros", lista de fluxos para telas estreitas, navegação por
   teclado nos selos, favicon e os textos de licença do vendor.
+
+## Painel da árvore (03/10/2026)
+
+Acrescentado pela spec [`SPEC-arvore-na-pagina.md`](SPEC-arvore-na-pagina.md): um painel abaixo do mapa com o diagrama da
+árvore e o caminho da última medição do fluxo selecionado; seletor entre a oficial e a ajustada (só o painel muda).
+
+- **JSON:** o documento ganha `arvores` (`oficial` e `ajustada`, cada uma com `nome`, `colunas`, `nos` e `regras`); cada
+  medição ganha `folha_ajustada`, `previsto_ajustada` e `x_ajuste` (`min5_z`, `media5_z`). `colunas`, `regras`, `x` e
+  `folha` não mudam. O arquivo passa de 2,7 para 3,75 MB.
+- **Página:** `web/arvore.js` (desenho) e `web/caminho.js` (lógica pura: sobe da folha pelos pais, sem percorrer o X).
+  A página deixa de caber em 1280x720 sem rolagem vertical: o painel fica abaixo de tudo.
+- **Execução:** o `replay` refaz também a ajustada (cerca de 50 s no total) e exige as saídas do `ajuste`.
+

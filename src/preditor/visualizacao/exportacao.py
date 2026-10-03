@@ -7,7 +7,9 @@ o JSON só repete o que o Gold já tem e acrescenta a classe que a árvore prev�
 import json
 from datetime import datetime, timezone
 
+import numpy as np
 import pandas as pd
+from sklearn.tree import DecisionTreeClassifier
 
 from preditor import config
 from preditor.modelo.arvore import Arvore
@@ -71,21 +73,27 @@ class ExportadorReplay:
         return pd.Series(arvore.modelo.apply(X), index=bloco.index)
 
     @staticmethod
-    def regras_das_folhas(arvore: Arvore, dados: DadosModelo) -> dict[int, Regra]:
-        """Uma `Regra` para CADA folha da árvore oficial (`Regras.ler` devolve só as 3 mais cheias).
+    def regras_das_folhas(
+        modelo: DecisionTreeClassifier,
+        dados: DadosModelo,
+        X: dict[str, pd.DataFrame] | None = None,
+        casas: int = config.CASAS_LIMIAR_REGRA,
+    ) -> dict[int, Regra]:
+        """Uma `Regra` para CADA folha da árvore (`Regras.ler` devolve só as 3 mais cheias).
 
         Mesmo caminho real raiz → folha de `tree_`, mesma fusão e mesmo texto de `modelo/regras.py`: nada é escrito à
         mão. Só o conjunto de folhas muda (todas, e não as de maior N), porque a página explica qualquer previsão.
+        `X` (bloco → colunas) é o X com que `modelo` foi treinado; sem ele, o X oficial das 8 colunas. A árvore
+        ajustada passa o dela e as casas dela (`CASAS_LIMIAR_REGRA_AJUSTE`), como em `execucao_ajuste.py`.
         """
-        modelo = arvore.modelo
-        X, y = dados.X[config.BLOCO_TREINO], dados.y[config.BLOCO_TREINO]
-        folha_de_cada_linha = modelo.apply(X)
+        X = X if X is not None else dados.X
+        colunas = list(modelo.feature_names_in_)
+        X_treino, y = X[config.BLOCO_TREINO], dados.y[config.BLOCO_TREINO]
+        folha_de_cada_linha = modelo.apply(X_treino)
         # Mesma definição de `Regras.ler`: a regra só precisa dizer para onde vai o ausente nas colunas que o têm.
-        com_ausente = {
-            coluna for coluna in config.COLUNAS_ARVORE if any(dados.X[bloco][coluna].isna().any() for bloco in BLOCOS_USADOS)
-        }
+        com_ausente = {coluna for coluna in colunas if any(X[bloco][coluna].isna().any() for bloco in BLOCOS_USADOS)}
         regras = {}
-        for folha, caminho in Regras._caminhos(modelo, com_ausente).items():
+        for folha, caminho in Regras._caminhos(modelo, com_ausente, casas).items():
             classe = str(modelo.classes_[modelo.tree_.value[folha].argmax()])
             linhas = folha_de_cada_linha == folha
             regras[folha] = Regra(
@@ -99,13 +107,55 @@ class ExportadorReplay:
         return regras
 
     @staticmethod
-    def montar(bloco: pd.DataFrame, previsto: pd.Series, folhas: pd.Series, regras: dict[int, Regra]) -> dict:
-        """O documento completo, pronto para `json.dumps`."""
+    def estrutura(modelo: DecisionTreeClassifier, X_treino: pd.DataFrame, y_treino: pd.Series) -> list[dict]:
+        """Os nós de `tree_`, na numeração dela, para o painel da árvore desenhar (SPEC-arvore-na-pagina.md).
+
+        Divisão: `coluna`, `limiar`, os dois filhos e o lado do ausente. Folha: `coluna` nula. Todo nó leva a classe
+        que a árvore dá a ele e `n`, o número REAL de linhas do treino de cada classe que passaram por ele (na ordem
+        de `CLASSES`): com peso de classe, `tree_.value` vem ponderado e não serve para contar linhas.
+        """
+        arvore = modelo.tree_
+        colunas = list(modelo.feature_names_in_)
+        # `decision_path`: linha × nó, 1 onde a linha passou. Somar por classe dá as linhas de cada classe em cada nó.
+        passou = modelo.decision_path(X_treino)
+        n_por_classe = {
+            classe: np.asarray(passou[(y_treino == classe).to_numpy()].sum(axis=0)).ravel() for classe in config.CLASSES
+        }
+        pai = {int(filho): no for no in range(arvore.node_count) for filho in (arvore.children_left[no], arvore.children_right[no]) if filho != -1}
+        nos = []
+        for no in range(arvore.node_count):
+            folha = arvore.children_left[no] == -1
+            nos.append(
+                {
+                    "id": no,
+                    "pai": pai.get(no),  # a raiz (nó 0) não tem pai
+                    "coluna": None if folha else colunas[arvore.feature[no]],
+                    # Limiar exato o bastante para a página repetir a comparação de `tree_` (a execução confere).
+                    "limiar": None if folha else round(float(arvore.threshold[no]), config.CASAS_LIMIAR_REPLAY),
+                    # Para onde vai o valor ausente nesta divisão (scikit-learn ≥ 1.4 guarda isso por nó).
+                    "ausente": None if folha else ("esquerda" if arvore.missing_go_to_left[no] else "direita"),
+                    "esquerda": None if folha else int(arvore.children_left[no]),
+                    "direita": None if folha else int(arvore.children_right[no]),
+                    "classe": str(modelo.classes_[arvore.value[no].argmax()]),
+                    "n": [int(n_por_classe[classe][no]) for classe in config.CLASSES],
+                }
+            )
+        return nos
+
+    @staticmethod
+    def montar(
+        bloco: pd.DataFrame, previsto: pd.Series, folhas: pd.Series, regras: dict[int, Regra], arvores: dict
+    ) -> dict:
+        """O documento completo, pronto para `json.dumps`.
+
+        `arvores` = {"oficial": ..., "ajustada": ...}, cada uma com `nome`, `colunas`, `nos` e `regras` (para o painel);
+        a ajustada traz também `previsto` e `folhas` por linha do bloco (o mapa e o placar seguem a oficial).
+        """
         # Ordem de tempo; `fluxo_id` desempata medições do mesmo segundo, para a saída não depender da leitura.
         ordenado = bloco.sort_values(["t", "fluxo_id"], kind="stable")
         fluxos = ExportadorReplay._montar_fluxos(ordenado)
         posicao_do_fluxo = {fluxo["id"]: posicao for posicao, fluxo in enumerate(fluxos)}
-        medicoes = ExportadorReplay._montar_medicoes(ordenado, previsto, folhas, posicao_do_fluxo)
+        medicoes = ExportadorReplay._montar_medicoes(ordenado, previsto, folhas, arvores["ajustada"], posicao_do_fluxo)
         return {
             "meta": {
                 "bloco": config.BLOCO_REPLAY,
@@ -117,6 +167,11 @@ class ExportadorReplay:
             # Os nomes das 8 colunas de `x` (a página não tem nome nenhum escrito) e a regra em português de cada folha.
             "colunas": list(config.COLUNAS_ARVORE),
             "regras": {str(folha): regra.texto() for folha, regra in sorted(regras.items())},
+            # O painel da árvore (SPEC-arvore-na-pagina.md): estrutura e regras das duas, sem nada por medição.
+            "arvores": {
+                chave: {campo: arvore[campo] for campo in ("nome", "colunas", "nos", "regras")}
+                for chave, arvore in arvores.items()
+            },
             "fluxos": fluxos,
             "medicoes": medicoes,
         }
@@ -163,7 +218,7 @@ class ExportadorReplay:
 
     @staticmethod
     def _montar_medicoes(
-        ordenado: pd.DataFrame, previsto: pd.Series, folhas: pd.Series, posicao_do_fluxo: dict[str, int]
+        ordenado: pd.DataFrame, previsto: pd.Series, folhas: pd.Series, ajustada: dict, posicao_do_fluxo: dict[str, int]
     ) -> list[dict]:
         # Segundos desde 1970 (inteiros): a divisão de timestamp por 1 s não depende da resolução (ns ou µs) do pandas.
         segundos = (ordenado["t"] - EPOCA) // pd.Timedelta(seconds=1)
@@ -192,6 +247,10 @@ class ExportadorReplay:
                     "t_futuro": int(futuros.loc[indice]) if conferivel else None,
                     # As 8 colunas que a árvore viu, na ordem de `colunas`; ausente = `null` (RFC §8.3: nunca imputado).
                     "x": [ExportadorReplay._arredondar(linha[coluna], config.CASAS_X_REPLAY) for coluna in config.COLUNAS_ARVORE],
+                    # A árvore ajustada (só o painel): folha, classe prevista e as colunas que ela tem a mais que a oficial.
+                    "folha_ajustada": int(ajustada["folhas"].loc[indice]),
+                    "previsto_ajustada": ajustada["previsto"].loc[indice],
+                    "x_ajuste": [ExportadorReplay._arredondar(linha[coluna], config.CASAS_X_REPLAY) for coluna in config.COLUNAS_AJUSTE],
                 }
             )
         return medicoes

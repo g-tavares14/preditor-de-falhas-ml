@@ -252,8 +252,9 @@ kbd {
   grid-template-columns: minmax(0, 1fr) var(--largura-painel);
   grid-template-areas:
     "mapa relogio"
-    "mapa painel";
-  grid-template-rows: auto 1fr;
+    "mapa painel"
+    "arvore arvore";
+  grid-template-rows: auto 1fr auto;
   gap: var(--espaco) 20px;
   align-items: start;
 }
@@ -1269,6 +1270,123 @@ kbd {
   }
 }
 
+/* Painel da árvore (SPEC-arvore-na-pagina.md): largura inteira sob o mapa e os painéis. Os nós seguem o neo-brutalismo
+   (borda preta, cor chapada nas folhas); o caminho aceso engrossa a borda e a aresta, e os nós fora dele esmaecem. */
+.arvore-cartao {
+  grid-area: arvore;
+  min-width: 0;
+}
+
+.arv-seletor {
+  display: flex;
+  gap: 12px;
+  font-size: 13px;
+}
+
+.arv-opcao {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+}
+
+.arv-situacao {
+  min-height: 1.4em;
+  margin: 4px 0;
+}
+
+.arv-svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.arv-aresta {
+  fill: none;
+  stroke: var(--tinta);
+  stroke-width: 1.5;
+  opacity: 0.35;
+}
+
+.arv-aresta.arv-aceso {
+  stroke-width: 5;
+  opacity: 1;
+}
+
+.arv-lado {
+  font-size: 9px;
+  fill: var(--tinta);
+  opacity: 0.6;
+}
+
+.arv-no rect {
+  fill: var(--papel);
+  stroke: var(--tinta);
+  stroke-width: 2;
+}
+
+.arv-folha.arv-ok rect {
+  fill: var(--ok);
+}
+
+.arv-folha.arv-risco rect {
+  fill: var(--risco);
+}
+
+.arv-folha.arv-falha rect {
+  fill: var(--falha);
+}
+
+.arv-no.arv-aceso rect {
+  stroke-width: 5;
+}
+
+.arv-no:not(.arv-folha).arv-aceso rect {
+  fill: var(--acao);
+}
+
+.arv-coluna,
+.arv-classe {
+  font-size: 10px;
+  font-weight: 900;
+  fill: var(--tinta);
+}
+
+.arv-limiar,
+.arv-n,
+.arv-valor {
+  font-family: var(--fonte-numero);
+  font-size: 10px;
+  fill: var(--tinta);
+}
+
+.arv-valor {
+  font-weight: 900;
+}
+
+.arv-texto {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 4px 20px;
+  font-size: 12px;
+}
+
+.arv-passos {
+  margin: 4px 0;
+  padding-left: 20px;
+}
+
+.arv-regra {
+  margin: 4px 0;
+}
+
+@media (max-width: 900px) {
+  .arv-texto {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 /* Arranjo das colunas do cartão do fluxo pela largura do próprio cartão: três colunas (rota, medição, árvore) quando há
    espaço para os 8 valores do X em duas colunas sem cortar o nome da coluna; duas (rota e medição empilhadas, árvore ao
    lado) em largura média; uma em largura pequena. */
@@ -1321,7 +1439,8 @@ kbd {
     grid-template-areas:
       "relogio"
       "mapa"
-      "painel";
+      "painel"
+      "arvore";
     grid-template-rows: none;
   }
 

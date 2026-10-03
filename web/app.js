@@ -3,8 +3,9 @@
 // Lê `dados/replay.json` (gerado por `uv run python -m preditor replay`) e reproduz as medições em tempo acelerado.
 // Quem faz o quê: mapa.js (e rotas.js, desenho.js, pulsos.js, selos.js, foco.js) desenha o mapa e os pulsos; tempo.js e
 // placar.js fazem as contas do relógio e do placar (sem DOM, rodam em Node); painel.js monta o placar, a matriz e o feed;
-// cartao.js, o cartão do fluxo. Aqui não se calcula métrica nem rótulo: só se conta e se compara o que já vem no JSON.
+// cartao.js, o cartão do fluxo; arvore.js (e caminho.js), o painel da árvore. Aqui não se calcula métrica nem rótulo: só se conta e se compara o que já vem no JSON.
 
+import { atualizarArvore, montarArvore } from "./arvore.js";
 import { atualizarCartao, montarColunasDoCartao } from "./cartao.js";
 import { criarCelula, formatarInstante, rotuloDoFluxo } from "./comum.js";
 import { criarMapa } from "./mapa.js";
@@ -65,6 +66,7 @@ function pegarElementos() {
     feed: porId("feed"),
     soErros: porId("so-erros"),
     feedFiltrado: porId("feed-filtrado"),
+    arvore: { seletor: porId("arvore-seletor"), situacao: porId("arvore-situacao"), svg: porId("arvore-svg"), passos: porId("arvore-passos"), regra: porId("arvore-regra") },
     legenda: porId("legenda"),
     cartao: { raiz: porId("detalhe-trecho"), tipo: porId("detalhe-tipo"), nome: porId("detalhe-nome"), km: porId("detalhe-km") },
     fluxo: {
@@ -137,6 +139,10 @@ function criarEstado(replay) {
     fluxos: replay.fluxos,
     colunas: replay.colunas,
     regras: replay.regras,
+    arvores: replay.arvores, // o painel da árvore: estrutura e regras da oficial e da ajustada
+    // As colunas que a ajustada tem a mais que a oficial (os valores delas vêm em `x_ajuste`, nessa ordem).
+    colunasAjuste: replay.arvores.ajustada.colunas.filter((coluna) => !replay.colunas.includes(coluna)),
+    arvoreEscolhida: "oficial", // a árvore do painel (o resto da página segue sempre a oficial)
     rotulos: replay.fluxos.map(rotuloDoFluxo),
     tocando: false,
     velocidade: VELOCIDADE_INICIAL,
@@ -425,6 +431,7 @@ function iniciarLaco(estado, mapa, elementos, partes) {
       atualizarPainel(estado, elementos);
       atualizarPlacarSeMudou(estado, elementos, partes);
       atualizarCartao(estado, elementos, partes);
+      atualizarArvore(estado, elementos.arvore, partes.arvore);
       anunciarMudancaDoRelogio(estado, elementos);
     } catch (erro) {
       if (erro.message !== ultimaFalha) {
@@ -497,6 +504,7 @@ async function principal() {
     feed: null, // montado abaixo: precisa de `selecionar`
     desenhado: { placar: null, proxima: -1, filtro: -1 },
     cartao: { chave: null, fluxo: null, valoresDeX: montarColunasDoCartao(elementos.fluxo.x, estado.colunas) },
+    arvore: montarArvore(elementos.arvore, replay, (chave) => (estado.arvoreEscolhida = chave)),
   };
 
   // Abre o cartão do fluxo `f` (ou fecha, com null). `origem` é o elemento que o abriu (selo, linha do feed ou lista);

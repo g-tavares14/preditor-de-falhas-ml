@@ -40,6 +40,10 @@ function validarReplay(replay) {
   exigir(Array.isArray(colunas) && colunas.length > 0 && colunas.every((c) => typeof c === "string"), "falta `colunas`");
   exigir(regras !== null && typeof regras === "object", "falta `regras`");
   exigir(Array.isArray(fluxos) && fluxos.length > 0, "a lista de fluxos está vazia");
+  // O painel da árvore (SPEC-arvore-na-pagina.md): as duas árvores, cada uma com nós e uma regra por folha.
+  const { arvores } = replay;
+  exigir(arvores && ["oficial", "ajustada"].every((k) => arvores[k] && Array.isArray(arvores[k].nos) && arvores[k].nos.length > 0), "falta `arvores` (oficial e ajustada)");
+  const extras = arvores.ajustada.colunas.length - colunas.length;
   exigir(Array.isArray(medicoes) && medicoes.length > 0, "a lista de medições está vazia");
 
   fluxos.forEach((fluxo, i) => {
@@ -63,6 +67,9 @@ function validarReplay(replay) {
     exigir(!m.conferivel || (classes.includes(m.futuro) && Number.isFinite(m.t_futuro)), `${onde}: conferível sem \`futuro\` ou \`t_futuro\``);
     exigir(Array.isArray(m.x) && m.x.length === colunas.length && m.x.every(ehNumeroOuNulo), `${onde}: \`x\` não tem ${colunas.length} valores`);
     exigir(Number.isInteger(m.folha) && typeof regras[m.folha] === "string", `${onde}: a folha ${m.folha} não tem regra`);
+    exigir(Number.isInteger(m.folha_ajustada) && typeof arvores.ajustada.regras[m.folha_ajustada] === "string", `${onde}: falta \`folha_ajustada\``);
+    exigir(classes.includes(m.previsto_ajustada), `${onde}: falta \`previsto_ajustada\``);
+    exigir(Array.isArray(m.x_ajuste) && m.x_ajuste.length === extras && m.x_ajuste.every(ehNumeroOuNulo), `${onde}: \`x_ajuste\` não tem ${extras} valores`);
   });
 }
 
