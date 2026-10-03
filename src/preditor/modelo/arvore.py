@@ -32,24 +32,40 @@ class ArvoreBase:
 
     @staticmethod
     def _ajustar(
-        dados: DadosModelo, profundidade: int, folha_minima: int, *, contraste: bool = False
+        dados: DadosModelo,
+        profundidade: int,
+        folha_minima: int,
+        *,
+        contraste: bool = False,
+        ajustado: bool = False,
+        criterio: str = config.CRITERIO,
+        peso: dict[str, float] | None = None,
     ) -> DecisionTreeClassifier:
         """Cria uma árvore com estes hiperparâmetros e a treina SÓ com o bloco de treino.
 
         Com `contraste`, o X é o da árvore de contraste (as 8 colunas, `rtt` e as regiões); o resto é igual.
+        Com `ajustado`, o X é o da árvore ajustada da Tarefa 4 (as 8 colunas e as de `COLUNAS_AJUSTE`); só ela passa
+        também `criterio` e `peso`. Sem esses argumentos, a árvore é a da Tarefa 3: Gini, sem peso, 8 colunas.
         """
-        X = dados.x_contraste(config.BLOCO_TREINO) if contraste else dados.X[config.BLOCO_TREINO]
+        assert not (contraste and ajustado), "o X é o do contraste ou o do ajuste, nunca os dois"
+        if contraste:
+            X, colunas = dados.x_contraste(config.BLOCO_TREINO), dados.colunas_contraste()
+        elif ajustado:
+            X, colunas = dados.x_ajustado(config.BLOCO_TREINO), dados.colunas_ajustadas()
+        else:
+            X, colunas = dados.X[config.BLOCO_TREINO], config.COLUNAS_ARVORE
         y = dados.y[config.BLOCO_TREINO]
-        colunas = dados.colunas_contraste() if contraste else config.COLUNAS_ARVORE
         # Nenhuma linha da validação pode estar no `fit`: o índice de cada linha é o do Parquet e não se repete.
         assert X.index.intersection(dados.X[config.BLOCO_VALIDACAO].index).empty, "o fit recebeu linhas da validação"
 
         modelo = DecisionTreeClassifier(
-            criterion=config.CRITERIO,
+            criterion=criterio,
             max_depth=profundidade,
             min_samples_leaf=folha_minima,
             random_state=config.SEMENTE,  # mesma árvore a cada execução
-            # Sem `class_weight`: decisão do dono (01/10/2026); balancear é tarefa da Tarefa 4.
+            # Na Tarefa 3, sem `class_weight` (decisão do dono, 01/10/2026): `peso` fica `None`.
+            # Só a árvore ajustada da Tarefa 4 passa um peso (SPEC-ajuste-arvore.md).
+            class_weight=peso,
         )
         modelo.fit(X, y)
 

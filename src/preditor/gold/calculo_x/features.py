@@ -86,6 +86,12 @@ class Features:
             .withColumn("tendencia", (F.col("rtt") - F.avg("rtt").over(ultimas)) / F.col("mediana"))
             # Persistência: fração (0 a 1) das últimas 5 com algum desvio.
             .withColumn("persistencia", F.avg("desviado").over(ultimas))
+            # Histórico do z nas últimas 5 (SPEC-ajuste-arvore.md, "Colunas novas"): só a árvore ajustada o usa.
+            # `min` e `avg` do Spark ignoram o nulo (medição sem RTT): nada é imputado (RFC §8.3).
+            # Se nenhuma das 5 tem z, as duas ficam nulas.
+            # min5_z alto = o desvio se manteve nas 5; baixo com z atual alto = pico isolado.
+            .withColumn("min5_z", F.min("z_robusto").over(ultimas))
+            .withColumn("media5_z", F.avg("z_robusto").over(ultimas))
         )
 
     @staticmethod

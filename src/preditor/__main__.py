@@ -7,6 +7,8 @@ Com `gold`: só baseline, features e rótulo, lendo o Silver do disco (sem rede)
 Cada camada lê a anterior do disco, nunca da memória.
 Com `arvore`: a árvore de decisão, lendo o Gold do disco e gravando em `data/modelo/` (sem rede, sem Spark e
 sem Java); não entra na execução sem argumento. O código dela fica em `preditor/modelo/`.
+Com `ajuste`: a árvore ajustada da Tarefa 4, medida contra a da Tarefa 3; lê o Gold e as saídas do `arvore` e grava
+em `data/modelo/` (também sem rede, sem Spark e sem Java, e fora da execução sem argumento).
 Com `replay`: refaz a árvore oficial e grava `web/dados/replay.json` (o replay da validação no mapa), lendo o Gold
 do disco; também sem rede, sem Spark e sem Java, e fora da execução sem argumento. O código fica em `preditor/visualizacao/`.
 Com `servir`: serve a página `web/` em http://127.0.0.1:8000/ (`--porta N` troca a porta), só com a biblioteca padrão.
@@ -15,7 +17,7 @@ Com `servir`: serve a página `web/` em http://127.0.0.1:8000/ (`--porta N` troc
 import argparse
 from pathlib import Path
 
-from pyspark.sql import DataFrame, SparkSession, Window
+from pyspark.sql import Column, DataFrame, SparkSession, Window
 from pyspark.sql import functions as F
 
 from preditor import config
@@ -26,6 +28,7 @@ from preditor.gold.calculo_x.relatorio_regiao import RelatorioRegiao
 from preditor.gold.calculo_y.recorte import BLOCOS, Recorte
 from preditor.gold.calculo_y.rotulo import Rotulo
 from preditor.modelo.execucao import ExecucaoArvore
+from preditor.modelo.execucao_ajuste import ExecucaoAjuste
 from preditor.silver.medicao import Medicoes
 from preditor.spark import build_spark
 from preditor.visualizacao.execucao import ExecucaoReplay
@@ -171,6 +174,59 @@ class Pipeline:
         for linha in sem_periodo_a:
             print(f"  sem medições no Período A (fora do modelo): {linha.fluxo_id}")
         print(f"Corte A/B: {corte} | linhas de features (B): {features.count()}")
+        Pipeline._verificar_historico_z(features)
+
+    @staticmethod
+    def _verificar_historico_z(features: DataFrame) -> None:
+        """Checagens de `min5_z` e `media5_z` (SPEC-ajuste-arvore.md): param o programa se algo estiver errado."""
+        tolerancia = config.TOLERANCIA_JANELA
+        # O menor valor de um conjunto nunca passa da média dele nem do valor atual (que está no conjunto).
+        # Comparação com nulo dá nulo e o `filter` a descarta: só entram as linhas em que os dois existem.
+        acima_da_media = features.filter(F.col("min5_z") > F.col("media5_z") + tolerancia).count()
+        assert acima_da_media == 0, f"{acima_da_media} linhas com min5_z acima de media5_z"
+        acima_do_atual = features.filter(F.col("min5_z") > F.col("z_robusto")).count()
+        assert acima_do_atual == 0, f"{acima_do_atual} linhas com min5_z acima do z_robusto da própria medição"
+
+        # Caminho independente da janela `rowsBetween`: numera as medições de cada fluxo em ordem de tempo e
+        # junta cada uma com as que têm número de (n - 4) a n. Depois, um `groupBy` comum tira o mínimo e a média.
+        ordem = Window.partitionBy("fluxo_id").orderBy("t")
+        numeradas = features.select("fluxo_id", "t", "z_robusto", "min5_z", "media5_z").withColumn(
+            "n", F.row_number().over(ordem)
+        )
+        anteriores = numeradas.select(
+            F.col("fluxo_id").alias("fluxo_anterior"), F.col("n").alias("n_anterior"), F.col("z_robusto").alias("z_anterior")
+        )
+        esperado = (
+            numeradas.join(
+                anteriores,
+                (F.col("fluxo_id") == F.col("fluxo_anterior"))
+                & F.col("n_anterior").between(F.col("n") - (config.JANELA - 1), F.col("n")),
+            )
+            .groupBy("fluxo_id", "t", "min5_z", "media5_z")
+            .agg(
+                F.min("z_anterior").alias("min_esperado"),
+                F.avg("z_anterior").alias("media_esperada"),
+                F.count("z_anterior").alias("com_z"),  # quantas das (até) 5 medições têm z
+            )
+        )
+        assert esperado.count() == features.count(), "o caminho independente perdeu ou repetiu linhas"
+
+        def difere(coluna: str, referencia: str) -> Column:
+            # Um nulo e o outro não = diferente; os dois nulos = igual; os dois com valor = compara com tolerância.
+            um_nulo = F.col(coluna).isNull() != F.col(referencia).isNull()
+            return um_nulo | (F.abs(F.col(coluna) - F.col(referencia)) > tolerancia)
+
+        diferentes = esperado.filter(difere("min5_z", "min_esperado") | difere("media5_z", "media_esperada")).count()
+        assert diferentes == 0, f"{diferentes} linhas com min5_z ou media5_z diferentes do caminho independente"
+        # Nula só quando nenhuma das 5 tem z (e nunca nula quando alguma tem).
+        nulo_errado = esperado.filter((F.col("com_z") == 0) != F.col("min5_z").isNull()).count()
+        assert nulo_errado == 0, f"{nulo_errado} linhas em que o nulo de min5_z não bate com a janela sem z"
+
+        nulas = features.filter(F.col("min5_z").isNull()).count()
+        print(
+            f"Histórico do z (min5_z, media5_z): conferido por caminho independente em {features.count()} linhas | "
+            f"nulas (nenhum z nas últimas {config.JANELA}): {nulas}"
+        )
 
     @staticmethod
     def _verificar_rotulo(features: DataFrame, rotulado: DataFrame) -> DataFrame:
@@ -412,8 +468,8 @@ def main() -> None:
     analisador.add_argument(
         "camada",
         nargs="?",  # opcional: sem argumento roda o pipeline completo
-        choices=["bronze", "silver", "gold", "arvore", "replay", "servir"],
-        help="camada a rodar isoladamente, ou `arvore` / `replay` / `servir` (sem argumento: pipeline completo)",
+        choices=["bronze", "silver", "gold", "arvore", "ajuste", "replay", "servir"],
+        help="camada a rodar isoladamente, ou `arvore` / `ajuste` / `replay` / `servir` (sem argumento: pipeline completo)",
     )
     analisador.add_argument(
         "--porta",
@@ -428,6 +484,10 @@ def main() -> None:
     # Por isso `arvore` também não entra na execução sem argumento.
     if camada == "arvore":
         ExecucaoArvore().executar()
+        return
+    # A árvore ajustada (Tarefa 4) segue o mesmo desvio: pandas + scikit-learn, sem Spark.
+    if camada == "ajuste":
+        ExecucaoAjuste().executar()
         return
     # O replay também só lê o Gold com pandas e refaz a árvore: mesmo desvio, mesma razão.
     if camada == "replay":

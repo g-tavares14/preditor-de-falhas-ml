@@ -23,11 +23,12 @@ class Condicao:
     menor_ou_igual: bool  # True: `coluna <= limiar` (filho da esquerda); False: `coluna > limiar` (direita)
     ausente_entra: bool  # o valor ausente (NaN) satisfaz esta condição? Vem de `tree_.missing_go_to_left`
     pode_ter_ausente: bool  # a coluna tem NaN no treino ou na validação: só então a regra precisa dizer para onde vai
+    casas: int = config.CASAS_LIMIAR_REGRA  # casas decimais do limiar impresso (a árvore ajustada usa mais)
 
     def texto(self) -> str:
         sinal = "≤" if self.menor_ou_igual else ">"
         ausente = " (ou ausente)" if self.pode_ter_ausente and self.ausente_entra else ""
-        return f"`{self.coluna}` {sinal} {_formatar_limiar(self.limiar)}{ausente}"
+        return f"`{self.coluna}` {sinal} {_formatar_limiar(self.limiar, self.casas)}{ausente}"
 
 
 @dataclass(frozen=True)
@@ -46,25 +47,35 @@ class Regra:
         return f"se {condicoes} então {self.classe}"
 
 
-def _formatar_limiar(limiar: float) -> str:
-    """Limiar para leitura: `CASAS_LIMIAR_REGRA` casas, sem zeros sobrando (mínimo de 2) e com vírgula."""
-    inteiro, decimais = f"{limiar:.{config.CASAS_LIMIAR_REGRA}f}".split(".")
+def _formatar_limiar(limiar: float, casas: int = config.CASAS_LIMIAR_REGRA) -> str:
+    """Limiar para leitura: `casas` casas, sem zeros sobrando (mínimo de 2) e com vírgula."""
+    inteiro, decimais = f"{limiar:.{casas}f}".split(".")
     return f"{inteiro},{decimais.rstrip('0').ljust(2, '0')}"
 
 
 class Regras:
     @staticmethod
-    def ler(modelo: DecisionTreeClassifier, dados: DadosModelo) -> list[Regra]:
-        """As folhas de treino mais cheias, uma por classe, lidas do caminho real raiz → folha de `tree_`."""
+    def ler(
+        modelo: DecisionTreeClassifier,
+        dados: DadosModelo,
+        X: dict[str, pd.DataFrame] | None = None,
+        casas: int = config.CASAS_LIMIAR_REGRA,
+    ) -> list[Regra]:
+        """As folhas de treino mais cheias, uma por classe, lidas do caminho real raiz → folha de `tree_`.
+
+        `X` (bloco → colunas) é o X com que `modelo` foi treinado; sem ele, o X oficial das 8 colunas. `casas` é o
+        número de casas do limiar impresso. A árvore ajustada da Tarefa 4 passa os dela (SPEC-ajuste-arvore.md).
+        """
         arvore = modelo.tree_
-        X, y = dados.X[config.BLOCO_TREINO], dados.y[config.BLOCO_TREINO]
-        folha_de_cada_linha = modelo.apply(X)  # em que folha cada linha de treino cai
+        X = dados.X if X is None else X
+        y = dados.y[config.BLOCO_TREINO]
+        folha_de_cada_linha = modelo.apply(X[config.BLOCO_TREINO])  # em que folha cada linha de treino cai
 
         # Só `NaN` em treino ou validação conta (o teste está fechado): é onde a regra precisa dizer o lado do ausente.
         com_ausente = {
-            coluna for coluna in config.COLUNAS_ARVORE if any(dados.X[bloco][coluna].isna().any() for bloco in BLOCOS_USADOS)
+            coluna for coluna in modelo.feature_names_in_ if any(X[bloco][coluna].isna().any() for bloco in BLOCOS_USADOS)
         }
-        caminhos = Regras._caminhos(modelo, com_ausente)
+        caminhos = Regras._caminhos(modelo, com_ausente, casas)
 
         # Classe de cada folha: a de maior proporção em `value`, como o `predict` faz.
         classe_da_folha = {folha: str(modelo.classes_[np.argmax(arvore.value[folha])]) for folha in caminhos}
@@ -124,7 +135,9 @@ class Regras:
         )
 
     @staticmethod
-    def _caminhos(modelo: DecisionTreeClassifier, com_ausente: set[str]) -> dict[int, list[Condicao]]:
+    def _caminhos(
+        modelo: DecisionTreeClassifier, com_ausente: set[str], casas: int = config.CASAS_LIMIAR_REGRA
+    ) -> dict[int, list[Condicao]]:
         """Para cada folha, as condições do caminho da raiz até ela, lidas de `tree_` (nada escrito à mão)."""
         arvore = modelo.tree_
         caminhos: dict[int, list[Condicao]] = {}
@@ -134,7 +147,7 @@ class Regras:
             if esquerda == -1:  # -1 = não tem filho: é folha
                 caminhos[no] = ate_aqui
                 return
-            coluna = config.COLUNAS_ARVORE[arvore.feature[no]]
+            coluna = str(modelo.feature_names_in_[arvore.feature[no]])  # as colunas com que a árvore foi treinada
             limiar = float(arvore.threshold[no])  # exato: o `export_text` mostra só 2 casas
             # O `export_text` não diz para que lado vai o NaN em cada divisão; `missing_go_to_left` diz
             # (scikit-learn >= 1.3). Vale também para nós que não viram NaN no treino: o scikit-learn
@@ -142,8 +155,8 @@ class Regras:
             ausente_vai_esquerda = bool(arvore.missing_go_to_left[no])
             pode = coluna in com_ausente
             # Esquerda = `<=`, direita = `>`; o ausente entra na condição do lado para onde a árvore o manda.
-            descer(esquerda, ate_aqui + [Condicao(coluna, limiar, True, ausente_vai_esquerda, pode)])
-            descer(direita, ate_aqui + [Condicao(coluna, limiar, False, not ausente_vai_esquerda, pode)])
+            descer(esquerda, ate_aqui + [Condicao(coluna, limiar, True, ausente_vai_esquerda, pode, casas)])
+            descer(direita, ate_aqui + [Condicao(coluna, limiar, False, not ausente_vai_esquerda, pode, casas)])
 
         descer(0, [])
         return caminhos
@@ -159,7 +172,7 @@ class Regras:
             # O scikit-learn converte X para float32 antes de comparar com o limiar (float64): a regra
             # faz o mesmo, senão uma linha muito perto do limiar poderia cair do outro lado.
             valores = X[condicao.coluna].to_numpy(dtype=np.float32).astype(np.float64)
-            limiar = round(condicao.limiar, config.CASAS_LIMIAR_REGRA) if limiar_impresso else condicao.limiar
+            limiar = round(condicao.limiar, condicao.casas) if limiar_impresso else condicao.limiar
             ausente = np.isnan(valores)
             if condicao.menor_ou_igual:
                 vale = valores <= limiar  # NaN dá falso aqui
@@ -171,17 +184,23 @@ class Regras:
         return selecionadas
 
     @staticmethod
-    def verificar(modelo: DecisionTreeClassifier, regras: list[Regra], dados: DadosModelo) -> None:
-        """Cada regra seleciona exatamente as linhas que `apply` põe na folha dela (treino e validação)."""
+    def verificar(
+        modelo: DecisionTreeClassifier, regras: list[Regra], dados: DadosModelo, X: dict[str, pd.DataFrame] | None = None
+    ) -> None:
+        """Cada regra seleciona exatamente as linhas que `apply` põe na folha dela (treino e validação).
+
+        `X` é o mesmo de `ler`: sem ele, o X oficial.
+        """
         arvore = modelo.tree_
-        colunas = set(config.COLUNAS_ARVORE)
+        X_por_bloco = dados.X if X is None else X
+        colunas = set(modelo.feature_names_in_)
         assert 1 <= len(regras) <= config.N_REGRAS_PORTUGUES, f"número de regras inesperado: {len(regras)}"
         assert len({r.folha for r in regras}) == len(regras), "a mesma folha virou duas regras"
 
         for regra in regras:
             assert regra.fundidas, f"a regra da folha {regra.folha} não tem condição"
             Regras._verificar_fusao(regra)
-            assert {c.coluna for c in regra.fundidas} <= colunas, f"regra cita coluna fora de COLUNAS_ARVORE: {regra.texto()}"
+            assert {c.coluna for c in regra.fundidas} <= colunas, f"regra cita coluna fora das colunas da árvore: {regra.texto()}"
             # `regra.classe` é a que `tree_` guarda para a folha, e a mais cheia entre as folhas da mesma classe.
             assert regra.classe == modelo.classes_[np.argmax(arvore.value[regra.folha])], "classe da regra ≠ classe da folha"
             assert regra.n_treino == arvore.n_node_samples[regra.folha], "N da regra ≠ n_node_samples da folha"
@@ -194,13 +213,17 @@ class Regras:
             )
             # Pureza conferida pelas proporções que a própria árvore guarda (soma 1 ou contagem: a razão é a mesma).
             proporcao = arvore.value[regra.folha][0]
+            # Com peso de classe (árvore ajustada da Tarefa 4), `value` guarda as proporções PONDERADAS: dividir pelo
+            # peso de cada classe devolve a proporção em linhas, que é o que a pureza mede. Sem peso, divide por 1.
+            pesos_das_classes = modelo.class_weight or {}
+            proporcao = proporcao / np.array([pesos_das_classes.get(classe, 1.0) for classe in modelo.classes_])
             indice = list(modelo.classes_).index(regra.classe)
             assert abs(regra.pureza - proporcao[indice] / proporcao.sum()) <= config.TOLERANCIA_METRICA, (
                 f"pureza da regra {regra.folha} ≠ proporção de `tree_`"
             )
 
             for bloco in BLOCOS_USADOS:
-                X = dados.X[bloco]
+                X = X_por_bloco[bloco]
                 na_folha = modelo.apply(X) == regra.folha
                 # O caminho cru, aplicado ao X com o limiar exato e o lado do ausente, é a folha...
                 assert np.array_equal(Regras.selecionar(regra.condicoes, X), na_folha), (
@@ -210,7 +233,7 @@ class Regras:
                 assert np.array_equal(Regras.selecionar(regra.fundidas, X), na_folha), (
                     f"{bloco}: a regra fundida da folha {regra.folha} não seleciona as linhas dessa folha"
                 )
-                # O texto arredondado, lido como está impresso, também (senão, aumente CASAS_LIMIAR_REGRA).
+                # O texto arredondado, lido como está impresso, também (senão, aumente as casas do limiar).
                 assert np.array_equal(Regras.selecionar(regra.fundidas, X, limiar_impresso=True), na_folha), (
                     f"{bloco}: o limiar impresso da regra {regra.folha} muda as linhas selecionadas"
                 )

@@ -77,7 +77,7 @@ precisam da camada anterior no disco: sem ela, terminam dizendo qual comando rod
 | Bronze | `data/bronze/atlas.parquet` | medição bruta | Cópia fiel de `atlas-ripe-509700.atlasRipe.atlas` (região EU), sem filtro, com `pings` aninhado |
 | Silver | `data/silver/medicoes.parquet` | medição | `fluxo_id`, metadados da rota, `rtt`, `jitter`, `perda_pct` e `periodo` (A ou B); linhas duplicadas da tabela de origem são removidas |
 | Gold | `data/gold/baseline_por_fluxo.parquet` | fluxo | Ficha do Período A: mediana, MAD, IQR, jitter e perda típicos, taxa de resposta, `baseline_insuficiente` |
-| Gold | `data/gold/features_B.parquet` | medição do Período B | O **X** do modelo: `latencia_relativa`, `aumento_pct`, `z_robusto`, `jitter_relativo`, `n5_*`, `tendencia`, `persistencia` |
+| Gold | `data/gold/features_B.parquet` | medição do Período B | O **X** do modelo: `latencia_relativa`, `aumento_pct`, `z_robusto`, `jitter_relativo`, `n5_*`, `tendencia`, `persistencia`, e o histórico do z nas últimas 5 medições (`min5_z`, `media5_z`), que só a árvore ajustada usa |
 | Gold | `data/gold/limites_por_regiao.csv` | rota / país | Os limiares da regra traduzidos para ms, por região (só para leitura) |
 | Gold | `data/gold/dataset_rotulado_B.parquet` | medição do Período B | O X (`features_B`) mais o **Y**: `regra` (1 a 6, a linha da tabela da RFC §8.4 que decidiu), `status_atual` (OK / RISCO / FALHA), `status_futuro` (o `status_atual` da 3ª medição à frente, 12 min depois; nulo se não existir ou houver lacuna) e `bloco` (treino / validacao / teste, por dois cortes de tempo iguais para todos os fluxos) |
 | Gold | `data/gold/contagem_classes.csv` | bloco | N de cada bloco por classe, com início, fim e os dois instantes de corte (só para leitura) |
@@ -120,6 +120,36 @@ português seleciona exatamente as linhas da folha, mesma semente dá a mesma á
 diário: N por bloco e classe, a busca, as divisões dos dois primeiros níveis, as matrizes, árvore × persistência, as
 3 regras e dois erros concretos.
 
+### Árvore ajustada (Tarefa 4)
+
+O ajuste (spec em [`SPEC-ajuste-arvore.md`](SPEC-ajuste-arvore.md), análise em
+[`docs/relatorio_analise_arvore.md`](docs/relatorio_analise_arvore.md)) também é um comando à parte, offline, sem Spark
+e sem Java. A árvore da Tarefa 3 **não muda**: a ajustada nasce ao lado e é medida contra ela.
+
+```bash
+uv run python -m preditor ajuste   # lê data/gold/ e as saídas do `arvore`; grava data/modelo/ (offline)
+```
+
+Ela usa as 8 colunas da Tarefa 3 mais duas do Gold, `min5_z` e `media5_z` (o menor e a média do `z_robusto` nas
+últimas 5 medições do fluxo). A busca roda a grade da Tarefa 3 com Gini e entropia, em duas variantes: sem peso de
+classe e com o peso {OK 1, RISCO 2, FALHA 1,5}. Entre as árvores a até 0,005 do melhor F1 macro da validação, vence a
+mais simples. A variante adotada é a com peso (`MODELO_AJUSTADA` em `config.py`). Exige o Gold com as colunas novas
+e as saídas do `arvore`; sem eles, diz qual comando rodar antes.
+
+| Arquivo em `data/modelo/` | Conteúdo |
+|---|---|
+| `busca_ajuste.csv` | As 56 combinações de cada variante, com o F1 macro de treino e de validação e a escolhida marcada |
+| `arvore_ajustada.json` | Critério, hiperparâmetros, folhas, semente, peso de classe e as 10 colunas da variante adotada |
+| `regras_arvore_ajustada.txt` | A árvore ajustada inteira em texto e as 3 regras em português |
+| `matriz_ajuste.csv` | Matriz 3×3 na validação: persistência, árvore da Tarefa 3 e as duas variantes |
+| `metricas_ajuste.csv` | As métricas de sempre, mais o acerto quando o futuro muda, por transição (agora → futuro) e o F1 macro por região |
+| `comparacao_t3_t4.csv` | A tabela do diário: folhas, F1 macro, recall de FALHA e de RISCO, acerto quando o futuro muda |
+
+O comando confere o que gravou (X com exatamente as 10 colunas, a árvore da Tarefa 3 refeita igual a
+`arvore_oficial.json`, a escolhida é a mais simples dentro da tolerância, as matrizes somam o N da validação, regiões
+e transições somam o total, cada regra seleciona as linhas da folha, mesma semente dá a mesma árvore) e imprime o
+material do diário da Tarefa 4. Os arquivos da Tarefa 3 não são reescritos.
+
 ### Visualização (replay no mapa-múndi)
 
 Uma página web reproduz o bloco de validação em tempo acelerado (spec em
@@ -128,7 +158,7 @@ Uma página web reproduz o bloco de validação em tempo acelerado (spec em
 os dois offline, sem Spark e sem Java:
 
 ```bash
-uv run python -m preditor replay   # lê data/gold/, refaz a árvore e grava web/dados/replay.json
+uv run python -m preditor replay   # lê data/gold/, refaz as duas árvores e grava web/dados/replay.json
 uv run python -m preditor servir   # serve a página em http://127.0.0.1:8000/ (--porta N troca a porta)
 ```
 
@@ -144,6 +174,12 @@ Na página: tocar / pausar (ou Espaço), velocidades de 60×, 300× e 900×, bar
 abre o cartão do fluxo: rota, km, RTT mínimo teórico ao lado da mediana real, as 8 colunas que a árvore viu e a regra
 em português da folha. Ao fim do replay, o placar e a matriz são iguais aos de `metricas_validacao.csv` e
 `matriz_validacao.csv`.
+
+Abaixo do mapa fica o painel da árvore (spec em [`SPEC-arvore-na-pagina.md`](SPEC-arvore-na-pagina.md)): o diagrama dos
+31 nós e, com um fluxo selecionado, o caminho raiz → folha da última medição dele aceso, com o valor de cada coluna ao
+lado do limiar, a lista dos passos em texto e a regra da folha. Um seletor alterna entre a árvore oficial (Tarefa 3) e
+a ajustada (Tarefa 4); ele muda só o painel: mapa, cartão e placar seguem a oficial. Por isso o `replay` exige também
+as saídas do `ajuste` (rode `arvore` e `ajuste` antes) e confere a ajustada refeita contra elas.
 
 As coordenadas das sondas ficam em `src/preditor/visualizacao/sondas.csv`. Para refazê-las (única etapa com rede):
 `uv run python -m preditor.visualizacao.coletar_sondas`.
@@ -169,10 +205,12 @@ src/preditor/
       recorte.py           Recorte          `bloco`: treino / validação / teste por dois cortes de tempo globais
   modelo/                  fora do medalhão: lê o Gold com pandas, sem Spark
     dados.py               DadosModelo      lê o dataset rotulado, aplica a folga, descarta futuro nulo, separa X e y por bloco
-    avaliacao.py           Avaliacao        matriz 3×3, métricas, persistência e os erros concretos
+    avaliacao.py           Avaliacao        matriz 3×3, métricas, persistência, erros concretos, transições e regiões
     arvore.py              Arvore           busca na grade, treino, regras em texto; ArvoreContraste
     regras.py              Regras           as 3 regras em português, lidas do caminho real da árvore
     execucao.py            ExecucaoArvore   orquestra, grava em `data/modelo/` e verifica
+    ajuste.py              ArvoreAjustada   Tarefa 4: busca com as colunas novas, peso de classe e regra de escolha
+    execucao_ajuste.py     ExecucaoAjuste   compara com a Tarefa 3, verifica e grava os arquivos do ajuste
 ```
 
 As fórmulas seguem a RFC (§8.2 a §8.4). O código comenta cada passo e não

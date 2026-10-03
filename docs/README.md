@@ -22,6 +22,10 @@ Contém o passo a passo enviado pela professora para o projeto acadêmico, inclu
 4. [Tarefa 4 — Ajuste da árvore](projeto_preditor_redes/tarefas/Tarefa4_Ajuste_da_Arvore.md)
 5. [Tarefa 5 — Árvore final](projeto_preditor_redes/tarefas/Tarefa5_Arvore_Final.md)
 
+### [`relatorio_analise_arvore.md`](relatorio_analise_arvore.md)
+
+Análise da árvore da Tarefa 3 (como está, vieses, testes de colunas, pesos e hiperparâmetros), a combinação escolhida para a Tarefa 4, o resultado real depois da implementação e o diagnóstico do teto dos dados.
+
 ## Referências principais
 
 - [Consultas BigQuery e histórico da seleção regional](../data/docs/query.md)

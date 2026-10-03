@@ -13,7 +13,9 @@ Silver (normalização) e o Gold (cálculo do X: baseline + features; cálculo d
 `src/preditor/gold/calculo_y/`, spec em `SPEC-calculo-y.md`) estão prontos. A árvore inicial (Tarefa 3) também:
 código em `src/preditor/modelo/`, spec em `SPEC-arvore.md`. A visualização (replay da validação num mapa-múndi)
 também: exportador em `src/preditor/visualizacao/`, página em `web/`, spec em `SPEC-visualizacao.md`. O ajuste da
-árvore (Tarefa 4) e o teste único (Tarefa 5) vêm depois.
+árvore (Tarefa 4) também: `src/preditor/modelo/ajuste.py` e `execucao_ajuste.py`, spec em `SPEC-ajuste-arvore.md`,
+análise em `docs/relatorio_analise_arvore.md`. O painel da árvore na página (as duas árvores, com o caminho do fluxo em
+foco) também: spec em `SPEC-arvore-na-pagina.md`. O teste único (Tarefa 5) vem depois.
 
 A pergunta, as regras de rótulo e a origem dos dados estão em `docs/` (índice em `docs/README.md`; a RFC em
 `docs/projeto_preditor_redes/RFC_Preditor_Degradacao_Rede.md` é a referência das fórmulas, §8.2 a §8.4).
@@ -50,6 +52,8 @@ uv run python -m preditor gold     # data/silver/ → data/gold/ (offline; inclu
                                    # e contagem_classes.csv)
 # run (a árvore; comando à parte, não entra na execução sem argumento):
 uv run python -m preditor arvore   # data/gold/ → data/modelo/ (offline, sem Spark nem Java)
+# run (a árvore ajustada da Tarefa 4; comando à parte, offline, sem Spark nem Java):
+uv run python -m preditor ajuste   # data/gold/ + saídas do `arvore` → data/modelo/ (não reescreve os arquivos da Tarefa 3)
 # run (a visualização; comandos à parte, offline, sem Spark nem Java):
 uv run python -m preditor replay   # data/gold/ → web/dados/replay.json (refaz a árvore oficial)
 uv run python -m preditor servir   # serve web/ em http://127.0.0.1:8000/ (--porta N); não use `python -m http.server`
@@ -66,9 +70,18 @@ uv run python -m preditor.visualizacao.coletar_sondas   # só para refazer sonda
 #        validação e F1 macro = média dos 3 F1 da matriz, a escolhida é a 1ª linha da busca, regras só com colunas
 #        permitidas e cada regra seleciona exatamente as linhas da folha, mesma semente = mesma árvore, nenhuma
 #        linha do teste medida. Ela imprime também os resultados para o diário;
+#        Gold (histórico do z): `min5_z` ≤ `media5_z` e ≤ `z_robusto`, as duas conferidas por auto-junção (sem a janela),
+#        nulas só quando nenhuma das 5 medições tem z;
+#        Ajuste: X com exatamente as 10 colunas e nenhuma proibida, árvore da Tarefa 3 refeita = `arvore_oficial.json` e
+#        métricas = `metricas_validacao.csv`, 56 combinações por variante, a escolhida é a mais simples dentro da
+#        tolerância (conferida de novo a partir do CSV), matrizes somam o N da validação, regiões e transições somam o
+#        total, regras só com as 10 colunas e cada regra seleciona exatamente as linhas da folha, mesma semente = mesma
+#        árvore, nenhuma linha do teste medida;
 #        Replay: árvore refeita = `arvore_oficial.json`, nenhuma linha nem instante do teste no JSON, conferíveis = N da
 #        validação, matriz e F1 recalculados do JSON = CSVs da árvore, `t_futuro` conferido por caminho independente,
-#        `x` só com as 8 colunas e ausente continua ausente, cada regra seleciona exatamente as linhas da folha, toda
+#        `x` só com as 8 colunas e ausente continua ausente,
+#        as duas árvores do painel = `tree_` (31 nós) e percorrer os nós com o `x` do JSON chega na folha gravada, ajustada
+#        refeita = `arvore_ajustada.json` e matriz/F1 dela = CSVs do ajuste, cada regra seleciona exatamente as linhas da folha, toda
 #        rota começa na sonda, termina no destino e só usa cabo do catálogo, mesma semente = mesmo JSON. A página se
 #        confere abrindo: ao fim do replay o placar e a matriz são iguais aos CSVs)
 ```
@@ -76,8 +89,8 @@ uv run python -m preditor.visualizacao.coletar_sondas   # só para refazer sonda
 Só `bronze` (e o pipeline completo) precisa de rede e credenciais do BigQuery. `silver` e `gold` rodam offline, mas
 exigem a camada anterior no disco: sem ela, terminam com a mensagem de qual comando rodar antes (nunca recaem no
 BigQuery). `arvore` também roda offline e exige o Gold (sem ele, pede `uv run python -m preditor gold`). Sem rede,
-verifique ao menos a importação: `uv run python -c "import preditor.__main__"`. `replay` exige o Gold, as saídas do
-`arvore` e o `sondas.csv`; `servir` exige o `replay.json` (cada um diz qual comando rodar antes).
+verifique ao menos a importação: `uv run python -c "import preditor.__main__"`. `ajuste` exige o Gold com as colunas novas e as saídas do `arvore`. `replay` exige o Gold, as saídas do
+`arvore` e do `ajuste` e o `sondas.csv`; `servir` exige o `replay.json` (cada um diz qual comando rodar antes).
 
 ## Conventions
 
@@ -86,11 +99,14 @@ verifique ao menos a importação: `uv run python -c "import preditor.__main__"`
   dentro); `__main__.py` orquestra, grava e verifica. Cada camada lê a anterior do disco, nunca da memória.
 - A árvore fica em `modelo/`, fora do medalhão: `dados.py`, `avaliacao.py`, `arvore.py`, `regras.py` e `execucao.py`
   (orquestra, grava e verifica). Lê o Gold do disco com pandas, sem Spark.
+- A árvore ajustada (Tarefa 4) fica ao lado, em `modelo/ajuste.py` e `modelo/execucao_ajuste.py`. Ela reutiliza
+  `ArvoreBase`, `Regras` e `Avaliacao`; qualquer mudança nesses três precisa manter o `arvore` e o `replay` com
+  saídas idênticas (os parâmetros novos têm como padrão o comportamento da Tarefa 3).
 - A visualização fica em `visualizacao/`, também fora do medalhão: `rotas.py`, `exportacao.py`, `execucao.py` (orquestra,
   verifica e só então grava), `servidor.py` e `coletar_sondas.py`. Ela reutiliza `modelo/` sem alterá-lo.
 - A página fica em `web/`: `app.js` orquestra; `tempo.js` e `placar.js` são lógica pura (sem DOM, rodam em Node);
   `mapa.js`, `rotas.js`, `desenho.js`, `pulsos.js`, `selos.js` cuidam do mapa; `cartao.js`, `painel.js`, `foco.js` e
-  `comum.js`, do painel. Sem `innerHTML` com dados; CSP `default-src 'self'`. As constantes só de desenho (durações,
+  `comum.js`, do painel; `arvore.js` e `caminho.js` (lógica pura), do painel da árvore. Sem `innerHTML` com dados; CSP `default-src 'self'`. As constantes só de desenho (durações,
   tamanhos) ficam no topo do módulo JS que as usa, comentadas, porque o JS não lê `config.py`.
 - Todo "número mágico" vai para `src/preditor/config.py`, com comentário dizendo a origem (seção da RFC ou decisão).
 - O código comenta cada passo, mas não repete a teoria da RFC: referencia a seção.
@@ -147,6 +163,25 @@ verifique ao menos a importação: `uv run python -c "import preditor.__main__"`
   as condições repetidas do caminho fundidas por coluna (fica o limite mais apertado).
 - **Contagens e métricas da árvore são resultado, não constantes:** N por bloco, hiperparâmetros escolhidos e F1 não
   ficam em `config.py` nem são checados contra um valor fixo; vêm da execução (referência em `tasks/todo-arvore.md`).
+- **Ajuste da árvore (Tarefa 4, 02/10/2026): as duas árvores ficam.** A da Tarefa 3 não muda em nada; a ajustada é
+  medida contra ela e contra a persistência, nas mesmas linhas. O `replay` continua na árvore da Tarefa 3.
+- **Colunas novas do ajuste:** `min5_z` e `media5_z` (menor e média do `z_robusto` nas últimas 5 medições do fluxo,
+  mesma janela das `n5_`, nulo ignorado). Nascem no Gold e ficam em `COLUNAS_AJUSTE`: `COLUNAS_ARVORE` continua com as
+  8, e cada coluna do Gold está em exatamente uma das três listas (árvore, ajuste, proibidas).
+- **Escolha da ajustada:** grade da Tarefa 3 × {Gini, entropia}; entre as árvores a até 0,005 do melhor F1 macro da
+  validação, vence a mais simples (menor `max_depth`, depois folha mínima maior, depois Gini). O maior F1 puro levaria
+  a 187 folhas por +0,004.
+- **Peso de classe {OK 1, RISCO 2, FALHA 1,5}:** revê a decisão de 01/10 (sem balanceamento na Tarefa 3, que
+  continua valendo para a árvore da Tarefa 3). O diário da Tarefa 4 não lista peso entre os ajustes permitidos: as
+  duas variantes são medidas e gravadas, a adotada é a com peso, e a pergunta vai à professora. Se ela vetar, troca-se
+  `MODELO_AJUSTADA` em `config.py`.
+- **Recall de FALHA da ajustada cai** (0,779 → 0,754) e a precisão sobe (0,846 → 0,910): a regra de escolha não exige
+  o recall; a queda é explicada (picos isolados deixam de virar FALHA), não escondida.
+- **Regras em português da ajustada com 6 casas no limiar** (`CASAS_LIMIAR_REGRA_AJUSTE`): com as 4 da Tarefa 3, o
+  limiar impresso selecionava outras linhas. Com peso, `Regras.verificar` desconta o peso de `tree_.value` na pureza.
+- **Teto conhecido dos dados:** nem um boosting de 300 árvores com 20 colunas passa de 0,77 de F1 macro, nem de 13 %
+  de acerto em OK → FALHA; 68 % dos episódios de FALHA duram uma medição (regra 3). Antecipar o início de uma falha a
+  12 min não é possível com estas medições (relatório, seção 7). Não insistir em hiperparâmetro.
 - **Visualização = replay, não medição ao vivo:** a página reproduz o bloco de **validação** (o teste continua fechado:
   o exportador recusa o bloco e nenhum instante do teste entra no JSON). O navegador não calcula métrica do X nem
   rótulo: só exibe, compara e soma campos do JSON. Trocar o bloco depois da Tarefa 5 exige rever as checagens de
@@ -162,6 +197,9 @@ verifique ao menos a importação: `uv run python -c "import preditor.__main__"`
   de tempo dá o mesmo estado que tocar até lá. As medições sem futuro para conferir e as de folga ficam fora.
 - **A árvore é refeita no `replay`** (mesma semente, conferida contra `arvore_oficial.json`): o `arvore` não grava o
   modelo treinado. As regras das 16 folhas vêm de `Regras._caminhos` (método privado de `modelo/regras.py`).
+- **Painel da árvore (03/10/2026):** mostra a oficial e a ajustada (seletor), mas o seletor muda só o painel: mapa,
+  cartão e placar seguem a oficial. O navegador não percorre a árvore com o X: recebe a folha do JSON e sobe pelos pais.
+  Por isso o `replay` agora também exige as saídas do `ajuste`.
 - **`servir` em vez de `python -m http.server`:** o servidor padrão (fila de 5 conexões, HTTP/1.0) perdia arquivos com
   vários navegadores ao mesmo tempo; o `servir` usa fila de 128 e HTTP/1.1, só em `127.0.0.1`.
 - O baseline usa só o Período A; nada do Período A pode entrar nas features do Período B.
@@ -178,7 +216,8 @@ verifique ao menos a importação: `uv run python -c "import preditor.__main__"`
 ## Agent workflow
 
 - Lifecycle: `/spec` → `/plan` → `/build` → `/verify` → `/review`. Specs live in the repo; the plan in `tasks/plan.md`, tasks in `tasks/todo.md` (the Y spec uses `tasks/plan-calculo-y.md` and `tasks/todo-calculo-y.md`; the tree spec, `SPEC-arvore.md`, uses `tasks/plan-arvore.md` and `tasks/todo-arvore.md`; the visualization spec,
-  `SPEC-visualizacao.md`, uses `tasks/plan-visualizacao.md` and `tasks/todo-visualizacao.md`).
+  `SPEC-visualizacao.md`, uses `tasks/plan-visualizacao.md` and `tasks/todo-visualizacao.md`; the Tarefa 4 spec,
+  `SPEC-ajuste-arvore.md`, uses `tasks/plan-ajuste-arvore.md` and `tasks/todo-ajuste-arvore.md`).
 - Agents: `implementer` implements one task and stops for review; `reviewer` reviews the diff without editing.
 - Skills live in `.claude/skills/` and belong to this project: adapt them freely. `.claude/catalog.md` lists catalog skills not installed yet.
 - Do not commit or push without the owner asking.

@@ -70,7 +70,101 @@ class ErroConcreto:
     linha: pd.Series | None  # a escolhida; None = o caso não apareceu na validação
 
 
+@dataclass(frozen=True)
+class Mudanca:
+    """O que `Avaliacao.quando_muda` calcula: o acerto separado por "o futuro repete o agora" ou "muda"."""
+
+    n_igual: int  # linhas em que `status_futuro` = `status_atual`
+    acerto_igual: float  # fração delas que o modelo acerta
+    n_muda: int  # linhas em que o futuro é diferente do agora: é onde prever vale alguma coisa
+    acerto_muda: float
+    transicoes: pd.DataFrame  # uma linha por par (agora, futuro): colunas `atual`, `futuro`, `n`, `acertos`, `acerto`
+
+
 class Avaliacao:
+    @staticmethod
+    def quando_muda(verdadeiro: pd.Series, previsto: pd.Series, atual: pd.Series, *, bloco: str) -> Mudanca:
+        """Acerto do modelo quando o futuro repete o agora e quando muda, e por transição (SPEC-ajuste-arvore.md).
+
+        `atual` é o `status_atual` das mesmas linhas: só separa os grupos, nunca foi coluna de X. O F1 macro sozinho
+        esconde que uma árvore pode só repetir o agora; aqui isso aparece.
+        """
+        assert bloco in BLOCOS_USADOS, f"só se mede {BLOCOS_USADOS}; recebi o bloco {bloco!r}"
+        assert verdadeiro.index.equals(previsto.index) and verdadeiro.index.equals(atual.index), (
+            "verdadeiro, previsto e atual precisam ser as mesmas linhas"
+        )
+        acertou = previsto == verdadeiro
+        muda = verdadeiro != atual
+
+        linhas = []
+        for classe_atual in config.CLASSES:
+            for classe_futura in config.CLASSES:
+                do_par = (atual == classe_atual) & (verdadeiro == classe_futura)
+                n, acertos = int(do_par.sum()), int((do_par & acertou).sum())
+                # Par que não aparece na validação: sem linhas, não há acerto a calcular (fica ausente, não 0).
+                linhas.append((classe_atual, classe_futura, n, acertos, acertos / n if n else float("nan")))
+        transicoes = pd.DataFrame(linhas, columns=["atual", "futuro", "n", "acertos", "acerto"])
+
+        resultado = Mudanca(
+            n_igual=int((~muda).sum()),
+            acerto_igual=float(acertou[~muda].mean()),
+            n_muda=int(muda.sum()),
+            acerto_muda=float(acertou[muda].mean()),
+            transicoes=transicoes,
+        )
+
+        # As contas fecham: os dois grupos somam o N, e as 9 transições somam o N e os acertos do modelo.
+        assert resultado.n_igual + resultado.n_muda == len(verdadeiro), "futuro igual + futuro muda ≠ N"
+        assert transicoes["n"].sum() == len(verdadeiro), "as transições não somam o N"
+        assert transicoes["acertos"].sum() == int(acertou.sum()), "os acertos das transições não somam os do modelo"
+        # A diagonal (agora = futuro) é o grupo "igual"; o resto é o grupo "muda".
+        diagonal = transicoes["atual"] == transicoes["futuro"]
+        assert transicoes.loc[diagonal, "n"].sum() == resultado.n_igual, "a diagonal das transições ≠ futuro igual"
+        assert transicoes.loc[~diagonal, "n"].sum() == resultado.n_muda, "fora da diagonal ≠ futuro muda"
+        return resultado
+
+    @staticmethod
+    def por_regiao(verdadeiro: pd.Series, previsto: pd.Series, regiao: pd.Series, *, bloco: str) -> pd.DataFrame:
+        """F1 macro e acurácia do modelo em cada região de destino (SPEC-ajuste-arvore.md).
+
+        A região só AGRUPA as linhas já previstas: é proibida no X e nenhum modelo a viu.
+        """
+        assert bloco in BLOCOS_USADOS, f"só se mede {BLOCOS_USADOS}; recebi o bloco {bloco!r}"
+        assert verdadeiro.index.equals(previsto.index) and verdadeiro.index.equals(regiao.index), (
+            "verdadeiro, previsto e região precisam ser as mesmas linhas"
+        )
+        assert regiao.notna().all(), "há linha sem região"
+
+        classes = list(config.CLASSES)
+        linhas = []
+        for nome in sorted(regiao.unique()):
+            da_regiao = regiao == nome
+            v, p = verdadeiro[da_regiao], previsto[da_regiao]
+            # `labels` fixa as 3 classes mesmo que a região não tenha alguma: o F1 dela entra como 0 na média.
+            f1 = f1_score(v, p, labels=classes, average="macro", zero_division=0)
+            linhas.append((nome, len(v), int((v == p).sum()), f1, float((v == p).mean())))
+        quadro = pd.DataFrame(linhas, columns=["regiao", "n", "acertos", "f1_macro", "acuracia"])
+
+        # As regiões repartem a validação: somam o N e os acertos do modelo.
+        assert quadro["n"].sum() == len(verdadeiro), "as regiões não somam o N"
+        assert quadro["acertos"].sum() == int((verdadeiro == previsto).sum()), "os acertos das regiões não somam os do modelo"
+        return quadro
+
+    @staticmethod
+    def quadro_extras(modelo: str, mudanca: Mudanca, regioes: pd.DataFrame) -> pd.DataFrame:
+        """As medidas da Tarefa 4 no mesmo formato longo de `quadro_metricas`, com o N de cada grupo ao lado."""
+        linhas = [
+            (modelo, "acerto_futuro_igual", "todas", mudanca.acerto_igual, mudanca.n_igual),
+            (modelo, "acerto_futuro_muda", "todas", mudanca.acerto_muda, mudanca.n_muda),
+        ]
+        for t in mudanca.transicoes.itertuples():
+            linhas.append((modelo, "acerto_transicao", f"{t.atual}→{t.futuro}", t.acerto, t.n))
+        for r in regioes.itertuples():
+            linhas.append((modelo, "f1_macro_regiao", r.regiao, r.f1_macro, r.n))
+        quadro = pd.DataFrame(linhas, columns=["modelo", "metrica", "classe", "valor", "n"])
+        quadro["valor"] = quadro["valor"].round(config.CASAS_CSV)
+        return quadro
+
     @staticmethod
     def erros_concretos(
         X: pd.DataFrame,

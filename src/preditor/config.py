@@ -101,6 +101,13 @@ COLUNAS_ARVORE = [
     "n5_moderado",
 ]
 
+# SPEC-ajuste-arvore.md, "Colunas novas" (Tarefa 4): o histórico do `z_robusto` nas últimas `JANELA` medições.
+# Nascem no Gold (`gold/calculo_x/features.py`), mas só a árvore ajustada as vê: a da Tarefa 3 segue com as 8 acima.
+COLUNAS_AJUSTE = ["min5_z", "media5_z"]
+# Diferença aceita ao conferir essas duas colunas por outro caminho no Gold: a média somada em outra ordem
+# muda as últimas casas do float (decisão: bem abaixo de qualquer limiar que a árvore use).
+TOLERANCIA_JANELA = 1e-9
+
 # SPEC-arvore.md, "Colunas da árvore oficial": existem no dataset rotulado, mas nunca entram no X.
 # Identificam o fluxo (`fluxo_id`, IP, `rota`), são metadados que a RFC proíbe (país, região), dão o
 # valor absoluto (`rtt`, `jitter`), vazam a resposta (`status_atual`, `regra`, `status_futuro`) ou só
@@ -173,6 +180,38 @@ MODELO_CONTRASTE = "arvore_contraste"  # nome na coluna `modelo` dos CSVs de mat
 # Só o `export_text`: a árvore de contraste não vira modelo (sem JSON de parâmetros e sem regras em português).
 ARQUIVO_REGRAS_CONTRASTE = MODELO / "regras_arvore_contraste.txt"
 
+# --- Árvore ajustada (SPEC-ajuste-arvore.md; diário da Tarefa 4) ----------------------------------------
+# A árvore da Tarefa 3 (acima) não muda: a ajustada nasce ao lado, no comando `ajuste`, e é medida contra ela.
+# Grade: a mesma de profundidade e folha da Tarefa 3, vezes o critério (o diário permite Gini ou entropia):
+# 7 × 4 × 2 = 56 árvores por variante de peso.
+GRADE_CRITERIO_AJUSTE = ["gini", "entropy"]  # a ordem é a do desempate: no empate, vence o primeiro (Gini)
+# Peso de classe no `fit` (decisão do dono, 02/10/2026; docs/relatorio_analise_arvore.md, seção 3.3: o peso com a
+# melhor média entre os testados). O diário da Tarefa 4 não lista peso entre os ajustes permitidos: a pergunta vai
+# à professora na revisão. Por isso a busca roda nas duas variantes e as duas são gravadas.
+PESO_CLASSES_AJUSTE = {"OK": 1.0, "RISCO": 2.0, "FALHA": 1.5}
+MODELO_AJUSTE_SEM_PESO = "ajustada_sem_peso"  # nomes na coluna `modelo` dos CSVs do ajuste
+MODELO_AJUSTE_COM_PESO = "ajustada_com_peso"
+VARIANTES_AJUSTE = {MODELO_AJUSTE_SEM_PESO: None, MODELO_AJUSTE_COM_PESO: PESO_CLASSES_AJUSTE}
+# Qual variante é "a árvore ajustada" (a que tem JSON e regras em português). Se a professora vetar o peso,
+# troca-se só esta linha para MODELO_AJUSTE_SEM_PESO.
+MODELO_AJUSTADA = MODELO_AJUSTE_COM_PESO
+# Regra de escolha (decisão do dono, 02/10/2026): entre as árvores com F1 macro da validação a até esta distância
+# do melhor, vence a mais simples (menor `max_depth`, depois `min_samples_leaf` maior, depois Gini). O maior F1
+# puro levaria a 187 folhas por +0,004, e diferenças abaixo de 0,007 estão dentro do ruído (relatório, seção 4).
+TOLERANCIA_ESCOLHA = 0.005
+# Casas do limiar nas regras em português da ajustada. As 4 da Tarefa 3 (`CASAS_LIMIAR_REGRA`) não bastam aqui: com
+# 4, o limiar impresso seleciona linhas diferentes das da folha e a checagem de `Regras.verificar` para (A6).
+# É o menor número que passa nessa checagem; o texto das regras da Tarefa 3 continua com 4.
+CASAS_LIMIAR_REGRA_AJUSTE = 6
+
+# Saídas do `ajuste` em `data/modelo/`. Arquivos próprios: os da Tarefa 3 não são reescritos (o `replay` os confere).
+ARQUIVO_BUSCA_AJUSTE = MODELO / "busca_ajuste.csv"  # as 56 combinações de cada variante, com a escolhida marcada
+ARQUIVO_ARVORE_AJUSTADA = MODELO / "arvore_ajustada.json"  # critério, hiperparâmetros, folhas, semente, peso, colunas
+ARQUIVO_REGRAS_AJUSTADA = MODELO / "regras_arvore_ajustada.txt"  # `export_text` + as regras em português
+ARQUIVO_MATRIZ_AJUSTE = MODELO / "matriz_ajuste.csv"  # matriz 3×3 de persistência, Tarefa 3 e as duas variantes
+ARQUIVO_METRICAS_AJUSTE = MODELO / "metricas_ajuste.csv"  # as métricas de sempre + futuro muda, transições e regiões
+ARQUIVO_COMPARACAO = MODELO / "comparacao_t3_t4.csv"  # a tabela do diário: F1 macro, recall de FALHA e de RISCO
+
 # --- Visualização: replay no mapa-múndi (SPEC-visualizacao.md; tasks/plan-visualizacao.md) ---------------
 # Bloco exibido (spec, "Bloco exibido: validação"): o teste fica fechado até a Tarefa 5. Trocar o bloco é decisão
 # do dono e exige rever as checagens de `visualizacao/execucao.py`, que hoje comparam com a validação.
@@ -196,6 +235,10 @@ CASAS_RTT_REPLAY = 3
 # impresso nas regras (`CASAS_LIMIAR_REGRA`): mais do que isso engordaria o arquivo sem mudar o que se lê. A execução
 # confere que o valor arredondado cai na MESMA folha que o exato (senão, aumente este número).
 CASAS_X_REPLAY = 4
+# Casas do limiar de cada divisão no painel da árvore (`arvores.*.nos` no JSON, SPEC-arvore-na-pagina.md). 6 = as da
+# ajustada (`CASAS_LIMIAR_REGRA_AJUSTE`), que bastam para as duas: a execução confere que percorrer os nós com o `x` do
+# JSON e estes limiares chega na folha gravada.
+CASAS_LIMIAR_REPLAY = 6
 
 # Pontos candidatos do destino de cada país (spec, "Coordenadas"), em [longitude, latitude] (ordem do GeoJSON e do D3).
 # O dataset só tem o país do destino (`destination_country`), nunca a cidade: cada ponto é uma APROXIMAÇÃO, não uma

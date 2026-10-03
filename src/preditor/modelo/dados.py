@@ -30,6 +30,12 @@ class DadosModelo:
         self.extras_contraste: dict[str, pd.DataFrame] = {}
         self.regioes: list[str] = []  # as categorias de região: as do TREINO (a validação é codificada com elas)
         self.regioes_so_na_validacao: dict[str, int] = {}  # região que o treino não viu → linhas da validação (colunas 0)
+        # Colunas EXTRAS da árvore ajustada (`config.COLUNAS_AJUSTE`, Tarefa 4), alinhadas ao X pelo índice, só de treino
+        # e validação. Como no contraste, ficam fora do X oficial: só `x_ajustado` as junta às 8.
+        self.extras_ajuste: dict[str, pd.DataFrame] = {}
+        # Região de destino das linhas mantidas da validação, alinhada ao `y` pelo índice. Só AGRUPA o resultado
+        # (F1 por região, SPEC-ajuste-arvore.md): é proibida no X e nunca entra em nenhum deles.
+        self.regiao_validacao = pd.Series(dtype="object")
         self.resumo: dict[str, dict[str, int]] = {}  # bloco → quantas linhas saíram e por quê
         self.n_teste = 0  # o único número do teste que o programa guarda
 
@@ -55,6 +61,15 @@ class DadosModelo:
         return pd.concat([self.X[bloco], self.extras_contraste[bloco]], axis=1)
 
     @staticmethod
+    def colunas_ajustadas() -> list[str]:
+        """As colunas do X da árvore ajustada: as 8 oficiais e as novas da Tarefa 4, nesta ordem."""
+        return config.COLUNAS_ARVORE + config.COLUNAS_AJUSTE
+
+    def x_ajustado(self, bloco: str) -> pd.DataFrame:
+        """X da árvore ajustada de um bloco: o X oficial mais as colunas novas (o X oficial não muda)."""
+        return pd.concat([self.X[bloco], self.extras_ajuste[bloco]], axis=1)
+
+    @staticmethod
     def _ler() -> pd.DataFrame:
         if not config.ARQUIVO_ROTULADO.exists():
             # Mesmo formato de `Pipeline._ler_camada`: mensagem em stderr, código 1, sem traceback.
@@ -62,7 +77,15 @@ class DadosModelo:
                 f"Não encontrei {config.ARQUIVO_ROTULADO}.\n"
                 "Rode antes: uv run python -m preditor gold"
             )
-        return pd.read_parquet(config.ARQUIVO_ROTULADO)
+        lido = pd.read_parquet(config.ARQUIVO_ROTULADO)
+        # Gold gravado antes da Tarefa 4: ainda sem o histórico do z. Refazer o Gold resolve.
+        faltando = [coluna for coluna in config.COLUNAS_AJUSTE if coluna not in lido.columns]
+        if faltando:
+            raise SystemExit(
+                f"{config.ARQUIVO_ROTULADO} não tem as colunas {faltando}.\n"
+                "Rode antes: uv run python -m preditor gold"
+            )
+        return lido
 
     @staticmethod
     def _marcar_folga(rotulado: pd.DataFrame) -> pd.DataFrame:
@@ -99,7 +122,10 @@ class DadosModelo:
             self.X[bloco] = mantidas[config.COLUNAS_ARVORE].astype("float64")
             self.y[bloco] = mantidas[config.ALVO]
             self.extras_contraste[bloco] = self._extras_contraste(mantidas)
+            # Ausente continua ausente também nas colunas novas (RFC §8.3): só `astype`, nenhum `fillna`.
+            self.extras_ajuste[bloco] = mantidas[config.COLUNAS_AJUSTE].astype("float64")
             if bloco == config.BLOCO_VALIDACAO:
+                self.regiao_validacao = mantidas[config.COLUNA_REGIAO_CONTRASTE]
                 self.regioes_so_na_validacao = self._regioes_sem_coluna(mantidas)
                 self.status_atual_validacao = mantidas["status_atual"]
                 # Só da validação: o teste não guarda coluna nenhuma.
@@ -157,8 +183,12 @@ class DadosModelo:
         )
         # Coluna nova no Gold: obriga a decidir se é feature (`COLUNAS_ARVORE`) ou proibida.
         # Sem isso, ela ficaria fora das duas listas sem ninguém notar.
-        sem_decisao = set(lido.columns) - set(config.COLUNAS_ARVORE) - set(config.COLUNAS_PROIBIDAS)
-        assert not sem_decisao, f"colunas do Gold fora de COLUNAS_ARVORE e COLUNAS_PROIBIDAS: {sorted(sem_decisao)}"
+        # As da Tarefa 4 (`COLUNAS_AJUSTE`) têm decisão própria: só a árvore ajustada as vê.
+        decididas = set(config.COLUNAS_ARVORE) | set(config.COLUNAS_AJUSTE) | set(config.COLUNAS_PROIBIDAS)
+        sem_decisao = set(lido.columns) - decididas
+        assert not sem_decisao, (
+            f"colunas do Gold fora de COLUNAS_ARVORE, COLUNAS_AJUSTE e COLUNAS_PROIBIDAS: {sorted(sem_decisao)}"
+        )
         # Só treino e validação têm X e y: o teste não é guardado.
         assert set(self.X) == set(BLOCOS_USADOS) == set(self.y), f"blocos com dados: {sorted(self.X)}"
 
@@ -206,6 +236,7 @@ class DadosModelo:
         assert set(atual) <= set(config.CLASSES), f"{bloco}: status_atual fora de {config.CLASSES}"
 
         self._verificar_contraste(lido)
+        self._verificar_ajuste(lido)
 
         # Localização da validação: um caminho separado do X, sem enfraquecer as checagens do X acima.
         # São as mesmas linhas do y, com os valores do dataset lido, e nenhuma delas é coluna do X.
@@ -229,6 +260,37 @@ class DadosModelo:
         assert np.isclose(self.mediana_das_medianas, np.median(self.mediana_por_fluxo.to_numpy()), rtol=0, atol=config.TOLERANCIA_METRICA), (
             "a mediana das medianas não bate"
         )
+
+    def _verificar_ajuste(self, lido: pd.DataFrame) -> None:
+        """Confere as colunas novas da árvore ajustada contra o dataset lido, sem alterar nenhuma checagem do X oficial."""
+        novas = config.COLUNAS_AJUSTE
+        assert set(self.extras_ajuste) == set(BLOCOS_USADOS), f"blocos do ajuste: {sorted(self.extras_ajuste)}"
+        # Uma coluna nova não pode ser também oficial nem proibida: cada coluna do Gold tem uma decisão só.
+        assert not set(novas) & set(config.COLUNAS_ARVORE), "coluna do ajuste repetida em COLUNAS_ARVORE"
+        assert not set(novas) & set(config.COLUNAS_PROIBIDAS), "coluna do ajuste na lista de proibidas"
+
+        for bloco in BLOCOS_USADOS:
+            extras, X = self.extras_ajuste[bloco], self.X[bloco]
+            assert list(extras.columns) == novas, f"{bloco}: colunas extras do ajuste: {list(extras.columns)}"
+            assert extras.index.equals(X.index), f"{bloco}: extras do ajuste e X com linhas diferentes"
+            assert (extras.dtypes == "float64").all(), f"{bloco}: extras do ajuste precisam ser float64"
+            # São as do dataset, com os mesmos ausentes (`equals` trata NaN como igual a NaN): nada foi preenchido.
+            assert extras.equals(lido.loc[X.index, novas].astype("float64")), f"{bloco}: colunas do ajuste alteradas"
+
+            ajustado = self.x_ajustado(bloco)
+            assert list(ajustado.columns) == self.colunas_ajustadas(), f"{bloco}: X ajustado fora do esperado"
+            assert not set(ajustado.columns) & set(config.COLUNAS_PROIBIDAS), f"{bloco}: coluna proibida no X ajustado"
+            assert ajustado.index.equals(self.y[bloco].index), f"{bloco}: X ajustado e y com linhas diferentes"
+            # Juntar as novas não mexe nas 8: a parte oficial do X ajustado é o X oficial.
+            assert ajustado[config.COLUNAS_ARVORE].equals(X), f"{bloco}: as 8 colunas mudaram no X ajustado"
+
+        # Região da validação: as mesmas linhas do y, com o valor do dataset lido, e fora de todo X.
+        bloco = config.BLOCO_VALIDACAO
+        regiao = self.regiao_validacao
+        assert regiao.index.equals(self.y[bloco].index), f"{bloco}: região e y com linhas diferentes"
+        assert regiao.equals(lido.loc[regiao.index, config.COLUNA_REGIAO_CONTRASTE]), f"{bloco}: região alterada"
+        assert regiao.notna().all(), f"{bloco}: linha da validação sem região"
+        assert regiao.name not in self.colunas_ajustadas(), "a região entrou no X ajustado"
 
     def _verificar_contraste(self, lido: pd.DataFrame) -> None:
         """Confere as colunas extras do contraste contra o dataset lido, sem alterar nenhuma checagem do X oficial."""
