@@ -1,0 +1,22 @@
+{
+  "measurement_id": 210928969,
+  "url": "https://atlas.ripe.net/api/v2/measurements/210928969/results/",
+  "parametros": {
+    "start": 1789300800,
+    "stop": 1789387200
+  },
+  "inicio_utc": "2026-09-13T12:00:00+00:00",
+  "fim_utc": "2026-09-14T12:00:00+00:00",
+  "coletado_em_utc": "2026-10-05T00:31:18.912854+00:00",
+  "funcao": "fetch_measurement_results",
+  "http": "_request (GET /api/v2/measurements/{msm_id}/results/)",
+  "quantidade_registros": 569,
+  "quantidade_colunas_dataframe": 26,
+  "arquivo_json": "ripe_atlas_m210928969_20261005T003118Z.json",
+  "arquivo_tabelar": "ripe_atlas_m210928969_20261005T003118Z.csv",
+  "duplicatas_pela_chave": 0,
+  "rajadas_timeout_total": 1,
+  "sondas": 2,
+  "arquivo_json_e_bruto_original_da_api": true,
+  "nota": "Demo notebook 01; funções definidas no próprio notebook"
+}

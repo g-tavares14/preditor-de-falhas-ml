@@ -14,6 +14,8 @@ dist/
 !/data/raw/
 /data/raw/*
 !/data/raw/.gitkeep
+# Evidência da coleta do notebook 01 (só metadados; JSON e CSV continuam fora)
+!/data/raw/*_metadata.json
 node_modules/
 npm-debug.log*
 .idea/
