@@ -15,7 +15,9 @@ código em `src/preditor/modelo/`, spec em `SPEC-arvore.md`. A visualização (r
 também: exportador em `src/preditor/visualizacao/`, página em `web/`, spec em `SPEC-visualizacao.md`. O ajuste da
 árvore (Tarefa 4) também: `src/preditor/modelo/ajuste.py` e `execucao_ajuste.py`, spec em `SPEC-ajuste-arvore.md`,
 análise em `docs/relatorio_analise_arvore.md`. O painel da árvore na página (as duas árvores, com o caminho do fluxo em
-foco) também: spec em `SPEC-arvore-na-pagina.md`. O teste único (Tarefa 5) vem depois.
+foco) também: spec em `SPEC-arvore-na-pagina.md`. O piso da regra 3 (10/10/2026) também: a linha 3 do Y exige
+`aumento_pct` ≥ 30 % além de `z_robusto` ≥ 3,5; spec em `SPEC-piso-regra3.md`, com o antes × depois e a análise de
+robustez na seção 8 de `docs/relatorio_analise_arvore.md`. O teste único (Tarefa 5) vem depois.
 
 A pergunta, as regras de rótulo e a origem dos dados estão em `docs/` (índice em `docs/README.md`; a RFC em
 `docs/projeto_preditor_redes/RFC_Preditor_Degradacao_Rede.md` é a referência das fórmulas, §8.2 a §8.4).
@@ -58,13 +60,20 @@ uv run python -m preditor ajuste   # data/gold/ + saídas do `arvore` → data/m
 uv run python -m preditor replay   # data/gold/ → web/dados/replay.json (refaz a árvore oficial)
 uv run python -m preditor servir   # serve web/ em http://127.0.0.1:8000/ (--porta N); não use `python -m http.server`
 uv run python -m preditor.visualizacao.coletar_sondas   # só para refazer sondas.csv (rede: API pública do RIPE Atlas)
+# run (análise do piso da regra 3; fora do pipeline, não grava no projeto; saídas em data/analise_piso_regra3/, ignorada pelo git):
+uv run python data/analise_piso_regra3/robustez_piso.py      # antes × depois: ganho com IC por fluxo, dobra interna, pares (~3 min)
+uv run python data/analise_piso_regra3/conferir_secao8.py    # confere cada número da seção 8 contra numeros_secao8.csv
+JAVA_HOME=/opt/homebrew/opt/openjdk@17 uv run python data/analise_piso_regra3/conferir_rotulo_piso.py   # rótulo com piso None e 30, em memória (Spark)
 # typecheck: não há
 # lint: não há
 # test: não há — a verificação é rodar o pipeline; cada camada termina com checagens automáticas
 #       (Bronze: linhas e colunas = BigQuery; Silver: nenhum rtt <= 0, nenhum par (fluxo_id, t) repetido, 82 fluxos;
 #        Gold: Período A não vaza para as features, 81 fluxos no baseline, 2 insuficientes; rótulo: mesmas linhas
 #        das features, regra ↔ classe, FALHA com precedência, status_futuro conferido por um caminho independente
-#        do lead, blocos em ordem de tempo, cada bloco com as 3 classes. O gold imprime também 3 exemplos reais;
+#        do lead, blocos em ordem de tempo, cada bloco com as 3 classes; piso da regra 3 (`PISO_AUMENTO_FALHA_PCT`):
+#        nenhuma linha OK com z e aumento acima do piso, toda linha da regra 3 com z e aumento acima do piso, z e aumento
+#        altos só nas regras 1 a 3, z alto com aumento abaixo do piso nunca na regra 3, e o gold imprime quantas medições
+#        o piso tirou da regra 3 e para onde foram. O gold imprime também 3 exemplos reais;
 #        Árvore: X com exatamente as 8 colunas e nenhuma proibida, nenhum futuro nulo, nenhuma das 3 últimas medições
 #        de um fluxo em treino ou validação, 3 classes em treino e validação, `fit` só com o treino, matriz soma o N da
 #        validação e F1 macro = média dos 3 F1 da matriz, a escolhida é a 1ª linha da busca, regras só com colunas
@@ -80,7 +89,7 @@ uv run python -m preditor.visualizacao.coletar_sondas   # só para refazer sonda
 #        Replay: árvore refeita = `arvore_oficial.json`, nenhuma linha nem instante do teste no JSON, conferíveis = N da
 #        validação, matriz e F1 recalculados do JSON = CSVs da árvore, `t_futuro` conferido por caminho independente,
 #        `x` só com as 8 colunas e ausente continua ausente,
-#        as duas árvores do painel = `tree_` (31 nós) e percorrer os nós com o `x` do JSON chega na folha gravada, ajustada
+#        as duas árvores do painel = `tree_` (todos os nós) e percorrer os nós com o `x` do JSON chega na folha gravada, ajustada
 #        refeita = `arvore_ajustada.json` e matriz/F1 dela = CSVs do ajuste, cada regra seleciona exatamente as linhas da folha, toda
 #        rota começa na sonda, termina no destino e só usa cabo do catálogo, mesma semente = mesmo JSON. A página se
 #        confere abrindo: ao fim do replay o placar e a matriz são iguais aos CSVs)
@@ -101,7 +110,8 @@ verifique ao menos a importação: `uv run python -c "import preditor.__main__"`
   (orquestra, grava e verifica). Lê o Gold do disco com pandas, sem Spark.
 - A árvore ajustada (Tarefa 4) fica ao lado, em `modelo/ajuste.py` e `modelo/execucao_ajuste.py`. Ela reutiliza
   `ArvoreBase`, `Regras` e `Avaliacao`; qualquer mudança nesses três precisa manter o `arvore` e o `replay` com
-  saídas idênticas (os parâmetros novos têm como padrão o comportamento da Tarefa 3).
+  saídas idênticas com o mesmo Gold (os parâmetros novos têm como padrão o comportamento da Tarefa 3). Com outro Gold
+  as saídas mudam: o código não mudou, o dado sim.
 - A visualização fica em `visualizacao/`, também fora do medalhão: `rotas.py`, `exportacao.py`, `execucao.py` (orquestra,
   verifica e só então grava), `servidor.py` e `coletar_sondas.py`. Ela reutiliza `modelo/` sem alterá-lo.
 - A página fica em `web/`: `app.js` orquestra; `tempo.js` e `placar.js` são lógica pura (sem DOM, rodam em Node);
@@ -132,8 +142,12 @@ verifique ao menos a importação: `uv run python -c "import preditor.__main__"`
   valem para este dataset de 7 dias. Se a coleta for refeita, elas falham de propósito: revise-as junto com as decisões.
 - **`status_atual`** = tabela da RFC §8.4 aplicada na ordem (a primeira linha verdadeira decide); a coluna `regra`
   (1 a 6) guarda qual linha disparou e a classe é derivada dela. O Y só lê colunas do X, não recalcula métrica.
-- **Limitação conhecida da regra 3** (`z_robusto` ≥ 3,5, sem piso em ms nem em %): 88 % dessas FALHAs têm
-  `aumento_pct` < 30 % (fluxos muito estáveis, com MAD pequeno). O dono decidiu seguir a regra da professora.
+- **Piso na regra 3 (decidido em 09/10/2026, `SPEC-piso-regra3.md`):** a linha 3 do Y exige `z_robusto` ≥ 3,5 **e**
+  `aumento_pct` ≥ `PISO_AUMENTO_FALHA_PCT` (30; `None` = a regra da RFC ao pé da letra). Motivo: no rótulo anterior, 88 %
+  das FALHAs da regra 3 tinham `aumento_pct` < 30 % (fluxos muito estáveis, com MAD pequeno). O 30 é o limite de RISCO
+  por aumento da própria tabela (RFC §8.4, linha 5), não um valor varrido na validação. Só a linha 3 mudou: o X é o
+  mesmo, e 14.370 medições saíram da regra 3 (11.436 para OK, 2.929 para RISCO, 5 para FALHA). Resultados e ressalvas
+  na seção 8 do relatório. A análise antes × depois fica em `data/analise_piso_regra3/` (ignorada pelo git).
 - **`status_futuro`** = `status_atual` da 3ª medição seguinte do mesmo fluxo, só se ela estiver de 600 a 840 s
   depois (RFC §3); senão é nulo. Linhas com futuro nulo ficam no dataset: o treino do preditor as descarta.
 - **`bloco`** (treino / validacao / teste): dois instantes de corte globais, iguais para todos os fluxos, a 50 % e
@@ -170,16 +184,19 @@ verifique ao menos a importação: `uv run python -c "import preditor.__main__"`
   8, e cada coluna do Gold está em exatamente uma das três listas (árvore, ajuste, proibidas).
 - **Escolha da ajustada:** grade da Tarefa 3 × {Gini, entropia}; entre as árvores a até 0,005 do melhor F1 macro da
   validação, vence a mais simples (menor `max_depth`, depois folha mínima maior, depois Gini). O maior F1 puro levaria
-  a 187 folhas por +0,004.
+  a 187 folhas por +0,004 (rótulo anterior ao piso).
 - **Peso de classe {OK 1, RISCO 2, FALHA 1,5}:** revê a decisão de 01/10 (sem balanceamento na Tarefa 3, que
   continua valendo para a árvore da Tarefa 3). O diário da Tarefa 4 não lista peso entre os ajustes permitidos: as
-  duas variantes são medidas e gravadas, a adotada é a com peso, e a pergunta vai à professora. Se ela vetar, troca-se
-  `MODELO_AJUSTADA` em `config.py`.
-- **Recall de FALHA da ajustada cai** (0,779 → 0,754) e a precisão sobe (0,846 → 0,910): a regra de escolha não exige
-  o recall; a queda é explicada (picos isolados deixam de virar FALHA), não escondida.
+  duas variantes são medidas e gravadas, a adotada é a com peso. A professora liberou pesos de classe (relato do dono,
+  09/10/2026). Em 10/10/2026, com o rótulo do piso, a varredura de 32 combinações (`data/analise_piso_regra3/`) não
+  achou nenhuma que ganhe mais de 0,005 de F1 macro nas duas medidas; o peso fica. Se a professora vetar, troca-se
+  `MODELO_AJUSTADA` em `config.py`. O registro no diário da Tarefa 4 é do dono.
+- **Recall e precisão de FALHA (rótulo anterior ao piso):** na ajustada com peso, o recall era 0,754 e a precisão 0,910,
+  contra 0,779 e 0,846 da oficial. Com o piso (seção 8.3 do relatório), a ajustada com peso tem recall 0,505 e precisão
+  0,643. A regra de escolha não exige o recall, e a seção 8.5 lista a queda como ressalva medida.
 - **Regras em português da ajustada com 6 casas no limiar** (`CASAS_LIMIAR_REGRA_AJUSTE`): com as 4 da Tarefa 3, o
   limiar impresso selecionava outras linhas. Com peso, `Regras.verificar` desconta o peso de `tree_.value` na pureza.
-- **Teto conhecido dos dados:** nem um boosting de 300 árvores com 20 colunas passa de 0,77 de F1 macro, nem de 13 %
+- **Teto conhecido dos dados (rótulo anterior ao piso; não refeito com o piso, seção 8.5 do relatório):** nem um boosting de 300 árvores com 20 colunas passa de 0,77 de F1 macro, nem de 13 %
   de acerto em OK → FALHA; 68 % dos episódios de FALHA duram uma medição (regra 3). Antecipar o início de uma falha a
   12 min não é possível com estas medições (relatório, seção 7). Não insistir em hiperparâmetro.
 - **Visualização = replay, não medição ao vivo:** a página reproduz o bloco de **validação** (o teste continua fechado:
@@ -196,10 +213,13 @@ verifique ao menos a importação: `uv run python -c "import preditor.__main__"`
 - **Placar da página:** uma previsão só conta quando o relógio passa do instante do futuro (`t_futuro`); pular na barra
   de tempo dá o mesmo estado que tocar até lá. As medições sem futuro para conferir e as de folga ficam fora.
 - **A árvore é refeita no `replay`** (mesma semente, conferida contra `arvore_oficial.json`): o `arvore` não grava o
-  modelo treinado. As regras das 16 folhas vêm de `Regras._caminhos` (método privado de `modelo/regras.py`).
+  modelo treinado. As regras das folhas vêm de `Regras._caminhos` (método privado de `modelo/regras.py`).
 - **Painel da árvore (03/10/2026):** mostra a oficial e a ajustada (seletor), mas o seletor muda só o painel: mapa,
   cartão e placar seguem a oficial. O navegador não percorre a árvore com o X: recebe a folha do JSON e sobe pelos pais.
   Por isso o `replay` agora também exige as saídas do `ajuste`.
+- **Desenho do painel com o piso (10/10/2026):** largura proporcional ao número de folhas (80 por folha, mínimo de
+  1280 px), com rolagem horizontal que traz a folha em foco para a tela. Com o piso, a oficial tem 29 folhas e a
+  ajustada, 40 (`SPEC-arvore-na-pagina.md`).
 - **`servir` em vez de `python -m http.server`:** o servidor padrão (fila de 5 conexões, HTTP/1.0) perdia arquivos com
   vários navegadores ao mesmo tempo; o `servir` usa fila de 128 e HTTP/1.1, só em `127.0.0.1`.
 - O baseline usa só o Período A; nada do Período A pode entrar nas features do Período B.
@@ -217,7 +237,8 @@ verifique ao menos a importação: `uv run python -c "import preditor.__main__"`
 
 - Lifecycle: `/spec` → `/plan` → `/build` → `/verify` → `/review`. Specs live in the repo; the plan in `tasks/plan.md`, tasks in `tasks/todo.md` (the Y spec uses `tasks/plan-calculo-y.md` and `tasks/todo-calculo-y.md`; the tree spec, `SPEC-arvore.md`, uses `tasks/plan-arvore.md` and `tasks/todo-arvore.md`; the visualization spec,
   `SPEC-visualizacao.md`, uses `tasks/plan-visualizacao.md` and `tasks/todo-visualizacao.md`; the Tarefa 4 spec,
-  `SPEC-ajuste-arvore.md`, uses `tasks/plan-ajuste-arvore.md` and `tasks/todo-ajuste-arvore.md`).
+  `SPEC-ajuste-arvore.md`, uses `tasks/plan-ajuste-arvore.md` and `tasks/todo-ajuste-arvore.md`; the piso spec, `SPEC-piso-regra3.md`, uses
+  `tasks/plan-piso-regra3.md` and `tasks/todo-piso-regra3.md`).
 - Agents: `implementer` implements one task and stops for review; `reviewer` reviews the diff without editing.
 - Skills live in `.claude/skills/` and belong to this project: adapt them freely. `.claude/catalog.md` lists catalog skills not installed yet.
 - Do not commit or push without the owner asking.

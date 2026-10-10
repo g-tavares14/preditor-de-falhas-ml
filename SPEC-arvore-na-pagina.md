@@ -108,3 +108,20 @@ node web/caminho.js                # se tiver auto-checagem, como tempo.js/placa
 - **Validação na página:** `tempo.js` recusa um JSON sem `arvores` ou sem os campos da ajustada, com a dica de rodar o
   `replay` de novo.
 
+## Mudanças (10/10/2026, piso na regra 3)
+
+O rótulo com piso (`SPEC-piso-regra3.md`) muda o tamanho das árvores: a oficial tem **29 folhas e 57 nós** e a ajustada,
+**40 folhas e 79 nós** (antes: 16 folhas e 31 nós). Os números 31, 16 e 1280 px acima valem para o rótulo anterior
+(commit `055c422`); o que vale agora está abaixo.
+
+- **Largura proporcional às folhas:** o desenho tem `max(1280, 80 × folhas)` px (2320 px na oficial, 3200 px na
+  ajustada), com 1 unidade do viewBox = 1 px. O SVG sai no tamanho natural, sem encolher.
+- **Rolagem horizontal:** quem rola é o contêiner `.arv-rolagem` (com `tabindex="0"` e `role="region"`, para o teclado).
+  Os critérios "legíveis a 1280 px sem rolagem" deixam de valer para as duas árvores; valem com rolagem.
+- **Folha em foco na tela:** quando o caminho acende (fluxo, medição ou seletor), o contêiner rola para a folha, só se
+  ela não está no trecho visível, e não rola a janela. A raiz pode sair da tela com 40 folhas; o caminho em texto
+  (lista de passos) cobre o que ficou de fora.
+- **Conferência no Chrome (10/10/2026):** em 1366 × 768 e 1920 × 1080, nos seis casos de canto e centro das duas árvores,
+  a folha e a previsão batem com o JSON, não há nó sobreposto nem texto fora da caixa, e o console não tem erro.
+  No fim do replay, o placar e a matriz da oficial batem com `metricas_validacao.csv` e `matriz_validacao.csv`.
+

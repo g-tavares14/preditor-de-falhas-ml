@@ -24,7 +24,8 @@ Contém o passo a passo enviado pela professora para o projeto acadêmico, inclu
 
 ### [`relatorio_analise_arvore.md`](relatorio_analise_arvore.md)
 
-Análise da árvore da Tarefa 3 (como está, vieses, testes de colunas, pesos e hiperparâmetros), a combinação escolhida para a Tarefa 4, o resultado real depois da implementação e o diagnóstico do teto dos dados.
+Análise da árvore da Tarefa 3 (como está, vieses, testes de colunas, pesos e hiperparâmetros), a combinação escolhida para a Tarefa 4, o resultado real depois da implementação e o diagnóstico do teto dos dados. Desde 10/10/2026, a seção 8 mede o piso da
+regra 3 (antes × depois, com IC por fluxo); as seções 1 a 7 valem para o rótulo anterior ao piso.
 
 ## Referências principais
 

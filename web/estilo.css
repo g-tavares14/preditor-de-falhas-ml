@@ -1295,10 +1295,16 @@ kbd {
   margin: 4px 0;
 }
 
+/* O diagrama sai no tamanho natural (width e height vêm de arvore.js, 1 unidade = 1 px): não encolhe para caber no
+   cartão. Quem rola é o contêiner, na horizontal (com 40 folhas, 3200 px). */
+.arv-rolagem {
+  overflow-x: auto;
+  max-width: 100%;
+  padding-bottom: 6px;
+}
+
 .arv-svg {
   display: block;
-  width: 100%;
-  height: auto;
   overflow: visible;
 }
 

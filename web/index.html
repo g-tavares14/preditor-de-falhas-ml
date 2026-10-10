@@ -191,9 +191,13 @@
         <span>Árvore de decisão</span>
         <span class="arv-seletor" id="arvore-seletor" role="radiogroup" aria-label="Árvore exibida no painel"></span>
       </h2>
-      <p class="legenda-nota">Só este painel muda com o seletor: mapa, cartão e placar seguem a árvore oficial. Esquerda = sim (coluna &le; limiar).</p>
+      <p class="legenda-nota">Só este painel muda com o seletor: mapa, cartão e placar seguem a árvore oficial. Esquerda = sim (coluna &le; limiar). Role o diagrama na horizontal para ver a árvore inteira.</p>
       <p class="arv-situacao" id="arvore-situacao" aria-live="off"></p>
-      <svg class="arv-svg" id="arvore-svg" role="img" aria-label="Diagrama da árvore"></svg>
+      <!-- Com 29 ou 40 folhas o diagrama é mais largo que o cartão: o contêiner rola na horizontal (arvore.js). Recebe o
+           foco pelo teclado, para quem não usa o mouse conseguir rolar. -->
+      <div class="arv-rolagem" role="region" aria-label="Diagrama da árvore, com rolagem horizontal" tabindex="0">
+        <svg class="arv-svg" id="arvore-svg" role="img" aria-label="Diagrama da árvore"></svg>
+      </div>
       <div class="arv-texto">
         <ol class="arv-passos numero" id="arvore-passos" aria-label="Caminho da medição na árvore"></ol>
         <p class="arv-regra numero" id="arvore-regra"></p>

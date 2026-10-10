@@ -175,8 +175,8 @@ abre o cartão do fluxo: rota, km, RTT mínimo teórico ao lado da mediana real,
 em português da folha. Ao fim do replay, o placar e a matriz são iguais aos de `metricas_validacao.csv` e
 `matriz_validacao.csv`.
 
-Abaixo do mapa fica o painel da árvore (spec em [`SPEC-arvore-na-pagina.md`](SPEC-arvore-na-pagina.md)): o diagrama dos
-31 nós e, com um fluxo selecionado, o caminho raiz → folha da última medição dele aceso, com o valor de cada coluna ao
+Abaixo do mapa fica o painel da árvore (spec em [`SPEC-arvore-na-pagina.md`](SPEC-arvore-na-pagina.md)): o diagrama com
+todos os nós de cada árvore e, com um fluxo selecionado, o caminho raiz → folha da última medição dele aceso, com o valor de cada coluna ao
 lado do limiar, a lista dos passos em texto e a regra da folha. Um seletor alterna entre a árvore oficial (Tarefa 3) e
 a ajustada (Tarefa 4); ele muda só o painel: mapa, cartão e placar seguem a oficial. Por isso o `replay` exige também
 as saídas do `ajuste` (rode `arvore` e `ajuste` antes) e confere a ajustada refeita contra elas.

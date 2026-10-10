@@ -1,8 +1,9 @@
 """Camada Gold, cálculo do Y: o rótulo OK / RISCO / FALHA de cada medição do Período B.
 
 O Y não recalcula nenhuma métrica: lê as colunas que o X já tem (`perda_pct`,
-`n5_timeout`, `z_robusto`, `n5_aumento80`, `moderado`, `n5_moderado`) e aplica a
-tabela de rótulo da RFC §8.4. Região, país, IP e `fluxo_id` não participam da regra.
+`n5_timeout`, `z_robusto`, `aumento_pct`, `n5_aumento80`, `moderado`, `n5_moderado`) e
+aplica a tabela de rótulo da RFC §8.4, com o piso da linha 3 (SPEC-piso-regra3.md).
+Região, país, IP e `fluxo_id` não participam da regra.
 """
 
 from pyspark.sql import Column, DataFrame, Window
@@ -30,10 +31,15 @@ class Rotulo:
         # condição verdadeira, igual à tabela da RFC. Comparação com nulo dá nulo, e o when()
         # trata nulo como falso: sem RTT, `z_robusto` é nulo e a linha 3 simplesmente não dispara
         # (essas medições já caem na linha 1, porque perderam todos os pacotes).
+        # Linha 3 com piso (decisão de 09/10/2026, SPEC-piso-regra3.md): z extremo só é FALHA quando o RTT também
+        # subiu o piso sobre a mediana. Piso None = a regra da RFC ao pé da letra (só o z).
+        falha_por_z = F.col("z_robusto") >= config.Z_FALHA
+        if config.PISO_AUMENTO_FALHA_PCT is not None:
+            falha_por_z = falha_por_z & (F.col("aumento_pct") >= config.PISO_AUMENTO_FALHA_PCT)
         return (
             F.when(F.col("perda_pct") >= config.PERDA_FALHA_PCT, 1)
             .when(F.col("n5_timeout") >= config.N5_TIMEOUT_FALHA, 2)
-            .when(F.col("z_robusto") >= config.Z_FALHA, 3)
+            .when(falha_por_z, 3)
             .when(F.col("n5_aumento80") >= config.N5_AUMENTO80_FALHA, 4)
             .when((F.col("moderado") == 1) & (F.col("n5_moderado") >= config.N5_RISCO), 5)
             .otherwise(6)

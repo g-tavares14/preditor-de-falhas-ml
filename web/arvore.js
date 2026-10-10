@@ -1,8 +1,11 @@
-// arvore.js: o painel da árvore de decisão (SPEC-arvore-na-pagina.md).
+// arvore.js: o painel da árvore de decisão (SPEC-arvore-na-pagina.md; largura e rolagem em SPEC-piso-regra3.md).
 //
-// Desenha os 31 nós da árvore escolhida (oficial ou ajustada) em camadas e, com um fluxo em foco, acende o caminho que
-// a última medição dele percorreu, com o valor de cada coluna ao lado do limiar. Nada é calculado: a folha, a classe e a
-// regra vêm do JSON (caminho.js só sobe pelos pais). Só textContent e createElementNS, nunca innerHTML.
+// Desenha todos os nós da árvore escolhida (oficial ou ajustada) em camadas e, com um fluxo em foco, acende o caminho
+// que a última medição dele percorreu, com o valor de cada coluna ao lado do limiar. Nada é calculado: a folha, a classe
+// e a regra vêm do JSON (caminho.js só sobe pelos pais). Só textContent e createElementNS, nunca innerHTML.
+//
+// O desenho tem 1 unidade do viewBox = 1 px: o SVG sai no tamanho natural e quem rola é o contêiner (o pai do SVG).
+// Com o rótulo do piso, a oficial tem 29 folhas e a ajustada, 40: a largura cresce com as folhas, sem encolher o texto.
 
 import { criarCelula, criarChip, formatarInstante } from "./comum.js";
 import { passosDoCaminho, valoresDaMedicao } from "./caminho.js";
@@ -10,8 +13,10 @@ import { ultimaDoFluxo } from "./tempo.js";
 
 const SVG = "http://www.w3.org/2000/svg";
 
-// Medidas do desenho (unidades do viewBox; o SVG escala com a largura do cartão).
-const LARGURA = 1280; // 16 folhas a 80 de distância
+// Medidas do desenho (unidades do viewBox = px, ver o cabeçalho). A largura é proporcional às folhas.
+const LARGURA_MINIMA = 1280; // o painel não fica mais estreito que isto (é a largura de 16 folhas a 80 px)
+const PASSO_DA_FOLHA = 80; // distância mínima entre duas folhas vizinhas: abaixo disso as caixas (74 px) se encostam
+const MARGEM_ROLAGEM = 40; // folga, em px, entre a folha em foco e a borda visível do contêiner
 const ALTURA_DO_NIVEL = 62; // distância vertical entre camadas
 const MARGEM_TOPO = 18;
 const LARGURA_DO_NO = 74; // caixa de uma divisão (cabe "jitter_relativo" a 10 px)
@@ -37,12 +42,16 @@ function elementoSvg(tag, atributos, texto) {
   return el;
 }
 
-// Posição de cada nó: as folhas, da esquerda para a direita, em colunas iguais; cada divisão no meio dos filhos.
-function posicoes(nos) {
+function contarFolhas(nos) {
+  return nos.filter((no) => no.coluna === null).length;
+}
+
+// Posição de cada nó: as folhas, da esquerda para a direita, em colunas iguais de `largura` / folhas; cada divisão no
+// meio dos filhos. Com a largura de `larguraDoDesenho`, cada coluna tem pelo menos PASSO_DA_FOLHA px.
+function posicoes(nos, largura) {
   const pos = new Array(nos.length);
   let proximaFolha = 0;
-  const folhas = nos.filter((no) => no.coluna === null).length;
-  const passo = LARGURA / folhas;
+  const passo = largura / contarFolhas(nos);
   function visitar(id, nivel) {
     const no = nos[id];
     const y = MARGEM_TOPO + nivel * ALTURA_DO_NIVEL;
@@ -60,18 +69,28 @@ function posicoes(nos) {
   return { pos, altura: niveis + ALTURA_DA_FOLHA + 22 };
 }
 
+// Largura do desenho: 80 px por folha, nunca menos que LARGURA_MINIMA. Com 29 folhas, 2320 px; com 40, 3200 px.
+function larguraDoDesenho(nos) {
+  return Math.max(LARGURA_MINIMA, contarFolhas(nos) * PASSO_DA_FOLHA);
+}
+
 // Desenha uma árvore inteira no SVG e devolve os elementos de cada nó e aresta, para acender o caminho depois.
+// O SVG sai com `width` e `height` iguais ao viewBox (atributos de apresentação, não `style`: o CSP bloqueia `style`).
 function desenharArvore(svg, arvore) {
   const { nos } = arvore;
-  const { pos, altura } = posicoes(nos);
+  const largura = larguraDoDesenho(nos);
+  const { pos, altura } = posicoes(nos, largura);
   svg.replaceChildren();
-  svg.setAttribute("viewBox", `0 0 ${LARGURA} ${altura}`);
+  svg.setAttribute("viewBox", `0 0 ${largura} ${altura}`);
+  svg.setAttribute("width", largura);
+  svg.setAttribute("height", altura);
   const arestas = elementoSvg("g", { class: "arv-arestas" });
   const caixas = elementoSvg("g", { class: "arv-nos" });
   const valores = elementoSvg("g", { class: "arv-valores" });
   svg.append(arestas, caixas, valores);
 
-  const partes = { aresta: {}, no: {}, valor: {} };
+  // `posicao` guarda o x de cada nó: a rolagem leva a folha em foco para a tela (levarAFolha).
+  const partes = { aresta: {}, no: {}, valor: {}, posicao: pos };
   for (const no of nos) {
     const { x, y } = pos[no.id];
     if (no.pai !== null) {
@@ -149,6 +168,19 @@ function textoDoPasso(passo) {
   return `${passo.coluna} = ${numero(passo.valor)} ${sinal} ${numero(passo.limiar)} → ${passo.foiEsquerda ? "sim" : "não"}`;
 }
 
+// Rola só o contêiner do diagrama (o pai do SVG) para a folha em foco ficar na tela. Não rola se ela já está no trecho
+// visível, para não desfazer a rolagem que a pessoa fez. Não usa scrollIntoView: ele rola também a janela na vertical.
+function levarAFolha(rolagem, x) {
+  const visivel = rolagem.clientWidth;
+  const inicio = rolagem.scrollLeft;
+  if (x >= inicio + MARGEM_ROLAGEM && x <= inicio + visivel - MARGEM_ROLAGEM) {
+    return;
+  }
+  // Centraliza a folha, sem passar das bordas do desenho. Com 40 folhas, a raiz (no meio) pode ficar fora da tela.
+  const destino = x - visivel / 2;
+  rolagem.scrollLeft = Math.max(0, Math.min(destino, rolagem.scrollWidth - visivel));
+}
+
 // Acompanha o relógio: redesenha só quando muda a árvore escolhida, o fluxo em foco ou a medição dele.
 function atualizarArvore(estado, elementos, painel) {
   const escolha = estado.arvoreEscolhida;
@@ -158,7 +190,8 @@ function atualizarArvore(estado, elementos, painel) {
     painel.desenhada = escolha;
     painel.acesos = [];
     painel.chave = null;
-    elementos.svg.setAttribute("aria-label", `Diagrama da árvore ${NOMES[escolha] ?? escolha}: ${arvore.nos.length} nós`);
+    const folhas = contarFolhas(arvore.nos);
+    elementos.svg.setAttribute("aria-label", `Diagrama da árvore ${NOMES[escolha] ?? escolha}: ${folhas} folhas, ${arvore.nos.length} nós`);
   }
   const f = estado.selecionado;
   const indice = f === null ? -1 : ultimaDoFluxo(estado.tempo, f);
@@ -197,6 +230,8 @@ function atualizarArvore(estado, elementos, painel) {
     partes.aresta[passo].classList.add("arv-aceso");
     painel.acesos.push(partes.aresta[passo]);
   }
+  // A folha é o fim do caminho e o que a pessoa lê primeiro: é ela que fica na tela.
+  levarAFolha(elementos.svg.parentElement, partes.posicao[folha].x);
 
   // O mesmo caminho em texto (leitor de tela e quem não distingue a cor do destaque).
   elementos.situacao.replaceChildren(

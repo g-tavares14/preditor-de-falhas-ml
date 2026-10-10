@@ -238,6 +238,7 @@ class Pipeline:
         # A saída lê na ordem do dataset: rótulo, `status_atual`, `status_futuro`, recorte.
         print(f"Rótulo: {linhas} linhas = features | {config.ARQUIVO_ROTULADO}")
         Pipeline._imprimir_distribuicao(rotulado, linhas)
+        Pipeline._imprimir_piso(rotulado)
         Pipeline._verificar_futuro(rotulado)
         return Pipeline._verificar_recorte(rotulado)
 
@@ -272,16 +273,46 @@ class Pipeline:
         ).count()
         assert incoerentes == 0, f"{incoerentes} linhas com regra e status_atual incoerentes"
 
-        # Precedência: FALHA ganha de tudo (RFC §8.4). Perda >= 10 % é sempre FALHA, e uma
-        # linha OK nunca tem z extremo (z nulo, sem RTT, não entra: já é FALHA pela perda).
+        # Precedência: FALHA ganha de tudo (RFC §8.4). Perda >= 10 % é sempre FALHA.
         perda_sem_falha = rotulado.filter(
             (F.col("perda_pct") >= config.PERDA_FALHA_PCT) & (F.col("status_atual") != "FALHA")
         ).count()
         assert perda_sem_falha == 0, f"{perda_sem_falha} linhas com perda >= {config.PERDA_FALHA_PCT}% que não são FALHA"
-        ok_com_z_extremo = rotulado.filter(
-            (F.col("status_atual") == "OK") & (F.col("z_robusto") >= config.Z_FALHA)
+
+        # Piso da linha 3 (SPEC-piso-regra3.md, checagens 1 a 3). As condições são montadas aqui, de novo, a partir
+        # das colunas e não a partir de `Rotulo`: assim cada checagem é um caminho independente da regra.
+        # Com o piso em None, "acima do piso" vale sempre e "abaixo do piso" nunca (a regra da RFC).
+        piso = config.PISO_AUMENTO_FALHA_PCT
+        z_extremo = F.col("z_robusto") >= config.Z_FALHA
+        acima_piso = F.lit(True) if piso is None else F.col("aumento_pct") >= piso
+        # Abaixo do piso inclui aumento nulo: sem aumento, a linha 3 não pode ter disparado.
+        abaixo_piso = F.lit(False) if piso is None else (F.col("aumento_pct").isNull() | (F.col("aumento_pct") < piso))
+        pisos = f" e aumento_pct >= {piso}" if piso is not None else ""
+
+        # Checagem 1: uma linha OK nunca tem z extremo com RTT também acima do piso. Z nulo (sem RTT) não entra.
+        ok_com_z_extremo = rotulado.filter((F.col("status_atual") == "OK") & z_extremo & acima_piso).count()
+        assert ok_com_z_extremo == 0, f"{ok_com_z_extremo} linhas OK com z_robusto >= {config.Z_FALHA}{pisos}"
+
+        # Checagem 2: toda linha da regra 3 tem z extremo e aumento acima do piso. A forma é "alguma condição falha"
+        # e não "~(z >= Z e aumento >= piso)": com nulo, o `~` tiraria a linha do filtro sem contá-la.
+        regra3_sem_condicao = rotulado.filter(
+            (F.col("regra") == 3)
+            & (F.col("z_robusto").isNull() | (F.col("z_robusto") < config.Z_FALHA) | abaixo_piso)
         ).count()
-        assert ok_com_z_extremo == 0, f"{ok_com_z_extremo} linhas OK com z_robusto >= {config.Z_FALHA}"
+        assert regra3_sem_condicao == 0, (
+            f"{regra3_sem_condicao} linhas da regra 3 sem z_robusto >= {config.Z_FALHA}{pisos}"
+        )
+
+        # Checagem 3: pelo outro caminho (os valores, não a ordem da tabela). Z e aumento altos caem na regra 1, 2
+        # ou 3, nunca em 4, 5 ou 6; e z alto com aumento abaixo do piso nunca é regra 3.
+        extremo_fora_das_1_a_3 = rotulado.filter(z_extremo & acima_piso & (F.col("regra") > 3)).count()
+        assert extremo_fora_das_1_a_3 == 0, (
+            f"{extremo_fora_das_1_a_3} linhas com z_robusto >= {config.Z_FALHA}{pisos} fora das regras 1 a 3"
+        )
+        extremo_abaixo_na_3 = rotulado.filter(z_extremo & abaixo_piso & (F.col("regra") == 3)).count()
+        assert extremo_abaixo_na_3 == 0, (
+            f"{extremo_abaixo_na_3} linhas com z_robusto >= {config.Z_FALHA} e aumento_pct abaixo do piso na regra 3"
+        )
 
         return linhas
 
@@ -407,6 +438,30 @@ class Pipeline:
         print("  Por regra (RFC §8.4):")
         for linha in rotulado.groupBy("regra", "status_atual").count().orderBy("regra").collect():
             print(f"    regra {linha.regra} ({linha.status_atual}): {linha['count']}")
+
+    @staticmethod
+    def _imprimir_piso(rotulado: DataFrame) -> None:
+        """Mostra quantas medições o piso tirou da regra 3 e para onde foram (SPEC-piso-regra3.md, checagem 4)."""
+        piso = config.PISO_AUMENTO_FALHA_PCT
+        if piso is None:
+            print("Piso da regra 3: desligado (PISO_AUMENTO_FALHA_PCT = None, regra da RFC ao pé da letra)")
+            return
+        # Uma medição "perdida para o piso" teria sido regra 3 sem o piso: z extremo e aumento abaixo do piso (ou
+        # nulo). Só estão fora das regras 1 e 2 porque elas vêm antes na tabela, então o filtro é regra > 3.
+        perdidas = rotulado.filter(
+            (F.col("z_robusto") >= config.Z_FALHA)
+            & (F.col("aumento_pct").isNull() | (F.col("aumento_pct") < piso))
+            & (F.col("regra") > 3)
+        )
+        por_regra = {linha.regra: linha["count"] for linha in perdidas.groupBy("regra").count().collect()}
+        classes = {4: "FALHA", 5: "RISCO", 6: "OK"}
+        total = sum(por_regra.values())
+        ficaram = rotulado.filter(F.col("regra") == 3).count()
+        condicao = f"z >= {config.Z_FALHA} e aumento_pct < {piso} %"
+        print(f"Piso da regra 3: {total} medições ({condicao}) saíram da regra 3")
+        for regra, classe in classes.items():
+            print(f"    para a regra {regra} ({classe}): {por_regra.get(regra, 0)}")
+        print(f"  A regra 3 ficou com {ficaram} medições")
 
     @staticmethod
     def _imprimir_exemplos(rotulado: DataFrame) -> None:

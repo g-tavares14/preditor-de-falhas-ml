@@ -173,6 +173,7 @@ As contagens por classe **não** viram número fixo em `config.py`: são resulta
    do Período B.
 3. **Tolerância do `status_futuro`:** 10 a 14 min; fora disso, nulo.
 4. **Limiares da RFC mantidos**, mesmo com FALHA em cerca de 26 % das linhas.
-5. **Regra do `z_robusto` sem piso (Checkpoint A, 01/10/2026):** a linha 3 da RFC é aplicada ao pé da letra. Das
-   16.305 FALHAs dessa regra, 88 % têm `aumento_pct` abaixo de 30 % (fluxos muito estáveis, com MAD pequeno). O dono
-   decidiu seguir a regra da professora; fica registrado como limitação conhecida do rótulo.
+5. **Regra do `z_robusto` (Checkpoint A, 01/10/2026, revista em 09/10/2026):** primeiro sem piso, com a linha 3 da RFC
+   ao pé da letra. Naquele rótulo, das 16.305 FALHAs dessa regra, 88 % tinham `aumento_pct` abaixo de 30 % (fluxos muito
+   estáveis, com MAD pequeno). Desde 10/10/2026 a linha 3 exige também `aumento_pct` ≥ 30 % (`PISO_AUMENTO_FALHA_PCT`;
+   `None` = a RFC ao pé da letra). Motivo, medidas e ressalvas: `SPEC-piso-regra3.md` e a seção 8 do relatório.

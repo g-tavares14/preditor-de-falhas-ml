@@ -7,6 +7,11 @@ rodaram em scripts temporários, fora do repositório: nenhum arquivo de `src/`,
 As colunas novas foram calculadas em pandas a partir do `dataset_rotulado_B.parquet`, sem mexer no Gold.
 Semente 16 em tudo.
 
+> **Nota (10/10/2026).** As seções 1 a 7 valem para o rótulo anterior ao piso da regra 3 (commit `055c422`), em que a
+> regra 3 era só `z_robusto` ≥ 3,5. Não foram reescritas. A seção 8 mede o rótulo com o piso (`aumento_pct` ≥ 30 %),
+> antes × depois. Os números das seções 1 a 7 não se comparam com os da seção 8: o F1 não se compara entre os dois
+> rótulos (ver 8.3).
+
 ## 1. Resumo
 
 - A árvore oficial (F1 macro 0,7457) ganha da persistência (0,7221) por pouco, porque **quase repete o estado
@@ -275,3 +280,192 @@ A árvore de 16 folhas empata com um boosting de 300 árvores. Três medidas exp
 O que não se recomenda: trocar de algoritmo (o diário proíbe e o diagnóstico mostra que não ajuda), usar árvores de
 43 ou 187 folhas (+0,004, dentro do ruído), encurtar o horizonte de 12 minutos (muda a pergunta do projeto) ou abrir
 o teste antes da Tarefa 5.
+
+## 8. Piso na regra 3: antes × depois (10/10/2026)
+
+**Escopo.** A regra 3 passou a exigir `aumento_pct` ≥ 30 % além de `z_robusto` ≥ 3,5 (`SPEC-piso-regra3.md`). "Antes" é o
+rótulo do commit `055c422` (`data/gold_antes_do_piso/`, árvores em `data/modelo_antes_do_piso/`). "Depois" é o rótulo
+atual (`data/gold/`, árvores em `data/modelo/`). O X é o mesmo nos dois: a análise confere todas as colunas pela chave
+`(fluxo_id, t)`. O teste continua fechado: só o N aparece.
+
+**Fontes.** Todo número desta seção está em `data/analise_piso_regra3/numeros_secao8.csv`, com a fonte de cada um: o
+script `robustez_piso.py` (IC, dobra, pares, contagens) ou um CSV de `data/modelo*/`. O rótulo final, com o piso em
+`None` e em 30, foi conferido em `conferir_rotulo_piso.py` (log ao lado). Os dois pontos da seção 7.3 têm agora uma
+decisão: o piso foi aplicado (8.2) e o peso de classe foi mantido (8.6). A professora ainda não revisou o registro no
+diário da Tarefa 4, que segue com o dono.
+
+### 8.1 O que o piso muda no rótulo
+
+A regra 3 tinha 16.305 medições. Com o piso, 1.935 continuam nela. As outras 14.370 (88,1 %) saem:
+
+| Destino | Medições | Classe nova |
+|---|---|---|
+| Regra 4 | 5 | FALHA |
+| Regra 5 | 2.929 | RISCO |
+| Regra 6 | 11.436 | OK |
+
+Entre as 14.370, 9.251 têm `z_robusto` ≥ 8. A mediana do z delas é 14,65 e a do `aumento_pct` é 4,2 %. Uma medição com
+z muito alto e aumento pequeno passa a ser OK, enquanto uma com z entre 2 e 3,5 ainda pode contar como RISCO. A ordem
+parece estranha, mas é o que o piso pretende: um z alto com aumento pequeno vem de um MAD pequeno, em fluxos muito
+estáveis, em que uma variação de poucos décimos de ms já é um desvio extremo. A alternativa de tratar essas medições
+como moderadas foi descartada antes desta medição (`SPEC-piso-regra3.md`); seus números não estão salvos e não são usados
+aqui.
+
+A tabela mostra a classe do alvo (`status_futuro`) nas linhas que entram no modelo: treino e validação, depois de tirar
+o futuro nulo e a folga. São 48.151 linhas nos dois rótulos (34.661 de treino e 13.490 de validação).
+
+| Classe do alvo | Antes | Depois |
+|---|---|---|
+| OK | 62,3 % | 76,8 % |
+| RISCO | 13,9 % | 17,8 % |
+| FALHA | 23,8 % | 5,4 % |
+
+Na validação, FALHA cai de 3.736 para 592 linhas.
+
+### 8.2 De onde vem o 30
+
+O 30 é o limite de RISCO por aumento que a própria tabela da RFC já usa: a linha 5 define RISCO com
+`30 ≤ aumento_pct ≤ 80` (RFC §8.4; `AUMENTO_RISCO_PCT` em `config.py`). Com o piso, uma FALHA por z não é menos severa
+que o RISCO por aumento: a regra 3 passa a exigir o mesmo aumento mínimo que a tabela já exige para o RISCO. O valor vem
+da tabela, e não de uma busca.
+
+A RFC permite ajustar limiares na validação (RFC §13, pergunta 2). Esse caminho não foi usado: nenhum valor de piso foi
+varrido no rótulo final. Outros valores de piso foram medidos no protótipo de 09/10, mas esses resultados não estão
+salvos no repositório e não foram refeitos; este relatório não os usa. Se a professora quiser a sensibilidade ao valor
+do piso, é uma medição nova, com script próprio.
+
+### 8.3 Antes × depois na validação
+
+Validação com 13.490 medições nos dois rótulos. A persistência é "o futuro é igual ao agora". As árvores são as escolhidas
+pelas regras do projeto (Tarefa 3 e Tarefa 4), treinadas só no treino.
+
+| Modelo | F1 macro antes | F1 macro depois | Folhas antes → depois | Critério e profundidade/folha mínima, antes → depois |
+|---|---|---|---|---|
+| Persistência | 0,7221 | 0,6355 | — | — |
+| Árvore da Tarefa 3 (oficial) | 0,7457 | 0,6863 | 16 → 29 | Gini 4/50 → Gini 5/50 |
+| Ajustada sem peso | 0,7553 | 0,6820 | 4 → 29 | Gini 2/500 → Gini 5/50 |
+| Ajustada com peso {OK 1; RISCO 2; FALHA 1,5} | 0,7600 | 0,6851 | 16 → 40 | Gini 4/100 → entropia 6/100 |
+
+O F1 macro não se compara entre os dois rótulos. A persistência cai de 0,7221 para 0,6355 porque o alvo mudou, e não
+porque o método piorou. Por isso, a comparação útil é o ganho sobre a persistência (8.4) e as taxas de acerto por
+transição, abaixo.
+
+| Modelo | Recall de FALHA, antes → depois | Recall de RISCO, antes → depois | Precisão de FALHA, antes → depois |
+|---|---|---|---|
+| Persistência | 0,809 → 0,498 | 0,488 → 0,512 | — |
+| Árvore da Tarefa 3 | 0,779 → 0,478 | 0,490 → 0,477 | 0,846 → 0,737 |
+| Ajustada sem peso | 0,722 → 0,480 | 0,601 → 0,454 | 0,948 → 0,743 |
+| Ajustada com peso | 0,754 → 0,505 | 0,564 → 0,532 | 0,910 → 0,643 |
+
+| Modelo | OK → FALHA: acerto antes → depois (medições) | Acerto quando o futuro muda, antes → depois | FALHA → OK: acerto antes → depois |
+|---|---|---|---|
+| Persistência | 0 % (491) → 0 % (201) | 0 % → 0 % | — |
+| Árvore da Tarefa 3 | 1,8 % (9 de 491) → 18,4 % (37 de 201) | 23,4 % → 39,6 % | 16,4 % → 73,7 % |
+| Ajustada sem peso | 0,2 % (1 de 491) → 18,4 % (37 de 201) | 35,9 % → 40,5 % | 66,8 % → 75,3 % |
+| Ajustada com peso | 0,6 % (3 de 491) → 16,4 % (33 de 201) | 33,3 % → 36,1 % | 58,0 % → 44,8 % |
+
+O que se lê nessas tabelas:
+
+- A precisão de FALHA cai com o piso (0,910 para 0,643 na ajustada com peso). Na seção 7.2 a precisão subia, com o rótulo
+  anterior. Com o rótulo novo, uma previsão de FALHA é menos confiável nesta validação. A validação tem 592 FALHAs no
+  alvo, contra 3.736 antes, então as duas medidas não são diretamente comparáveis.
+- O recall de FALHA da árvore oficial fica abaixo do da persistência (0,478 contra 0,498).
+- O acerto em OK → FALHA sobe de 0,6 % (3 de 491) para 16,4 % (33 de 201) na ajustada com peso, e de 1,8 % para 18,4 %
+  na oficial. São poucos casos, e o IC desse acerto não foi medido.
+- Em FALHA → OK, a oficial acerta 73,7 % (antes, 16,4 %) e a ajustada com peso acerta 44,8 % (antes, 58,0 %). A oficial
+  melhora nesse caso e a ajustada piora. É o que foi medido; a causa não foi investigada.
+
+### 8.4 Ganho sobre a persistência, com IC 95 % por fluxo
+
+**Método.** Bootstrap por fluxo: 2.000 reamostras (parâmetro do script), com semente 16. Cada reamostra sorteia os fluxos
+com reposição, e cada medição pesa quantas vezes o fluxo dela caiu no sorteio. O F1 macro é recalculado com esses pesos,
+e o IC 95 % é o intervalo entre os percentis 2,5 e 97,5. A validação e a dobra têm 79 fluxos cada. As comparações entre
+antes e depois usam o mesmo sorteio e as mesmas medições, casadas pela chave `(fluxo_id, t)`.
+
+**Dobra interna.** O treino é dividido em 60 % iniciais, por tempo, com folga de 3 medições por fluxo no corte (divisão do
+P4). Em cada divisão, a árvore é escolhida dentro da própria divisão: a regra da Tarefa 3 para a oficial e a da Tarefa 4
+(56 combinações) para as ajustadas. Por isso, o valor da oficial na dobra não é comparável ao da seção 3 (0,7246), que
+usou Gini 4/50 fixo.
+
+Validação (ganho = F1 da árvore − F1 da persistência):
+
+| Árvore | Ganho antes [IC 95 %] | Ganho depois [IC 95 %] |
+|---|---|---|
+| Árvore da Tarefa 3 | +0,0236 [+0,0107; +0,0330] | +0,0508 [+0,0023; +0,0627] |
+| Ajustada sem peso | +0,0332 [+0,0196; +0,0450] | +0,0464 [-0,0013; +0,0576] |
+| Ajustada com peso | +0,0379 [+0,0255; +0,0480] | +0,0496 [+0,0246; +0,0598] |
+
+Dobra interna:
+
+| Árvore | Escolhida antes → depois | Ganho antes [IC 95 %] | Ganho depois [IC 95 %] |
+|---|---|---|---|
+| Persistência (F1) | — | 0,7145 | 0,6512 |
+| Árvore da Tarefa 3 | Gini 3/500 (8 folhas) → Gini 5/50 (23) | +0,0202 [+0,0094; +0,0291] | +0,0316 [-0,0114; +0,0490] |
+| Ajustada sem peso | entropia 5/100 (29) → entropia 2/200 (4) | +0,0347 [+0,0217; +0,0461] | +0,0309 [+0,0100; +0,0438] |
+| Ajustada com peso | Gini 5/50 (30) → entropia 5/100 (21) | +0,0391 [+0,0276; +0,0499] | +0,0346 [+0,0080; +0,0476] |
+
+Diferenças pareadas (mesmo sorteio; IC 95 % entre colchetes):
+
+| Comparação | Validação | Dobra interna |
+|---|---|---|
+| Árvore da Tarefa 3: ganho depois − antes | +0,0272 [-0,0233; +0,0387] | +0,0114 [-0,0324; +0,0311] |
+| Ajustada sem peso: ganho depois − antes | +0,0132 [-0,0365; +0,0286] | -0,0037 [-0,0257; +0,0106] |
+| Ajustada com peso: ganho depois − antes | +0,0116 [-0,0142; +0,0238] | -0,0046 [-0,0327; +0,0091] |
+| Ajustada com peso − Tarefa 3, antes | +0,0144 [+0,0068; +0,0218] | +0,0190 [+0,0080; +0,0300] |
+| Ajustada com peso − Tarefa 3, depois | -0,0012 [-0,0084; +0,0241] | +0,0030 [-0,0073; +0,0249] |
+
+O que se lê:
+
+- Pontualmente, o ganho sobe: a oficial vai de +0,0236 para +0,0508, e a ajustada com peso, de +0,0379 para +0,0496.
+- O IC da diferença depois − antes inclui zero nas três árvores, na validação e na dobra. **Não há prova de que o ganho
+  sobre a persistência ficou maior com o piso.** O IC da oficial depois começa em +0,0023, e o da ajustada sem peso
+  começa em -0,0013: nessas duas, o ganho não é claramente positivo a 95 %.
+- Na dobra, o ganho da ajustada com peso cai de +0,0391 para +0,0346. A diferença não é significativa, mas vai no
+  sentido contrário ao da validação.
+- A vantagem da ajustada com peso sobre a oficial, que existia no rótulo anterior (+0,0144 na validação, IC de +0,0068 a
+  +0,0218), some no rótulo novo (-0,0012, IC de -0,0084 a +0,0241). Com o rótulo novo, as duas são praticamente empatadas
+  no F1 macro (0,6851 contra 0,6863).
+
+### 8.5 Ressalvas medidas
+
+1. **Ganho não comprovadamente maior.** Ver 8.4: nas três árvores, a diferença de ganho inclui zero.
+2. **Recall de FALHA cai.** Oficial de 0,779 para 0,478; ajustada com peso de 0,754 para 0,505. A árvore deixa passar
+   mais FALHAs do que antes, e a precisão também cai (8.3). O alvo tem menos FALHAs (592 na validação, contra 3.736), então
+   as medidas são de outra população.
+3. **Árvore maior.** A oficial vai de 16 para 29 folhas, a ajustada sem peso de 4 para 29, e a ajustada com peso de 16
+   para 40. A profundidade máxima passa de 4 para 5 (oficial) e para 6 (ajustada com peso). A regra de escolha não foi
+   trocada para segurar o tamanho (`SPEC-piso-regra3.md`, decisão 2), e o painel da página foi refeito para essas folhas
+   (`SPEC-arvore-na-pagina.md`).
+4. **F1 incomparável entre rótulos.** Ver 8.3: a persistência cai de 0,7221 para 0,6355 com o alvo novo.
+5. **Ajustada com peso praticamente empatada com a oficial** no F1 macro: 0,6851 contra 0,6863, com diferença de -0,0012
+   (IC de -0,0084 a +0,0241).
+6. **Regiões (F1 macro na validação).** Na Europa, a oficial fica abaixo da persistência (0,432 contra 0,463); antes,
+   ficava acima (0,748 contra 0,746). No Brasil, a oficial e a persistência empatam (0,536 contra 0,537); antes, a
+   oficial ficava abaixo (0,479 contra 0,493). A ajustada com peso no Brasil tem 0,534.
+7. **Persistência da dobra não confere com a seção 3.** A seção 3 diz 0,7141; a divisão do P4, usada aqui, dá 0,7145. A
+   seção 3 foi feita com uma divisão de script anterior, que não ficou salva. As variantes testadas
+   (`variantes_dobra_antes.py`, log ao lado) não reproduzem 0,7141: dividindo pelas linhas do treino inteiro, a
+   persistência da dobra é 0,7134. A diferença de 0,0004 não muda nenhuma conclusão, mas é um conflito medido, e a seção
+   3 não foi reescrita.
+8. **O teto da seção 7.1 não foi medido de novo.** Os números 0,77 de F1, 13 % de acerto em OK → FALHA e 68 % de episódios
+   de uma medição são do rótulo anterior. O boosting não foi refeito com o rótulo novo.
+
+### 8.6 Peso de classe e decisões que ficam com o dono
+
+- **Peso mantido** {OK 1; RISCO 2; FALHA 1,5}, por decisão do dono. A varredura de 32 combinações
+  (`data/analise_piso_regra3/varredura_pesos.log`) não achou nenhuma com ganho acima de 0,005 de F1 macro nas duas
+  medidas (validação e dobra). A melhor na validação (RISCO 2,5 / FALHA 2) ganha +0,0079 na validação e perde -0,0036
+  na dobra (`varredura_pesos.csv`).
+- **Piso mantido em 30.** A reversão é possível com `PISO_AUMENTO_FALHA_PCT = None`: com esse valor, o rótulo sai igual
+  ao de antes (`conferir_rotulo_piso.py`).
+- **Tamanho das árvores.** Se 40 folhas incomodar, apertar a regra de escolha é decisão à parte, a ser medida então
+  (`SPEC-piso-regra3.md`, decisão 2).
+- **Liberação da professora.** O registro dela no diário da Tarefa 4 (seção 4) é do dono; o agente não edita o diário.
+
+### 8.7 Leitura
+
+Com o piso, o alvo deixa de carregar as FALHAs de pico de milissegundos: FALHA cai de 23,8 % para 5,4 % das linhas do
+modelo. A árvore com peso ainda ganha da persistência (IC de +0,0246 a +0,0598 na validação), mas essa diferença não ficou
+comprovadamente maior que antes. A ajustada perde a vantagem sobre a oficial. A precisão e o recall de FALHA caem, e o
+acerto em OK → FALHA continua baixo, em poucos casos. As medidas desta seção são da mesma validação que escolhe a árvore,
+então servem para comparar os rótulos; o número honesto de cada árvore só sai no teste da Tarefa 5.

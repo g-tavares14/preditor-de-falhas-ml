@@ -2,6 +2,10 @@
 
 Status: **aprovada pelo dono em 02/10/2026**.
 
+> **Nota (10/10/2026):** os números de referência desta spec (tabelas, a promessa de saída idêntica da Tarefa 3, F1 e
+> recalls) valem para o rótulo anterior ao piso da regra 3 (commit `055c422`). Ficam como histórico. O rótulo atual está
+> em `SPEC-piso-regra3.md`, e os números dele, na seção 8 de `docs/relatorio_analise_arvore.md`.
+
 ## Objetivo
 
 Ajustar a árvore da Tarefa 3 a partir do que ela errou e entregar o que o diário da Tarefa 4 pede
@@ -230,8 +234,12 @@ Dois desvios do que a spec previa, decididos na implementação:
 Pendências para a revisão com a professora (seção 4 do diário):
 
 1. **Peso de classe:** não está na lista de ajustes permitidos. Se for vetado, troca-se `MODELO_AJUSTADA`.
+   **Resposta (09/10/2026):** a professora liberou pesos de classe (relato do dono); o peso foi mantido em 10/10/2026
+   (`SPEC-piso-regra3.md`, seção 8.6 do relatório).
 2. **Regra 3 do rótulo:** 68 % dos episódios de FALHA duram uma medição; perguntar se a Tarefa 5 pode dar um piso à
    regra ou exigir duas medições seguidas. Até lá, a regra dela continua.
+   **Resposta (09/10/2026):** a professora liberou pisos nas regras (relato do dono), e o piso foi aplicado
+   (`SPEC-piso-regra3.md`). Duas medições seguidas não foram testadas.
 
 Limitação conhecida: nenhum modelo testado, nem um boosting de 300 árvores com 20 colunas, passa de 0,77 de F1 macro
-nem de 13,4 % de acerto em OK → FALHA. O teto vem dos dados (relatório, seção 7.1).
+nem de 13,4 % de acerto em OK → FALHA. O teto vem dos dados (relatório, seção 7.1; valores do rótulo anterior ao piso, não refeitos: seção 8.5).

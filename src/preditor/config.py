@@ -29,9 +29,14 @@ Z_RISCO = 2.0  # z robusto a partir do qual o desvio é "moderado"
 Z_FALHA = 3.5  # z robusto a partir do qual o desvio é "extremo"
 AUMENTO_RISCO_PCT = 30  # aumento do RTT sobre a mediana
 AUMENTO_FALHA_PCT = 80
+# Piso da linha 3 (decisão do dono, 09/10/2026, SPEC-piso-regra3.md): z extremo só vira FALHA se o RTT também subiu
+# pelo menos este % sobre a mediana. Sem ele, um MAD de décimos de ms faz 1 ms virar z >= 3,5 (88 % das FALHAs da
+# regra 3 tinham aumento < 30 %). O valor é o limite de RISCO da própria tabela (AUMENTO_RISCO_PCT), não um número
+# escolhido na validação. None = a regra 3 da RFC ao pé da letra (reversão).
+PISO_AUMENTO_FALHA_PCT = AUMENTO_RISCO_PCT
 JITTER_RISCO = 3.0  # jitter atual / jitter típico
 JANELA = 5  # quantas medições recentes olhamos (a atual + 4 anteriores)
-# Linhas 1, 2, 4 e 5 da tabela de rótulo (a linha 3 usa Z_FALHA, acima).
+# Linhas 1, 2, 4 e 5 da tabela de rótulo (a linha 3 usa Z_FALHA e o piso, acima).
 PERDA_FALHA_PCT = 10  # perda_pct a partir do qual a medição é FALHA (linha 1)
 N5_TIMEOUT_FALHA = 3  # timeouts nas últimas 5 medições para ser FALHA (linha 2)
 N5_AUMENTO80_FALHA = 2  # medições com aumento > 80 % nas últimas 5 para ser FALHA (linha 4)
