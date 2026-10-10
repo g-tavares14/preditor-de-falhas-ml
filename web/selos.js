@@ -4,11 +4,12 @@
 // O selo é DESENHADO no <canvas> (`desenharSelo`); o alvo que recebe clique e foco é um <rect> do SVG por baixo do canvas
 // (`desenharAlvosDosSelos`). A posição de cada selo vem de `posicoesDosSelos`.
 
+import { NOME_DA_CLASSE, SIGLA_DA_CLASSE } from "./comum.js";
 import { cabeNoMapa, chaveDoPonto, destinoDoFluxo, encostam } from "./rotas.js";
 
 // --- Constantes do selo de previsão ---------------------------------------------------------------------
 
-// Cada fluxo tem um selo: um quadradinho com a letra da classe que a árvore PREVÊ (O, R ou F) para 12 min depois da
+// Cada fluxo tem um selo: um quadradinho com a letra da classe que o sistema PREVÊ (N, A ou P: Normal, Atenção, Problema; `SIGLA_DA_CLASSE`) para 12 min depois da
 // última medição que já voltou à sonda. Os selos de um mesmo destino ficam juntos numa grade ao lado do nó de destino
 // (são 79 fluxos para 7 destinos: um selo por fluxo, solto no mapa, viraria poluição). O selo é estado, não evento:
 // fica até a próxima previsão do mesmo fluxo. Tamanhos em unidades do mapa (decisão visual; sem fonte externa).
@@ -145,7 +146,7 @@ function desenharSelo(ctx, selo, [x, y], agora, cores, destacado) {
   ctx.font = FONTE_DO_SELO;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  ctx.fillText(selo.previsto[0], meio[0], meio[1] + 0.5);
+  ctx.fillText(SIGLA_DA_CLASSE[selo.previsto], meio[0], meio[1] + 0.5);
 }
 
 // O anel do selo que tem o foco do TECLADO, desenhado por cima de todos os selos (um selo vizinho não o cobre): um traço
@@ -162,7 +163,7 @@ function desenharAnelDeFoco(ctx, [x, y], cores) {
 
 // O nome do alvo (para o leitor de tela e a dica do mouse): o fluxo e, quando já existe, a previsão atual do selo.
 function nomeDoAlvo(rotulo, previsto) {
-  return previsto === null ? `Ver o fluxo ${rotulo}` : `Ver o fluxo ${rotulo}. Previsão da árvore: ${previsto}`;
+  return previsto === null ? `Ver a conexão ${rotulo}` : `Ver a conexão ${rotulo}. Previsão do sistema: ${NOME_DA_CLASSE[previsto]}`;
 }
 
 // Os alvos de clique e de foco dos selos: um <rect> transparente do SVG sobre cada selo (o canvas fica por cima, com
@@ -172,7 +173,7 @@ function nomeDoAlvo(rotulo, previsto) {
 //     `porTeclado` diz se veio de Enter ou Espaço.
 //   aoFocar(f): o foco do teclado chegou ao selo do fluxo f (null quando ele sai): o mapa desenha o anel de foco.
 function desenharAlvosDosSelos(svg, posicoes, ordem, rotulos, aoSelecionar, aoFocar) {
-  const raiz = d3.select(svg).append("g").attr("class", "selos-alvo").attr("role", "group").attr("aria-label", "Selos de previsão, um por fluxo");
+  const raiz = d3.select(svg).append("g").attr("class", "selos-alvo").attr("role", "group").attr("aria-label", "Quadradinhos de previsão, um por conexão");
   const alvos = new Array(posicoes.length);
   for (const f of ordem) {
     const [x, y] = posicoes[f];

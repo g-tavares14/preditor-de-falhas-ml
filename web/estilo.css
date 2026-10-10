@@ -32,8 +32,8 @@
   --sombra-pequena: 3px 3px 0 var(--tinta);
 
   --espaco: 8px; /* distância entre cartões */
-  --tamanho-fechar: 26px; /* botão de fechar o cartão do fluxo (44 px em tela estreita, alvo de toque) */
-  /* Coluna da direita (relógio, placar, matriz, feed): 400 px a 1280 de largura, mais estreita em janelas menores. A largura
+  --tamanho-fechar: 26px; /* botão de fechar o cartão da conexão (44 px em tela estreita, alvo de toque) */
+  /* Coluna da direita (relógio, como ler, placar, feed): 400 px a 1280 de largura, mais estreita em janelas menores. A largura
      de 400 é a que deixa o nome do fluxo do feed ("6349 → BR Belo Horizonte") inteiro, sem reticências, em 1280x720. */
   --largura-painel: clamp(340px, 31vw, 400px);
 
@@ -94,8 +94,7 @@ p {
 }
 
 /* Texto só para leitor de tela: fora da tela, mas ainda lido. */
-.so-leitor,
-.matriz caption {
+.so-leitor {
   position: absolute;
   width: 1px;
   height: 1px;
@@ -252,9 +251,8 @@ kbd {
   grid-template-columns: minmax(0, 1fr) var(--largura-painel);
   grid-template-areas:
     "mapa relogio"
-    "mapa painel"
-    "arvore arvore";
-  grid-template-rows: auto 1fr auto;
+    "mapa painel";
+  grid-template-rows: auto 1fr;
   gap: var(--espaco) 20px;
   align-items: start;
 }
@@ -289,7 +287,7 @@ kbd {
   transform: rotate(0.5deg);
 }
 
-.matriz-cartao {
+.como-ler {
   transform: rotate(-0.4deg);
 }
 
@@ -830,7 +828,7 @@ kbd {
 
 @media (min-width: 1200px) {
   .fluxo-cartao {
-    min-height: 162px;
+    min-height: 140px;
   }
 }
 
@@ -877,8 +875,8 @@ kbd {
 
 .fluxo-corpo {
   display: grid;
-  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.05fr) minmax(0, 1.55fr);
-  grid-template-areas: "rota medicao arvore";
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+  grid-template-areas: "rota medicao";
   gap: 12px;
   height: 100%;
 }
@@ -891,16 +889,11 @@ kbd {
   grid-area: medicao;
 }
 
-.fluxo-arvore {
-  grid-area: arvore;
-}
-
 .fluxo-corpo > div {
   min-width: 0;
 }
 
-.fluxo-medicao,
-.fluxo-arvore {
+.fluxo-medicao {
   padding-left: 10px;
   border-left: var(--b-peca) solid var(--tinta);
 }
@@ -955,50 +948,6 @@ kbd {
   box-shadow: inset 4px 0 0 var(--tinta);
 }
 
-/* As 8 colunas do X: duas colunas de quatro linhas, com o nome à esquerda e o valor à direita, para o nome (até
-   "jitter_relativo", 15 letras) caber inteiro, sem reticências nem quebra no meio da palavra. */
-.fluxo-x {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); /* 2 colunas se couberem; senão 1 */
-  gap: 0 12px;
-  margin: 0;
-}
-
-.fluxo-x > div {
-  display: flex;
-  flex-wrap: wrap; /* se nem assim couber, o valor desce para baixo do nome em vez de cobri-lo */
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 6px;
-  border-bottom: 2px solid var(--tinta);
-}
-
-.fluxo-x dt {
-  font-family: var(--fonte-numero);
-  font-size: 11px;
-  line-height: 1.35;
-}
-
-.fluxo-x dd {
-  margin: 0;
-  font-family: var(--fonte-numero);
-  font-size: 13px;
-  font-weight: 800;
-  text-align: right;
-}
-
-/* Valor ausente (null no JSON): itálico e tracejado, para nunca parecer um zero. */
-.fluxo-x dd.ausente {
-  font-style: italic;
-  text-decoration: underline dashed;
-}
-
-.fluxo-corpo p.fluxo-regra {
-  margin-top: 4px;
-  font-size: 11px;
-  line-height: 1.25;
-}
-
 .fluxo-fechar {
   position: absolute;
   top: 6px;
@@ -1016,14 +965,23 @@ kbd {
   background: var(--falha);
 }
 
-/* No computador o botão de fechar fica no canto do cartão, sobre a coluna da árvore: o título dela reserva a altura e a
-   largura dele, para o botão nunca cobrir um valor do X. */
-.fluxo-arvore h3 {
-  min-height: var(--tamanho-fechar);
-  padding-right: calc(var(--tamanho-fechar) + 8px);
+/* --- 4e2. Como ler: três passos em linguagem simples ------------------------------------------------- */
+
+.passos {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding-left: 18px;
+  font-size: 12px;
+  line-height: 1.3;
 }
 
-/* --- 4f. Placar: árvore e persistência lado a lado ----------------------------------------------------- */
+.passos .chip {
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+/* --- 4f. Placar: o sistema e o palpite simples lado a lado ----------------------------------------------------- */
 
 .titulo-com-nota {
   display: flex;
@@ -1078,60 +1036,6 @@ kbd {
   line-height: 1.05;
 }
 
-/* --- 4g. Matriz 3x3 da árvore -------------------------------------------------------------------------- */
-
-.matriz {
-  width: 100%;
-  border-collapse: collapse;
-  table-layout: fixed;
-}
-
-.matriz th,
-.matriz td {
-  padding: 1px 4px;
-  line-height: 1.15;
-  border: var(--b-peca) solid var(--tinta);
-  text-align: right;
-}
-
-.matriz thead th,
-.matriz tbody th {
-  font-family: var(--fonte-titulo);
-  font-size: 11px;
-  text-transform: uppercase;
-}
-
-.matriz thead th {
-  text-align: center;
-}
-
-.matriz tbody th {
-  text-align: left;
-}
-
-.matriz td {
-  font-family: var(--fonte-numero);
-  font-weight: 800;
-  font-size: 14px;
-}
-
-/* A diagonal (a árvore acertou) é mais forte: fundo preto, número creme em negrito maior. Cor neutra de propósito: um
-   acerto de RISCO ou de FALHA em verde seria lido como "OK". */
-.matriz td.acerto {
-  background: var(--tinta);
-  color: var(--papel);
-  font-size: 15px;
-  font-weight: 900;
-}
-
-.matriz .canto {
-  font-family: var(--fonte-texto);
-  font-size: 10px;
-  line-height: 1.1;
-  text-align: left;
-  text-transform: none;
-}
-
 /* --- 4h. Feed das últimas conferências ----------------------------------------------------------------- */
 
 .legenda-nota {
@@ -1156,7 +1060,7 @@ kbd {
 /* Cada linha é um botão (abre o cartão do fluxo): o visual de botão é desfeito, fica só a linha do feed. */
 .feed-linha {
   display: grid;
-  grid-template-columns: 60px minmax(0, 1fr) auto auto 16px;
+  grid-template-columns: minmax(0, 1fr) auto auto 16px;
   align-items: center;
   gap: 5px;
   width: 100%;
@@ -1190,10 +1094,6 @@ kbd {
 
 .feed li:last-child .feed-linha {
   border-bottom: none;
-}
-
-.feed-hora {
-  font-family: var(--fonte-numero);
 }
 
 /* O nome do fluxo ("7242 → BR Belo Horizonte") tem de caber inteiro: sem reticências. Se faltar largura (janela
@@ -1270,171 +1170,21 @@ kbd {
   }
 }
 
-/* Painel da árvore (SPEC-arvore-na-pagina.md): largura inteira sob o mapa e os painéis. Os nós seguem o neo-brutalismo
-   (borda preta, cor chapada nas folhas); o caminho aceso engrossa a borda e a aresta, e os nós fora dele esmaecem. */
-.arvore-cartao {
-  grid-area: arvore;
-  min-width: 0;
-}
-
-.arv-seletor {
-  display: flex;
-  gap: 12px;
-  font-size: 13px;
-}
-
-.arv-opcao {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  cursor: pointer;
-}
-
-.arv-situacao {
-  min-height: 1.4em;
-  margin: 4px 0;
-}
-
-/* O diagrama sai no tamanho natural (width e height vêm de arvore.js, 1 unidade = 1 px): não encolhe para caber no
-   cartão. Quem rola é o contêiner, na horizontal (com 40 folhas, 3200 px). */
-.arv-rolagem {
-  overflow-x: auto;
-  max-width: 100%;
-  padding-bottom: 6px;
-}
-
-.arv-svg {
-  display: block;
-  overflow: visible;
-}
-
-.arv-aresta {
-  fill: none;
-  stroke: var(--tinta);
-  stroke-width: 1.5;
-  opacity: 0.35;
-}
-
-.arv-aresta.arv-aceso {
-  stroke-width: 5;
-  opacity: 1;
-}
-
-.arv-lado {
-  font-size: 9px;
-  fill: var(--tinta);
-  opacity: 0.6;
-}
-
-.arv-no rect {
-  fill: var(--papel);
-  stroke: var(--tinta);
-  stroke-width: 2;
-}
-
-.arv-folha.arv-ok rect {
-  fill: var(--ok);
-}
-
-.arv-folha.arv-risco rect {
-  fill: var(--risco);
-}
-
-.arv-folha.arv-falha rect {
-  fill: var(--falha);
-}
-
-.arv-no.arv-aceso rect {
-  stroke-width: 5;
-}
-
-.arv-no:not(.arv-folha).arv-aceso rect {
-  fill: var(--acao);
-}
-
-.arv-coluna,
-.arv-classe {
-  font-size: 10px;
-  font-weight: 900;
-  fill: var(--tinta);
-}
-
-.arv-limiar,
-.arv-n,
-.arv-valor {
-  font-family: var(--fonte-numero);
-  font-size: 10px;
-  fill: var(--tinta);
-}
-
-.arv-valor {
-  font-weight: 900;
-}
-
-.arv-texto {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 4px 20px;
-  font-size: 12px;
-}
-
-.arv-passos {
-  margin: 4px 0;
-  padding-left: 20px;
-}
-
-.arv-regra {
-  margin: 4px 0;
-}
-
-@media (max-width: 900px) {
-  .arv-texto {
-    grid-template-columns: minmax(0, 1fr);
-  }
-}
-
-/* Arranjo das colunas do cartão do fluxo pela largura do próprio cartão: três colunas (rota, medição, árvore) quando há
-   espaço para os 8 valores do X em duas colunas sem cortar o nome da coluna; duas (rota e medição empilhadas, árvore ao
-   lado) em largura média; uma em largura pequena. */
-@container fluxo (max-width: 770px) {
-  .fluxo-corpo {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    grid-template-areas:
-      "rota arvore"
-      "medicao arvore";
-    align-items: start;
-  }
-
-  .fluxo-medicao {
-    padding-left: 0;
-    border-left: none;
-  }
-
-  .fluxo-medicao h3:first-child {
-    margin-top: 2px;
-  }
-}
-
+/* Arranjo das colunas do cartão da conexão pela largura do próprio cartão: duas colunas (rota e medição lado a lado) e,
+   em largura pequena, uma só, uma sob a outra. */
 @container fluxo (max-width: 520px) {
   .fluxo-corpo {
     grid-template-columns: minmax(0, 1fr);
     grid-template-areas:
       "rota"
-      "medicao"
-      "arvore";
+      "medicao";
   }
 
-  .fluxo-medicao,
-  .fluxo-arvore {
+  .fluxo-medicao {
     padding-left: 0;
     padding-top: 6px;
     border-left: none;
     border-top: var(--b-peca) solid var(--tinta);
-  }
-
-  .fluxo-arvore h3 {
-    min-height: 0;
-    padding-right: 0;
   }
 }
 
@@ -1445,8 +1195,7 @@ kbd {
     grid-template-areas:
       "relogio"
       "mapa"
-      "painel"
-      "arvore";
+      "painel";
     grid-template-rows: none;
   }
 
@@ -1520,7 +1269,7 @@ kbd {
 
   /* O feed em duas linhas por fluxo, com linhas de 44 px (alvo de toque). */
   .feed-linha {
-    grid-template-columns: 60px minmax(0, 1fr) auto auto 20px;
+    grid-template-columns: minmax(0, 1fr) auto auto 20px;
     height: auto;
     min-height: 44px;
     padding-top: 4px;
@@ -1573,7 +1322,7 @@ kbd {
 @media (prefers-reduced-motion: reduce) {
   .relogio,
   .placar,
-  .matriz-cartao,
+  .como-ler,
   .feed-cartao,
   .fluxo-cartao {
     transform: none;

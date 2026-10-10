@@ -252,3 +252,15 @@ Acrescentado pela spec [`SPEC-arvore-na-pagina.md`](SPEC-arvore-na-pagina.md): u
   A página deixa de caber em 1280x720 sem rolagem vertical: o painel fica abaixo de tudo.
 - **Execução:** o `replay` refaz também a ajustada (cerca de 50 s no total) e exige as saídas do `ajuste`.
 
+
+
+## Atualização de 10/10/2026: página para público não técnico
+
+Decisão do dono: a apresentação é para quem não é da área, então `web/index.html` foi simplificada no lugar (não há
+segunda página). Saíram o painel da árvore (`arvore.js`, `caminho.js`), a matriz 3x3, os valores do X, a folha e a regra do
+cartão e o "sem futuro" dos contadores. Entrou o cartão "Como ler" (medir, comparar, prever). Os nomes na tela estão em
+`web/comum.js`: Normal / Atenção / Problema para OK / RISCO / FALHA (Problema inclui a conexão muito mais lenta que o normal
+dela, não só a que ficou fora do ar), "conexão" para fluxo, "ponto de medição" para sonda e "palpite simples" para a
+persistência (comparação mantida: sem ela o percentual do sistema pareceria maior do que é). O aviso de rota ilustrativa
+continua fixo, com o texto reescrito. O que não mudou: o JSON, o exportador, as checagens do `replay` e a regra de que o
+navegador só exibe, compara e soma o que já está no JSON.

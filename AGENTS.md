@@ -14,8 +14,8 @@ Silver (normalização) e o Gold (cálculo do X: baseline + features; cálculo d
 código em `src/preditor/modelo/`, spec em `SPEC-arvore.md`. A visualização (replay da validação num mapa-múndi)
 também: exportador em `src/preditor/visualizacao/`, página em `web/`, spec em `SPEC-visualizacao.md`. O ajuste da
 árvore (Tarefa 4) também: `src/preditor/modelo/ajuste.py` e `execucao_ajuste.py`, spec em `SPEC-ajuste-arvore.md`,
-análise em `docs/relatorio_analise_arvore.md`. O painel da árvore na página (as duas árvores, com o caminho do fluxo em
-foco) também: spec em `SPEC-arvore-na-pagina.md`. O piso da regra 3 (10/10/2026) também: a linha 3 do Y exige
+análise em `docs/relatorio_analise_arvore.md`. O painel da árvore na página (spec em `SPEC-arvore-na-pagina.md`) existiu até 10/10/2026: a página foi
+simplificada para público não técnico e ele saiu (ver "Página para público não técnico" em Decisions). O piso da regra 3 (10/10/2026) também: a linha 3 do Y exige
 `aumento_pct` ≥ 30 % além de `z_robusto` ≥ 3,5; spec em `SPEC-piso-regra3.md`, com o antes × depois e a análise de
 robustez na seção 8 de `docs/relatorio_analise_arvore.md`. A comparação com Random Forest e XGBoost (10/10/2026) também:
 `floresta.py`, `boosting.py`, `comparacao.py` e `execucao_comparacao.py` em `src/preditor/modelo/`, spec em
@@ -105,7 +105,7 @@ JAVA_HOME=/opt/homebrew/opt/openjdk@17 uv run python data/analise_piso_regra3/co
 #        as duas árvores do painel = `tree_` (todos os nós) e percorrer os nós com o `x` do JSON chega na folha gravada, ajustada
 #        refeita = `arvore_ajustada.json` e matriz/F1 dela = CSVs do ajuste, cada regra seleciona exatamente as linhas da folha, toda
 #        rota começa na sonda, termina no destino e só usa cabo do catálogo, mesma semente = mesmo JSON. A página se
-#        confere abrindo: ao fim do replay o placar e a matriz são iguais aos CSVs;
+#        confere abrindo: ao fim do replay o placar (acertos da árvore e do palpite simples) é igual à diagonal das matrizes dos CSVs;
 #        Comparação: as 5 linhas nas mesmas linhas da validação, `fit` só no treino, regra entre famílias refeita a partir
 #        do CSV, IC pareado com 2.000 reamostras (mesma semente = mesmo IC), `Avaliacao` recusa o teste, árvores refeitas =
 #        JSON e CSVs do `arvore` e do `ajuste`, duas execuções = mesmos arquivos (exceto `tempos.csv`);
@@ -144,7 +144,7 @@ medição) e recusa se `TESTE_ABERTO.json` existir. Sem argumento, `teste` não 
   verifica e só então grava), `servidor.py` e `coletar_sondas.py`. Ela reutiliza `modelo/` sem alterá-lo.
 - A página fica em `web/`: `app.js` orquestra; `tempo.js` e `placar.js` são lógica pura (sem DOM, rodam em Node);
   `mapa.js`, `rotas.js`, `desenho.js`, `pulsos.js`, `selos.js` cuidam do mapa; `cartao.js`, `painel.js`, `foco.js` e
-  `comum.js`, do painel; `arvore.js` e `caminho.js` (lógica pura), do painel da árvore. Sem `innerHTML` com dados; CSP `default-src 'self'`. As constantes só de desenho (durações,
+  `comum.js`, do painel (`comum.js` também guarda os nomes na tela: Normal / Atenção / Problema, países por extenso). Sem `innerHTML` com dados; CSP `default-src 'self'`. As constantes só de desenho (durações,
   tamanhos) ficam no topo do módulo JS que as usa, comentadas, porque o JS não lê `config.py`.
 - Todo "número mágico" vai para `src/preditor/config.py`, com comentário dizendo a origem (seção da RFC ou decisão).
 - O código comenta cada passo, mas não repete a teoria da RFC: referencia a seção.
@@ -252,7 +252,13 @@ medição) e recusa se `TESTE_ABERTO.json` existir. Sem argumento, `teste` não 
   de tempo dá o mesmo estado que tocar até lá. As medições sem futuro para conferir e as de folga ficam fora.
 - **A árvore é refeita no `replay`** (mesma semente, conferida contra `arvore_oficial.json`): o `arvore` não grava o
   modelo treinado. As regras das folhas vêm de `Regras._caminhos` (método privado de `modelo/regras.py`).
-- **Painel da árvore (03/10/2026):** mostra a oficial e a ajustada (seletor), mas o seletor muda só o painel: mapa,
+- **Página para público não técnico (10/10/2026, dono):** `web/index.html` foi substituída por uma versão sem árvore, sem
+  matriz de confusão e sem colunas do X, folha ou regra no cartão; os termos técnicos viraram palavras comuns (OK / RISCO /
+  FALHA = Normal / Atenção / Problema; fluxo = conexão; sonda = ponto de medição; RTT = tempo de resposta; persistência =
+  palpite simples). Só o texto da tela mudou: o JSON, o exportador e o CSS das classes seguem com os códigos do projeto,
+  e o `replay` ainda exporta e confere `arvores` (a página não as usa). O placar mantém a comparação com o palpite simples.
+  `arvore.js` e `caminho.js` saíram de `web/`; o painel da árvore abaixo ficou só no histórico (git).
+- **Painel da árvore (03/10/2026, removido da página em 10/10/2026):** mostra a oficial e a ajustada (seletor), mas o seletor muda só o painel: mapa,
   cartão e placar seguem a oficial. O navegador não percorre a árvore com o X: recebe a folha do JSON e sobe pelos pais.
   Por isso o `replay` agora também exige as saídas do `ajuste`.
 - **Desenho do painel com o piso (10/10/2026):** largura proporcional ao número de folhas (80 por folha, mínimo de
