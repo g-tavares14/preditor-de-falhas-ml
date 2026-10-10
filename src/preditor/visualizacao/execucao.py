@@ -1,32 +1,25 @@
-"""Orquestra o replay: refaz a árvore oficial, exporta a validação, grava o JSON e verifica (SPEC-visualizacao.md).
+"""Orquestra o replay: prevê a validação com a Random Forest exportada, grava o JSON e verifica (SPEC-replay-floresta.md).
 
-Roda sem Spark e sem Java: só pandas + scikit-learn sobre o Parquet do Gold.
+Roda sem Spark e sem Java: só pandas, scikit-learn e o `.joblib` exportado sobre o Parquet do Gold. Não refaz árvore
+nenhuma: a previsão vem do arquivo, conferido contra o LEIA-ME, e o placar é conferido contra a comparação.
 """
 
 import hashlib
 import json
 
-import numpy as np
 import pandas as pd
 
 from preditor import config
-from preditor.modelo.ajuste import ArvoreAjustada
-from preditor.modelo.arvore import Arvore
 from preditor.modelo.avaliacao import Avaliacao
-from preditor.modelo.dados import BLOCOS_USADOS, DadosModelo
-from preditor.modelo.regras import Regra, Regras
-from preditor.visualizacao.exportacao import EPOCA, ExportadorReplay
+from preditor.modelo.dados import DadosModelo
+from preditor.visualizacao.exportacao import EPOCA, NOME_DA_FLORESTA, ExportadorReplay
+from preditor.visualizacao.modelo_exportado import ModeloExportado
 from preditor.visualizacao.rotas import Geografia, Sondas
 
 # Os campos de cada medição no JSON (SPEC-visualizacao.md, "Formato do `replay.json`"). `t_futuro` (V5) = instante,
-# em segundos UTC, da medição de onde vem o `futuro`; `x` e `folha` (V6) = as 8 colunas que a árvore viu e a folha
-# que decidiu a previsão. As rotas (`trechos`) ficam em `fluxos`, não nas medições.
-# `folha_ajustada`, `previsto_ajustada` e `x_ajuste` = o mesmo para a árvore ajustada, só para o painel da árvore
-# (SPEC-arvore-na-pagina.md); `x_ajuste` tem só as colunas que ela tem a mais (`COLUNAS_AJUSTE`).
-CAMPOS_MEDICAO = {
-    "f", "t", "rtt", "timeout", "atual", "previsto", "futuro", "conferivel", "t_futuro", "x", "folha",
-    "folha_ajustada", "previsto_ajustada", "x_ajuste",
-}
+# em segundos UTC, da medição de onde vem o `futuro`. Não há `x`, `folha` nem árvore: a página só mostra a previsão e o
+# modelo que a fez (SPEC-replay-floresta.md). As rotas (`trechos`) ficam em `fluxos`, não nas medições.
+CAMPOS_MEDICAO = {"f", "t", "rtt", "timeout", "atual", "previsto", "futuro", "conferivel", "t_futuro"}
 
 
 class ExecucaoReplay:
@@ -37,37 +30,27 @@ class ExecucaoReplay:
         )
         # Sem o Gold no disco, `DadosModelo` termina com a mensagem de qual comando rodar antes.
         dados = DadosModelo().carregar()
-        # Falha cedo: sem os arquivos da árvore, não vale gastar a busca (~20 s) para descobrir isso no fim.
-        self._exigir_arquivos_da_arvore()
+        # Falha cedo: sem a comparação, não há o que conferir o placar (pede `comparar` logo de início).
+        self._exigir_arquivos_da_comparacao()
         # Também falha cedo sem `sondas.csv` (pede o script que o gera); o replay só lê o CSV, nunca a API.
         Sondas.ler()
         bloco = ExportadorReplay.ler_validacao()
 
-        # `arvore` não grava o modelo treinado, só a descrição dele: com a mesma semente, a busca refaz a mesma árvore.
-        arvore = Arvore().buscar(dados)
-        self._conferir_com_arvore_oficial(arvore)
-        # Uma regra em português para CADA folha (a página mostra a da folha que decidiu cada previsão).
-        regras = ExportadorReplay.regras_das_folhas(arvore.modelo, dados)
-        # A ajustada da Tarefa 4, só para o painel da árvore: mesma busca do `ajuste`, conferida contra o que ele gravou.
-        ajustada = ArvoreAjustada(config.MODELO_AJUSTADA, config.VARIANTES_AJUSTE[config.MODELO_AJUSTADA]).buscar(dados)
-        self._conferir_com_arvore_ajustada(ajustada)
-        x_ajustado = {bloco_do_modelo: dados.x_ajustado(bloco_do_modelo) for bloco_do_modelo in BLOCOS_USADOS}
-        regras_ajustada = ExportadorReplay.regras_das_folhas(
-            ajustada.modelo, dados, x_ajustado, casas=config.CASAS_LIMIAR_REGRA_AJUSTE
-        )
-        arvores = self._arvores(arvore, ajustada, regras, regras_ajustada, dados)
-        texto = self._exportar(bloco, arvore, regras, arvores)
+        # A previsão vem do `.joblib` exportado, depois de conferido contra o LEIA-ME. Nada é treinado aqui.
+        exportado = ModeloExportado.ler()
+        previsto = ExportadorReplay.prever(bloco, exportado.modelo)
+        texto = self._exportar(bloco, previsto, exportado)
 
         # Verifica ANTES de gravar, sobre o JSON em memória: um arquivo reprovado nunca chega a `web/dados/`.
         documento = json.loads(texto)
-        self._verificar_antes_de_gravar(dados, bloco, arvore)
+        self._verificar_antes_de_gravar(dados, bloco, previsto, exportado)
         self._verificar_documento(documento, dados)
-        self._verificar_x_e_folhas(documento, bloco, arvore, dados, regras)
-        self._verificar_arvores(documento, bloco, arvore, ajustada, regras_ajustada, dados, x_ajustado)
+        self._verificar_modelo(documento, exportado)
+        self._verificar_previsoes(documento, bloco)
         self._verificar_rotas(documento)
         self._verificar_sem_teste(documento)
         self._verificar_metricas(documento)
-        self._verificar_determinismo(bloco, arvore, regras, arvores, texto)
+        self._verificar_determinismo(bloco, exportado, texto)
 
         config.ARQUIVO_REPLAY.parent.mkdir(parents=True, exist_ok=True)
         config.ARQUIVO_REPLAY.write_text(texto, encoding="utf-8", newline="\n")
@@ -77,88 +60,22 @@ class ExecucaoReplay:
         self._imprimir_rotas(documento)
 
     @staticmethod
-    def _exigir_arquivos_da_arvore() -> None:
-        """A árvore oficial e as métricas dela são a referência das checagens: sem eles, pede `arvore` logo de início."""
-        for arquivo in (config.ARQUIVO_ARVORE, config.ARQUIVO_MATRIZ, config.ARQUIVO_METRICAS):
+    def _exigir_arquivos_da_comparacao() -> None:
+        """A matriz e as métricas da comparação são a referência das checagens: sem elas, pede `comparar` logo de início."""
+        for arquivo in (config.ARQUIVO_COMPARACAO_MODELOS, config.ARQUIVO_MATRIZ_COMPARACAO):
             if not arquivo.exists():
-                raise SystemExit(f"Não encontrei {arquivo}.\nRode antes: uv run python -m preditor arvore")
-        # A ajustada (painel da árvore) é conferida contra o que o `ajuste` gravou.
-        for arquivo in (config.ARQUIVO_ARVORE_AJUSTADA, config.ARQUIVO_MATRIZ_AJUSTE, config.ARQUIVO_METRICAS_AJUSTE):
-            if not arquivo.exists():
-                raise SystemExit(f"Não encontrei {arquivo}.\nRode antes: uv run python -m preditor ajuste")
+                raise SystemExit(f"Não encontrei {arquivo}.\nRode antes: uv run python -m preditor comparar")
 
     @staticmethod
-    def _arvores(
-        arvore: Arvore,
-        ajustada: ArvoreAjustada,
-        regras: dict[int, Regra],
-        regras_ajustada: dict[int, Regra],
-        dados: DadosModelo,
-    ) -> dict:
-        """Estrutura e regras das duas árvores para o painel (o que não depende das medições)."""
-        treino = config.BLOCO_TREINO
-        return {
-            "oficial": {
-                "nome": config.MODELO_ARVORE,
-                "colunas": list(config.COLUNAS_ARVORE),
-                "nos": ExportadorReplay.estrutura(arvore.modelo, dados.X[treino], dados.y[treino]),
-                "regras": {str(folha): regra.texto() for folha, regra in sorted(regras.items())},
-                "modelo": arvore.modelo,
-            },
-            "ajustada": {
-                "nome": ajustada.nome,
-                "colunas": DadosModelo.colunas_ajustadas(),
-                "nos": ExportadorReplay.estrutura(ajustada.modelo, dados.x_ajustado(treino), dados.y[treino]),
-                "regras": {str(folha): regra.texto() for folha, regra in sorted(regras_ajustada.items())},
-                "modelo": ajustada.modelo,
-            },
-        }
+    def _exportar(bloco: pd.DataFrame, previsto: pd.Series, exportado: ModeloExportado) -> str:
+        """Monta o documento com a previsão da floresta e devolve o texto do JSON (a exportação, sem treinar nada)."""
+        return ExportadorReplay.texto(ExportadorReplay.montar(bloco, previsto, ExportadorReplay.bloco_modelo(exportado)))
 
     @staticmethod
-    def _exportar(bloco: pd.DataFrame, arvore: Arvore, regras: dict[int, Regra], arvores: dict) -> str:
-        """Prevê a validação inteira com as árvores e devolve o texto do JSON (a exportação, sem refazer a árvore)."""
-        previsto = ExportadorReplay.prever(bloco, arvore)
-        folhas = ExportadorReplay.folhas(bloco, arvore)
-        # A ajustada lê as 10 colunas dela; NaN continua NaN, como na oficial.
-        modelo_ajustado = arvores["ajustada"]["modelo"]
-        X_ajustado = bloco[DadosModelo.colunas_ajustadas()].astype("float64")
-        arvores["ajustada"]["previsto"] = pd.Series(modelo_ajustado.predict(X_ajustado), index=bloco.index)
-        arvores["ajustada"]["folhas"] = pd.Series(modelo_ajustado.apply(X_ajustado), index=bloco.index)
-        return ExportadorReplay.texto(ExportadorReplay.montar(bloco, previsto, folhas, regras, arvores))
-
-    @staticmethod
-    def _conferir_com_arvore_ajustada(ajustada: ArvoreAjustada) -> None:
-        """A ajustada refeita tem de ser a que `ajuste` gravou (mesma semente, mesma grade, mesma regra de escolha)."""
-        gravada = json.loads(config.ARQUIVO_ARVORE_AJUSTADA.read_text(encoding="utf-8"))
-        refeita = json.loads(json.dumps(ajustada.descricao()))  # mesmos tipos do JSON (tupla → lista etc.)
-        if refeita != gravada:
-            raise SystemExit(
-                f"A árvore ajustada refeita ({refeita}) difere da gravada em {config.ARQUIVO_ARVORE_AJUSTADA}.\n"
-                "Rode antes: uv run python -m preditor ajuste"
-            )
-        print(
-            f"Ajustada refeita = {config.ARQUIVO_ARVORE_AJUSTADA.name}: {gravada['modelo']}, {gravada['criterio']}, "
-            f"max_depth {gravada['max_depth_pedido']}, min_samples_leaf {gravada['min_samples_leaf_pedido']}, "
-            f"{gravada['folhas']} folhas"
-        )
-
-    @staticmethod
-    def _conferir_com_arvore_oficial(arvore: Arvore) -> None:
-        """A árvore refeita tem de ser a que `arvore` gravou; se os hiperparâmetros diferem, o Gold ou o código mudaram."""
-        gravada = json.loads(config.ARQUIVO_ARVORE.read_text(encoding="utf-8"))
-        if arvore.descricao() != gravada:
-            raise SystemExit(
-                f"A árvore refeita ({arvore.descricao()}) difere da gravada em {config.ARQUIVO_ARVORE} ({gravada}).\n"
-                "Rode antes: uv run python -m preditor arvore"
-            )
-        print(
-            f"Árvore refeita = {config.ARQUIVO_ARVORE.name}: max_depth {gravada['max_depth_pedido']}, "
-            f"min_samples_leaf {gravada['min_samples_leaf_pedido']}, {gravada['folhas']} folhas, semente {gravada['semente']}"
-        )
-
-    @staticmethod
-    def _verificar_antes_de_gravar(dados: DadosModelo, bloco: pd.DataFrame, arvore: Arvore) -> None:
-        """Confere, ainda em memória, que as linhas conferíveis são exatamente as da validação que a árvore mediu."""
+    def _verificar_antes_de_gravar(
+        dados: DadosModelo, bloco: pd.DataFrame, previsto: pd.Series, exportado: ModeloExportado
+    ) -> None:
+        """Confere, ainda em memória, que as linhas conferíveis são exatamente as da validação medida, e a previsão delas."""
         validacao = config.BLOCO_VALIDACAO
         conferiveis = bloco.index[bloco["conferivel"]]
         # O índice de cada linha é o do Parquet: o mesmo conjunto de linhas, não só o mesmo número delas.
@@ -168,10 +85,11 @@ class ExecucaoReplay:
         assert len(conferiveis) == dados.resumo[validacao]["n"], (
             f"{len(conferiveis)} conferíveis, mas o N da validação é {dados.resumo[validacao]['n']}"
         )
-        # A previsão exportada é a mesma que a árvore dá às linhas medidas em `arvore`.
-        exportada = ExportadorReplay.prever(bloco, arvore).loc[dados.X[validacao].index]
-        assert exportada.equals(arvore.prever(dados.X[validacao])), "a previsão exportada difere da da árvore oficial"
-        # O futuro exportado das conferíveis é o alvo que a árvore usou.
+        # A previsão exportada, nas linhas que o DadosModelo mediu, é a que a floresta dá a esses mesmos X.
+        X_validacao = dados.x_ajustado(validacao)
+        esperada = pd.Series(exportado.modelo.predict(X_validacao), index=X_validacao.index)
+        assert previsto.loc[X_validacao.index].equals(esperada), "a previsão exportada difere da floresta nas linhas medidas"
+        # O futuro exportado das conferíveis é o alvo que a floresta usou na comparação.
         assert bloco.loc[conferiveis, config.ALVO].equals(dados.y[validacao].loc[conferiveis]), (
             "o futuro das conferíveis difere do alvo do DadosModelo"
         )
@@ -244,72 +162,42 @@ class ExecucaoReplay:
         print(f"t_futuro: {n} preenchidos (= conferíveis) | 600 a 840 s depois | até o fim do bloco | atual em t_futuro = futuro | 3ª seguinte")
 
     @staticmethod
-    def _verificar_x_e_folhas(
-        documento: dict, bloco: pd.DataFrame, arvore: Arvore, dados: DadosModelo, regras: dict[int, Regra]
-    ) -> None:
-        """V6: `x`, `folha` e `regras` do arquivo. O X tem só as 8 colunas, o ausente continua nulo e cada folha tem regra."""
-        medicoes, textos = documento["medicoes"], documento["regras"]
-        modelo = arvore.modelo
-
-        # As colunas do documento são as 8 da árvore, na ordem, e nenhuma é proibida (a página não tem nome fixo).
-        assert documento["colunas"] == config.COLUNAS_ARVORE, "`colunas` do JSON difere de COLUNAS_ARVORE"
-        assert not set(documento["colunas"]) & set(config.COLUNAS_PROIBIDAS), "coluna proibida em `colunas`"
-        assert list(modelo.feature_names_in_) == documento["colunas"], "`colunas` difere das colunas com que a árvore foi treinada"
-
-        # Cada `x` tem exatamente 8 valores. Ausente = `null` e nunca vira número (RFC §8.3): o nº de nulos por coluna
-        # no JSON é o de `NaN` do Gold, na mesma validação.
-        assert all(len(m["x"]) == len(config.COLUNAS_ARVORE) for m in medicoes), "`x` com número de valores diferente de 8"
-        no_json = pd.DataFrame([m["x"] for m in medicoes], columns=documento["colunas"], dtype="float64")  # null → NaN
-        nulos_do_gold = bloco[config.COLUNAS_ARVORE].isna().sum()
-        assert (no_json.isna().sum() == nulos_do_gold).all(), (
-            f"nulos por coluna: JSON {no_json.isna().sum().to_dict()} ≠ Gold {nulos_do_gold.to_dict()}"
+    def _verificar_modelo(documento: dict, exportado: ModeloExportado) -> None:
+        """O bloco `modelo` é o que o arquivo exportado diz: SHA-256 (o do LEIA-ME), família, árvores, parâmetros e colunas."""
+        bloco, floresta = documento["modelo"], exportado.modelo
+        # O SHA-256 gravado é o do arquivo que foi aberto, e este já bateu com o LEIA-ME na leitura.
+        sha_do_arquivo = hashlib.sha256(config.ARQUIVO_MODELO_FINAL.read_bytes()).hexdigest()
+        assert bloco["sha256"] == exportado.sha256 == sha_do_arquivo, "SHA-256 do modelo no JSON difere do arquivo"
+        assert bloco["nome"] == NOME_DA_FLORESTA and bloco["familia"] == config.MODELO_FLORESTA, "nome ou família do modelo"
+        # A floresta tem o número de árvores gravado, e a conta das árvores é a da própria floresta.
+        assert bloco["arvores"] == len(floresta.estimators_) == floresta.n_estimators == exportado.parametros["n_estimators"], (
+            f"árvores: JSON {bloco['arvores']}, arquivo {len(floresta.estimators_)}"
         )
-        # O arredondamento só corta casas: nenhum valor muda mais que meia unidade da última casa.
-        # O JSON está em ordem de (`t`, `fluxo_id`), a mesma de `ExportadorReplay.montar`: compara-se por posição.
-        ordem = bloco.sort_values(["t", "fluxo_id"], kind="stable")
-        exato = ordem[config.COLUNAS_ARVORE].to_numpy(dtype="float64")
-        assert np.nanmax(np.abs(no_json.to_numpy() - exato)) <= 0.5 * 10**-config.CASAS_X_REPLAY + 1e-12, "x arredondado difere do exato"
-
-        # A folha do JSON é a que `apply` dá ao X EXATO e também ao X ARREDONDADO que a página mostra.
-        folhas = pd.Series([m["folha"] for m in medicoes])
-        assert (modelo.apply(no_json) == folhas.to_numpy()).all(), "o x arredondado cai em outra folha que a gravada"
-        assert (modelo.apply(ordem[config.COLUNAS_ARVORE].astype("float64")) == folhas.to_numpy()).all(), (
-            "a `folha` do JSON difere do `apply` da árvore oficial"
-        )
-
-        # Toda folha usada tem regra, a regra cita só colunas permitidas e a classe dela é o `previsto` da medição.
-        assert all(str(m["folha"]) in textos for m in medicoes), "folha do JSON sem regra em `regras`"
-        for medicao in medicoes:
-            assert textos[str(medicao["folha"])].endswith(f" então {medicao['previsto']}"), (
-                f"a regra da folha {medicao['folha']} não prevê {medicao['previsto']}"
-            )
-        estrutura = modelo.tree_
-        folhas_da_arvore = {f for f in range(estrutura.node_count) if estrutura.children_left[f] == -1}
-        assert {int(f) for f in textos} == folhas_da_arvore, "`regras` não tem exatamente uma regra por folha da árvore"
-        assert set(regras) == folhas_da_arvore and all(textos[str(f)] == r.texto() for f, r in regras.items()), (
-            "o texto de `regras` difere de `Regra.texto()` da folha"
-        )
-
-        # Cada regra, lida como texto (limiar impresso), seleciona exatamente as linhas que `apply` põe na folha dela,
-        # no treino e na validação: a frase que a página mostra é a decisão real da árvore.
-        for bloco_do_modelo in BLOCOS_USADOS:
-            X = dados.X[bloco_do_modelo]
-            na_folha = modelo.apply(X)
-            for folha, regra in regras.items():
-                assert np.array_equal(Regras.selecionar(regra.fundidas, X, limiar_impresso=True), na_folha == folha), (
-                    f"{bloco_do_modelo}: a regra da folha {folha} não seleciona as linhas dessa folha"
-                )
-
-        # As 3 regras que `arvore` imprime (`Regras.ler`) são as mesmas frases deste documento e estão no arquivo oficial.
-        oficiais = Regras.ler(modelo, dados)
-        arquivo = config.ARQUIVO_REGRAS.read_text(encoding="utf-8")
-        for oficial in oficiais:
-            assert textos[str(oficial.folha)] == oficial.texto(), f"regra da folha {oficial.folha} difere de `Regras.ler`"
-            assert oficial.texto() in arquivo, f"a regra da folha {oficial.folha} não está em {config.ARQUIVO_REGRAS.name}"
+        assert bloco["parametros"] == exportado.parametros, "parâmetros do JSON diferentes do escolha.json"
+        # As 10 colunas da floresta, na ordem, e só elas: nenhuma coluna proibida entrou no modelo.
+        assert bloco["colunas"] == list(floresta.feature_names_in_) == DadosModelo.colunas_ajustadas(), "colunas do modelo"
+        assert not set(bloco["colunas"]) & set(config.COLUNAS_PROIBIDAS), "coluna proibida no modelo"
+        assert set(floresta.classes_) == set(config.CLASSES), "classes do modelo diferentes de OK, RISCO e FALHA"
         print(
-            f"X e folhas: 8 colunas = COLUNAS_ARVORE, nenhuma proibida | nulos por coluna = Gold {nulos_do_gold.to_dict()} | "
-            f"{len(folhas_da_arvore)} folhas, todas com regra (= classe prevista; seleciona as linhas da folha) | "
-            f"{len(oficiais)} regras de `arvore` iguais às do arquivo"
+            f"Modelo: {bloco['nome']}, {bloco['arvores']} árvores | SHA-256 {bloco['sha256'][:12]}… = LEIA-ME | "
+            f"{len(bloco['colunas'])} colunas (= as do .joblib, sem proibida)"
+        )
+
+    @staticmethod
+    def _verificar_previsoes(documento: dict, bloco: pd.DataFrame) -> None:
+        """Cada previsão do JSON é a que o modelo RECARREGADO dá à mesma linha do Gold, medição por medição."""
+        # Segunda carga do arquivo (com a conferência de novo): o que o JSON mostra não depende do objeto da execução.
+        recarregado = ModeloExportado.ler().modelo
+        ordenado = bloco.sort_values(["t", "fluxo_id"], kind="stable")
+        X = ExportadorReplay.x(ordenado)  # o X exato do Gold, sem nada preenchido
+        previsto_json = [medicao["previsto"] for medicao in documento["medicoes"]]
+        assert list(recarregado.predict(X)) == previsto_json, "uma previsão do JSON difere da do modelo recarregado"
+        # Ausente continua ausente: a floresta viu os mesmos nulos do Gold, coluna a coluna (RFC §8.3).
+        assert (X.isna().sum() == ordenado[DadosModelo.colunas_ajustadas()].isna().sum()).all(), "nulos do X ≠ nulos do Gold"
+        com_ausente = int(X.isna().any(axis=1).sum())
+        print(
+            f"Previsões: {len(previsto_json)} do JSON = modelo recarregado, linha a linha | {com_ausente} medições com "
+            "algum valor ausente, previstas sem preencher"
         )
 
     @staticmethod
@@ -477,145 +365,32 @@ class ExecucaoReplay:
 
     @staticmethod
     def _verificar_metricas(documento: dict) -> None:
-        """Recalcula matriz e F1 macro só com o JSON (conferíveis) e compara com os CSVs que `arvore` gravou."""
-        matriz_csv = pd.read_csv(config.ARQUIVO_MATRIZ)
-        metricas_csv = pd.read_csv(config.ARQUIVO_METRICAS)
+        """Recalcula matriz e F1 macro só com o JSON (conferíveis) e compara com a comparação: a floresta e a persistência."""
+        matriz_csv = pd.read_csv(config.ARQUIVO_MATRIZ_COMPARACAO)
+        metricas_csv = pd.read_csv(config.ARQUIVO_COMPARACAO_MODELOS)
 
         conferiveis = pd.DataFrame([m for m in documento["medicoes"] if m["conferivel"]])
         colunas = [f"previsto_{classe}" for classe in config.CLASSES]
-        # Cada modelo é lido de uma coluna do JSON: a árvore, de `previsto`; a persistência, de `atual`.
-        for modelo, coluna in ((config.MODELO_ARVORE, "previsto"), (config.MODELO_PERSISTENCIA, "atual")):
+        # A floresta é lida de `previsto` (o que a página mostra); a persistência, de `atual` (o "palpite simples").
+        for modelo, coluna in ((config.MODELO_FLORESTA, "previsto"), (config.MODELO_PERSISTENCIA, "atual")):
             resultado = Avaliacao.medir(conferiveis["futuro"], conferiveis[coluna], bloco=config.BLOCO_REPLAY)
 
             esperada = matriz_csv[matriz_csv["modelo"] == modelo].set_index("verdadeiro").loc[list(config.CLASSES), colunas]
             assert (resultado.matriz.to_numpy() == esperada.to_numpy()).all(), (
-                f"{modelo}: a matriz recalculada do JSON difere de {config.ARQUIVO_MATRIZ.name}"
+                f"{modelo}: a matriz recalculada do JSON difere de {config.ARQUIVO_MATRIZ_COMPARACAO.name}"
             )
-            f1_csv = metricas_csv[(metricas_csv["modelo"] == modelo) & (metricas_csv["metrica"] == "f1_macro")]["valor"].item()
+            f1_csv = metricas_csv[metricas_csv["modelo"] == modelo]["f1_macro"].item()
             # O CSV tem o F1 arredondado a `CASAS_CSV` casas: aceita até meia unidade da última casa.
             assert abs(resultado.f1_macro - f1_csv) <= 0.5 * 10**-config.CASAS_CSV, (
                 f"{modelo}: F1 macro do JSON {resultado.f1_macro:.6f} difere do CSV {f1_csv:.6f}"
             )
             acertos = int(resultado.matriz.to_numpy().diagonal().sum())
             print(f"  {modelo:<14} F1 macro {resultado.f1_macro:.4f} = CSV | acertos {acertos} de {resultado.n}")
-        print("Matriz e F1 macro recalculados do JSON = matriz_validacao.csv e metricas_validacao.csv")
+        print(f"Matriz e F1 macro recalculados do JSON = {config.ARQUIVO_MATRIZ_COMPARACAO.name} e {config.ARQUIVO_COMPARACAO_MODELOS.name}")
 
     @staticmethod
-    def _verificar_determinismo(
-        bloco: pd.DataFrame, arvore: Arvore, regras: dict[int, Regra], arvores: dict, texto: str
-    ) -> None:
-        """Mesma árvore e mesma entrada = mesmo JSON: refaz só a exportação e compara byte a byte."""
-        # A árvore em si já foi conferida contra `arvore_oficial.json` e contra os CSVs; refazer a busca não acrescenta nada.
-        assert ExecucaoReplay._exportar(bloco, arvore, regras, arvores) == texto, "exportar duas vezes deu um arquivo diferente"
+    def _verificar_determinismo(bloco: pd.DataFrame, exportado: ModeloExportado, texto: str) -> None:
+        """Mesmo arquivo e mesma entrada = mesmo JSON: refaz a previsão e a exportação e compara byte a byte."""
+        refeito = ExportadorReplay.prever(bloco, exportado.modelo)
+        assert ExecucaoReplay._exportar(bloco, refeito, exportado) == texto, "exportar duas vezes deu um arquivo diferente"
         print(f"Mesma entrada = mesmo JSON (sha256 {hashlib.sha256(texto.encode('utf-8')).hexdigest()[:16]})")
-
-    @staticmethod
-    def _percorrer(nos: list[dict], valores: dict[str, float | None]) -> int:
-        """Desce da raiz até a folha só com o JSON (`nos` + valores arredondados): caminho independente de `apply`."""
-        no = nos[0]
-        while no["coluna"] is not None:
-            valor = valores[no["coluna"]]
-            if valor is None:
-                vai_esquerda = no["ausente"] == "esquerda"
-            else:
-                vai_esquerda = valor <= no["limiar"]
-            no = nos[no["esquerda"] if vai_esquerda else no["direita"]]
-        return no["id"]
-
-    @staticmethod
-    def _verificar_arvores(
-        documento: dict,
-        bloco: pd.DataFrame,
-        arvore: Arvore,
-        ajustada: ArvoreAjustada,
-        regras_ajustada: dict[int, Regra],
-        dados: DadosModelo,
-        x_ajustado: dict[str, pd.DataFrame],
-    ) -> None:
-        """Painel da árvore (SPEC-arvore-na-pagina.md): estrutura = `tree_`, percurso no JSON = folha gravada, contagens."""
-        medicoes, arvores = documento["medicoes"], documento["arvores"]
-        assert set(arvores) == {"oficial", "ajustada"}, f"árvores inesperadas no JSON: {sorted(arvores)}"
-        y_treino = dados.y[config.BLOCO_TREINO]
-        oficial_x = documento["colunas"]
-
-        def valores_da(chave: str, medicao: dict) -> dict:
-            valores = dict(zip(oficial_x, medicao["x"]))
-            if chave == "ajustada":
-                valores.update(zip(config.COLUNAS_AJUSTE, medicao["x_ajuste"]))
-            return valores
-
-        campos = {"oficial": ("folha", "previsto"), "ajustada": ("folha_ajustada", "previsto_ajustada")}
-        for chave, modelo in (("oficial", arvore.modelo), ("ajustada", ajustada.modelo)):
-            no_json, estrutura = arvores[chave], modelo.tree_
-            nos = no_json["nos"]
-            campo_folha, campo_previsto = campos[chave]
-            assert no_json["colunas"] == list(modelo.feature_names_in_), f"{chave}: colunas diferentes das do modelo"
-            assert not set(no_json["colunas"]) & set(config.COLUNAS_PROIBIDAS), f"{chave}: coluna proibida"
-
-            # Estrutura = `tree_`: mesmos nós, filhos, colunas e lado do ausente; limiar só arredondado.
-            assert [no["id"] for no in nos] == list(range(estrutura.node_count)), f"{chave}: nós fora da numeração de tree_"
-            folhas = {no["id"] for no in nos if no["coluna"] is None}
-            assert len(folhas) == estrutura.n_leaves, f"{chave}: {len(folhas)} folhas, tree_ tem {estrutura.n_leaves}"
-            for no in nos:
-                i = no["id"]
-                if no["coluna"] is None:
-                    assert estrutura.children_left[i] == -1, f"{chave}: nó {i} não é folha em tree_"
-                    continue
-                assert (no["esquerda"], no["direita"]) == (estrutura.children_left[i], estrutura.children_right[i])
-                assert no["coluna"] == no_json["colunas"][estrutura.feature[i]], f"{chave}: coluna errada no nó {i}"
-                assert abs(no["limiar"] - estrutura.threshold[i]) <= 0.5 * 10**-config.CASAS_LIMIAR_REPLAY + 1e-12
-                assert (no["ausente"] == "esquerda") == bool(estrutura.missing_go_to_left[i]), f"{chave}: ausente no nó {i}"
-                assert nos[no["esquerda"]]["pai"] == i and nos[no["direita"]]["pai"] == i, f"{chave}: pai errado"
-
-            # `n`: a raiz tem o treino inteiro, por classe; cada divisão soma os dois filhos.
-            assert nos[0]["n"] == [int((y_treino == classe).sum()) for classe in config.CLASSES], f"{chave}: n da raiz"
-            for no in nos:
-                if no["coluna"] is not None:
-                    filhos = (nos[no["esquerda"]]["n"], nos[no["direita"]]["n"])
-                    assert no["n"] == [a + b for a, b in zip(*filhos)], f"{chave}: n do nó {no['id']} ≠ soma dos filhos"
-
-            # Percorrer os nós do JSON com o `x` do JSON (o que a página mostra) chega na folha gravada, e a classe
-            # dessa folha é a prevista. Inclui as medições com ausente, que seguem `ausente`.
-            com_ausente = 0
-            for medicao in medicoes:
-                valores = valores_da(chave, medicao)
-                com_ausente += any(v is None for v in valores.values())
-                folha = ExecucaoReplay._percorrer(nos, valores)
-                assert folha == medicao[campo_folha], f"{chave}: o percurso no JSON chega em {folha}, gravada {medicao[campo_folha]}"
-                assert nos[folha]["classe"] == medicao[campo_previsto], f"{chave}: classe da folha {folha} ≠ prevista"
-            assert {str(f) for f in folhas} == set(no_json["regras"]), f"{chave}: `regras` sem uma regra por folha"
-            for folha in folhas:
-                assert no_json["regras"][str(folha)].endswith(f" então {nos[folha]['classe']}"), f"{chave}: regra da folha {folha}"
-            print(
-                f"Árvore {chave}: {len(nos)} nós = tree_, {len(folhas)} folhas | percurso no JSON = folha gravada nas "
-                f"{len(medicoes)} medições ({com_ausente} com ausente) | n da raiz = treino"
-            )
-
-        # Ajustada: a folha e a previsão gravadas são as de `apply`/`predict` sobre o X exato do Gold.
-        ordem = bloco.sort_values(["t", "fluxo_id"], kind="stable")
-        X_exato = ordem[DadosModelo.colunas_ajustadas()].astype("float64")
-        assert (ajustada.modelo.apply(X_exato) == np.array([m["folha_ajustada"] for m in medicoes])).all()
-        assert (ajustada.modelo.predict(X_exato) == np.array([m["previsto_ajustada"] for m in medicoes])).all()
-        # `x_ajuste`: ausente continua nulo (mesmo nº de nulos do Gold) e `x` continua com só as 8 colunas.
-        extra = pd.DataFrame([m["x_ajuste"] for m in medicoes], columns=config.COLUNAS_AJUSTE, dtype="float64")
-        assert (extra.isna().sum() == bloco[config.COLUNAS_AJUSTE].isna().sum()).all(), "x_ajuste: nulos ≠ Gold"
-        # As regras da ajustada, lidas como texto, selecionam exatamente as linhas de cada folha (treino e validação).
-        for bloco_do_modelo in BLOCOS_USADOS:
-            X = x_ajustado[bloco_do_modelo]
-            na_folha = ajustada.modelo.apply(X)
-            for folha, regra in regras_ajustada.items():
-                assert np.array_equal(Regras.selecionar(regra.fundidas, X, limiar_impresso=True), na_folha == folha), (
-                    f"{bloco_do_modelo}: a regra da folha {folha} da ajustada não seleciona as linhas dessa folha"
-                )
-
-        # Matriz e F1 da ajustada recalculados do JSON = o que o `ajuste` gravou.
-        conferiveis = pd.DataFrame([m for m in medicoes if m["conferivel"]])
-        resultado = Avaliacao.medir(conferiveis["futuro"], conferiveis["previsto_ajustada"], bloco=config.BLOCO_REPLAY)
-        matriz_csv = pd.read_csv(config.ARQUIVO_MATRIZ_AJUSTE)
-        colunas = [f"previsto_{classe}" for classe in config.CLASSES]
-        esperada = matriz_csv[matriz_csv["modelo"] == ajustada.nome].set_index("verdadeiro").loc[list(config.CLASSES), colunas]
-        assert (resultado.matriz.to_numpy() == esperada.to_numpy()).all(), "ajustada: matriz do JSON ≠ matriz_ajuste.csv"
-        metricas_csv = pd.read_csv(config.ARQUIVO_METRICAS_AJUSTE)
-        f1_csv = metricas_csv[(metricas_csv["modelo"] == ajustada.nome) & (metricas_csv["metrica"] == "f1_macro")]["valor"].item()
-        assert abs(resultado.f1_macro - f1_csv) <= 0.5 * 10**-config.CASAS_CSV, "ajustada: F1 do JSON ≠ metricas_ajuste.csv"
-        print(f"  {ajustada.nome:<17} F1 macro {resultado.f1_macro:.4f} = metricas_ajuste.csv | matriz = matriz_ajuste.csv")

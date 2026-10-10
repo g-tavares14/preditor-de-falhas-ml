@@ -1036,6 +1036,13 @@ kbd {
   line-height: 1.05;
 }
 
+/* Período e modelo, sob o título do placar: texto pequeno e sem caixa (é contexto, não o número). */
+.placar-contexto {
+  margin: 0 0 4px;
+  font-size: 11px;
+  line-height: 1.35;
+}
+
 /* --- 4h. Feed das últimas conferências ----------------------------------------------------------------- */
 
 .legenda-nota {

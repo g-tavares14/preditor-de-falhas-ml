@@ -12,7 +12,7 @@ Estágio atual: o pipeline segue a arquitetura medalhão (`SPEC-medalhao.md`): B
 Silver (normalização) e o Gold (cálculo do X: baseline + features; cálculo do Y: rótulo OK / RISCO / FALHA em
 `src/preditor/gold/calculo_y/`, spec em `SPEC-calculo-y.md`) estão prontos. A árvore inicial (Tarefa 3) também:
 código em `src/preditor/modelo/`, spec em `SPEC-arvore.md`. A visualização (replay da validação num mapa-múndi)
-também: exportador em `src/preditor/visualizacao/`, página em `web/`, spec em `SPEC-visualizacao.md`. O ajuste da
+também: exportador em `src/preditor/visualizacao/`, página em `web/`, spec em `SPEC-visualizacao.md`; desde 10/10/2026 o replay prevê com a Random Forest exportada (spec em `SPEC-replay-floresta.md`). O ajuste da
 árvore (Tarefa 4) também: `src/preditor/modelo/ajuste.py` e `execucao_ajuste.py`, spec em `SPEC-ajuste-arvore.md`,
 análise em `docs/relatorio_analise_arvore.md`. O painel da árvore na página (spec em `SPEC-arvore-na-pagina.md`) existiu até 10/10/2026: a página foi
 simplificada para público não técnico e ele saiu (ver "Página para público não técnico" em Decisions). O piso da regra 3 (10/10/2026) também: a linha 3 do Y exige
@@ -64,7 +64,7 @@ uv run python -m preditor arvore   # data/gold/ → data/modelo/ (offline, sem S
 # run (a árvore ajustada da Tarefa 4; comando à parte, offline, sem Spark nem Java):
 uv run python -m preditor ajuste   # data/gold/ + saídas do `arvore` → data/modelo/ (não reescreve os arquivos da Tarefa 3)
 # run (a visualização; comandos à parte, offline, sem Spark nem Java):
-uv run python -m preditor replay   # data/gold/ → web/dados/replay.json (refaz a árvore oficial)
+uv run python -m preditor replay   # data/gold/ + modelo_final.joblib → web/dados/replay.json (prevê com a Random Forest; sem treinar)
 uv run python -m preditor servir   # serve web/ em http://127.0.0.1:8000/ (--porta N); não use `python -m http.server`
 uv run python -m preditor.visualizacao.coletar_sondas   # só para refazer sondas.csv (rede: API pública do RIPE Atlas)
 # run (a comparação Random Forest × XGBoost × árvore; comandos à parte, offline, sem Spark nem Java):
@@ -99,13 +99,12 @@ JAVA_HOME=/opt/homebrew/opt/openjdk@17 uv run python data/analise_piso_regra3/co
 #        tolerância (conferida de novo a partir do CSV), matrizes somam o N da validação, regiões e transições somam o
 #        total, regras só com as 10 colunas e cada regra seleciona exatamente as linhas da folha, mesma semente = mesma
 #        árvore, nenhuma linha do teste medida;
-#        Replay: árvore refeita = `arvore_oficial.json`, nenhuma linha nem instante do teste no JSON, conferíveis = N da
-#        validação, matriz e F1 recalculados do JSON = CSVs da árvore, `t_futuro` conferido por caminho independente,
-#        `x` só com as 8 colunas e ausente continua ausente,
-#        as duas árvores do painel = `tree_` (todos os nós) e percorrer os nós com o `x` do JSON chega na folha gravada, ajustada
-#        refeita = `arvore_ajustada.json` e matriz/F1 dela = CSVs do ajuste, cada regra seleciona exatamente as linhas da folha, toda
-#        rota começa na sonda, termina no destino e só usa cabo do catálogo, mesma semente = mesmo JSON. A página se
-#        confere abrindo: ao fim do replay o placar (acertos da árvore e do palpite simples) é igual à diagonal das matrizes dos CSVs;
+#        Replay (SPEC-replay-floresta.md): bloco `modelo` = SHA-256 do LEIA-ME, família, árvores e colunas do `.joblib`; previsões do
+#        JSON = as do modelo recarregado, linha a linha; matriz e F1 recalculados do JSON = linhas `random_forest` e `persistencia`
+#        de `matriz_comparacao.csv` e `comparacao_modelos.csv` (F1 0,6977, N 13.490); `t_futuro` conferido por caminho independente;
+#        nenhuma linha nem instante do teste no JSON; rotas começam na sonda, terminam no destino e só usam cabo do catálogo;
+#        mesma entrada = mesmo JSON; o JSON não tem `arvores`, `folha`, `x` nem regras. A página se
+#        confere abrindo: ao fim do replay o placar (acertos da floresta e do palpite simples) é igual ao do JSON e ao da comparação;
 #        Comparação: as 5 linhas nas mesmas linhas da validação, `fit` só no treino, regra entre famílias refeita a partir
 #        do CSV, IC pareado com 2.000 reamostras (mesma semente = mesmo IC), `Avaliacao` recusa o teste, árvores refeitas =
 #        JSON e CSVs do `arvore` e do `ajuste`, duas execuções = mesmos arquivos (exceto `tempos.csv`);
@@ -116,8 +115,7 @@ JAVA_HOME=/opt/homebrew/opt/openjdk@17 uv run python data/analise_piso_regra3/co
 Só `bronze` (e o pipeline completo) precisa de rede e credenciais do BigQuery. `silver` e `gold` rodam offline, mas
 exigem a camada anterior no disco: sem ela, terminam com a mensagem de qual comando rodar antes (nunca recaem no
 BigQuery). `arvore` também roda offline e exige o Gold (sem ele, pede `uv run python -m preditor gold`). Sem rede,
-verifique ao menos a importação: `uv run python -c "import preditor.__main__"`. `ajuste` exige o Gold com as colunas novas e as saídas do `arvore`. `replay` exige o Gold, as saídas do
-`arvore` e do `ajuste` e o `sondas.csv`; `servir` exige o `replay.json` (cada um diz qual comando rodar antes). `comparar` exige o Gold e as saídas do `arvore` e do
+verifique ao menos a importação: `uv run python -c "import preditor.__main__"`. `ajuste` exige o Gold com as colunas novas e as saídas do `arvore`. `replay` exige o Gold, o `.joblib` e o LEIA-ME do `exportar`, as saídas do `comparar` e o `sondas.csv`; `servir` exige o `replay.json` (cada um diz qual comando rodar antes). `comparar` exige o Gold e as saídas do `arvore` e do
 `ajuste`; `exportar` exige as saídas do `comparar`. `teste --ensaio` exige o `exportar` (o `.joblib` e o LEIA-ME);
 `teste --abrir-o-teste` exige também o carimbo `ensaio_ok.json` válido (SHA-256 do modelo, da escolha e do código de
 medição) e recusa se `TESTE_ABERTO.json` existir. Sem argumento, `teste` não roda.
@@ -130,7 +128,7 @@ medição) e recusa se `TESTE_ABERTO.json` existir. Sem argumento, `teste` não 
 - A árvore fica em `modelo/`, fora do medalhão: `dados.py`, `avaliacao.py`, `arvore.py`, `regras.py` e `execucao.py`
   (orquestra, grava e verifica). Lê o Gold do disco com pandas, sem Spark.
 - A árvore ajustada (Tarefa 4) fica ao lado, em `modelo/ajuste.py` e `modelo/execucao_ajuste.py`. Ela reutiliza
-  `ArvoreBase`, `Regras` e `Avaliacao`; qualquer mudança nesses três precisa manter o `arvore` e o `replay` com
+  `ArvoreBase`, `Regras` e `Avaliacao`; qualquer mudança nesses três precisa manter o `arvore` e o `ajuste` com
   saídas idênticas com o mesmo Gold (os parâmetros novos têm como padrão o comportamento da Tarefa 3). Com outro Gold
   as saídas mudam: o código não mudou, o dado sim.
 - A comparação fica em `modelo/`, ao lado: `floresta.py` (Random Forest) e `boosting.py` (XGBoost) reutilizam `DadosModelo`
@@ -141,7 +139,7 @@ medição) e recusa se `TESTE_ABERTO.json` existir. Sem argumento, `teste` não 
   `liberar_teste=True`; só `execucao_teste.py` o importa, conferido por `grep`), e `execucao_teste.py` orquestra o ensaio
   e a abertura (trava, carimbo, medição, checagens, gravação). Não altera `DadosModelo`.
 - A visualização fica em `visualizacao/`, também fora do medalhão: `rotas.py`, `exportacao.py`, `execucao.py` (orquestra,
-  verifica e só então grava), `servidor.py` e `coletar_sondas.py`. Ela reutiliza `modelo/` sem alterá-lo.
+  verifica e só então grava), `modelo_exportado.py` (lê o `.joblib` com as mesmas conferências do `teste`, por cópia: `execucao_teste.py` carrega o bloco de teste e não é importado), `servidor.py` e `coletar_sondas.py`. Ela reutiliza `modelo/` sem alterá-lo.
 - A página fica em `web/`: `app.js` orquestra; `tempo.js` e `placar.js` são lógica pura (sem DOM, rodam em Node);
   `mapa.js`, `rotas.js`, `desenho.js`, `pulsos.js`, `selos.js` cuidam do mapa; `cartao.js`, `painel.js`, `foco.js` e
   `comum.js`, do painel (`comum.js` também guarda os nomes na tela: Normal / Atenção / Problema, países por extenso). Sem `innerHTML` com dados; CSP `default-src 'self'`. As constantes só de desenho (durações,
@@ -250,17 +248,27 @@ medição) e recusa se `TESTE_ABERTO.json` existir. Sem argumento, `teste` não 
   **inferido do RTT medido** (IP de localização desconhecida, provavelmente anycast).
 - **Placar da página:** uma previsão só conta quando o relógio passa do instante do futuro (`t_futuro`); pular na barra
   de tempo dá o mesmo estado que tocar até lá. As medições sem futuro para conferir e as de folga ficam fora.
-- **A árvore é refeita no `replay`** (mesma semente, conferida contra `arvore_oficial.json`): o `arvore` não grava o
+- **[Substituída em 10/10/2026: ver a decisão da Random Forest no replay.] A árvore era refeita no `replay`** (mesma semente, conferida contra `arvore_oficial.json`): o `arvore` não grava o
   modelo treinado. As regras das folhas vêm de `Regras._caminhos` (método privado de `modelo/regras.py`).
 - **Página para público não técnico (10/10/2026, dono):** `web/index.html` foi substituída por uma versão sem árvore, sem
   matriz de confusão e sem colunas do X, folha ou regra no cartão; os termos técnicos viraram palavras comuns (OK / RISCO /
   FALHA = Normal / Atenção / Problema; fluxo = conexão; sonda = ponto de medição; RTT = tempo de resposta; persistência =
   palpite simples). Só o texto da tela mudou: o JSON, o exportador e o CSS das classes seguem com os códigos do projeto,
-  e o `replay` ainda exporta e confere `arvores` (a página não as usa). O placar mantém a comparação com o palpite simples.
+  e, desde a Random Forest (10/10/2026), o `replay` não exporta mais `arvores`, `folha`, `x` nem regras. O placar mantém a comparação com o palpite simples.
   `arvore.js` e `caminho.js` saíram de `web/`; o painel da árvore abaixo ficou só no histórico (git).
 - **Painel da árvore (03/10/2026, removido da página em 10/10/2026):** mostra a oficial e a ajustada (seletor), mas o seletor muda só o painel: mapa,
   cartão e placar seguem a oficial. O navegador não percorre a árvore com o X: recebe a folha do JSON e sobe pelos pais.
-  Por isso o `replay` agora também exige as saídas do `ajuste`.
+  Por isso o `replay` agora também exige as saídas do `ajuste` (superado em 10/10/2026: o `replay` não exige mais o `ajuste`).
+- **Replay com a Random Forest (10/10/2026, `SPEC-replay-floresta.md`, aprovada pelo dono):** o `previsto` do replay vem do
+  `modelo_final.joblib` exportado, que prevê a validação inteira (as medições sem futuro para conferir também). O arquivo é
+  conferido contra o SHA-256 do LEIA-ME antes de abrir, e o placar contra `comparacao/matriz_comparacao.csv` e
+  `comparacao_modelos.csv` (F1 macro 0,6977; N = 13.490). O JSON perdeu `arvores`, `colunas`, `regras`, `folha`, `x`,
+  `folha_ajustada`, `previsto_ajustada` e `x_ajuste` (a página não os usava) e ganhou o bloco `modelo` (nome, família,
+  árvores, parâmetros, SHA-256, colunas). O `replay` não refaz mais a árvore nem a ajustada (~4 s; a spec estimava ~50 s) e
+  exige as saídas do `exportar` e do `comparar`. A página mostra "Random Forest, 100 árvores" (com `textContent`) e diz que o
+  período é o de validação; o número do relatório é o do teste, que segue fechado no replay.
+- **Constantes herdadas sem uso (10/10/2026):** `CASAS_X_REPLAY` e `CASAS_LIMIAR_REPLAY` (`config.py`) não são mais lidas pelo replay;
+  ficam por não mexer em `config.py`, que faz parte do código de medição do teste (o carimbo `ensaio_ok.json` guarda o hash dele).
 - **Desenho do painel com o piso (10/10/2026):** largura proporcional ao número de folhas (80 por folha, mínimo de
   1280 px), com rolagem horizontal que traz a folha em foco para a tela. Com o piso, a oficial tem 29 folhas e a
   ajustada, 40 (`SPEC-arvore-na-pagina.md`).
@@ -290,6 +298,7 @@ medição) e recusa se `TESTE_ABERTO.json` existir. Sem argumento, `teste` não 
 
 ## Agent workflow
 
+- Replay com a Random Forest: `SPEC-replay-floresta.md`, com `tasks/plan-replay-floresta.md` e `tasks/todo-replay-floresta.md`.
 - Lifecycle: `/spec` → `/plan` → `/build` → `/verify` → `/review`. Specs live in the repo; the plan in `tasks/plan.md`, tasks in `tasks/todo.md` (the Y spec uses `tasks/plan-calculo-y.md` and `tasks/todo-calculo-y.md`; the tree spec, `SPEC-arvore.md`, uses `tasks/plan-arvore.md` and `tasks/todo-arvore.md`; the visualization spec,
   `SPEC-visualizacao.md`, uses `tasks/plan-visualizacao.md` and `tasks/todo-visualizacao.md`; the Tarefa 4 spec,
   `SPEC-ajuste-arvore.md`, uses `tasks/plan-ajuste-arvore.md` and `tasks/todo-ajuste-arvore.md`; the piso spec, `SPEC-piso-regra3.md`, uses

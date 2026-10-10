@@ -143,6 +143,8 @@ origem comentada.
 
 ### Formato do `replay.json`
 
+> Desde 10/10/2026 este formato mudou: sem `arvores`, `colunas`, `regras`, `folha`, `x`, `folha_ajustada`, `previsto_ajustada` e `x_ajuste`; ganhou o bloco `modelo`. Ver "Atualização de 10/10/2026: replay com a Random Forest" no fim.
+
 ```json
 {
   "meta": {"bloco": "validacao", "inicio": "...", "fim": "...", "classes": ["OK", "RISCO", "FALHA"],
@@ -264,3 +266,17 @@ dela, não só a que ficou fora do ar), "conexão" para fluxo, "ponto de mediç�
 persistência (comparação mantida: sem ela o percentual do sistema pareceria maior do que é). O aviso de rota ilustrativa
 continua fixo, com o texto reescrito. O que não mudou: o JSON, o exportador, as checagens do `replay` e a regra de que o
 navegador só exibe, compara e soma o que já está no JSON.
+
+## Atualização de 10/10/2026: replay com a Random Forest
+
+Spec e plano: `SPEC-replay-floresta.md` (aprovada pelo dono em 10/10/2026).
+
+- O `previsto` do replay vem do `modelo_final.joblib` exportado (a Random Forest da comparação), e não mais da árvore
+  oficial. O arquivo é conferido contra o SHA-256 do LEIA-ME antes de abrir.
+- O JSON perdeu `arvores`, `colunas`, `regras`, `folha`, `x`, `folha_ajustada`, `previsto_ajustada` e `x_ajuste`, e ganhou
+  `modelo` (nome, família, árvores, parâmetros, SHA-256, colunas). A página lê só `modelo.nome` e `modelo.arvores`.
+- O `replay` não refaz a árvore nem a ajustada e exige as saídas do `exportar` e do `comparar` (não mais as do `ajuste`).
+- Na tela: "Random Forest, 100 árvores" sob o título do placar, e o texto que diz que o período é o de **validação**; o
+  número do relatório é o do teste, que não aparece no replay.
+- O placar da página é o da validação (F1 macro 0,6977 na comparação; 85,5 % de acerto da floresta e 81,7 % do palpite
+  simples em 13.490 previsões conferidas). O teste segue fechado.

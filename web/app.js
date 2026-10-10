@@ -58,6 +58,7 @@ function pegarElementos() {
     contaTotal: porId("conta-total"),
     contaGeral: porId("conta-geral"),
     contaTimeout: porId("conta-timeout"),
+    modeloNome: porId("modelo-nome"),
     placar: {
       arvore: { acertos: porId("arvore-acertos"), conferidas: porId("arvore-conferidas"), pct: porId("arvore-pct") },
       persistencia: { acertos: porId("persistencia-acertos"), conferidas: porId("persistencia-conferidas"), pct: porId("persistencia-pct") },
@@ -482,6 +483,8 @@ async function principal() {
   const estado = criarEstado(replay);
   elementos.status.hidden = true;
   elementos.contaGeral.textContent = replay.medicoes.length;
+  // O modelo que faz as previsões (o JSON traz o nome e o nº de árvores; a página só escreve o texto).
+  elementos.modeloNome.textContent = `${replay.modelo.nome}, ${replay.modelo.arvores} árvores`;
 
   // `mapa` só existe depois de `criarMapa`, mas o clique no selo precisa dele: a função abaixo o lê no momento do clique.
   let mapa = null;

@@ -26,24 +26,20 @@ function exigir(condicao, mensagem) {
 
 const ehNumeroOuNulo = (valor) => valor === null || Number.isFinite(valor);
 
-// Confere o que a página lê de cada medição e de cada fluxo. Um arquivo de versão antiga (sem `x`, `folha`, `t_futuro`
+// Confere o que a página lê de cada medição e de cada fluxo. Um arquivo de versão antiga (sem `modelo`, `t_futuro`
 // ou `mediana_ms`) para aqui, com a dica de gerar o JSON de novo, em vez de mostrar um painel pela metade.
 // (O desenho das rotas tem a sua própria validação, em desenho.js.)
 function validarReplay(replay) {
-  const { meta, colunas, regras, fluxos, medicoes } = replay;
+  const { meta, fluxos, medicoes, modelo } = replay;
   exigir(meta && Array.isArray(meta.classes) && meta.classes.length > 0, "falta `meta.classes`");
   const classesIguais = meta.classes.length === CLASSES_COLORIDAS.length && CLASSES_COLORIDAS.every((classe) => meta.classes.includes(classe));
   if (!classesIguais) {
     // Sem a dica de gerar o JSON de novo: regerar não conserta uma classe que a página não conhece.
     throw new Error(`replay.json fora do formato: \`meta.classes\` é [${meta.classes.join(", ")}], mas a página só sabe colorir exatamente [${CLASSES_COLORIDAS.join(", ")}] (classe desconhecida, faltando ou repetida)`);
   }
-  exigir(Array.isArray(colunas) && colunas.length > 0 && colunas.every((c) => typeof c === "string"), "falta `colunas`");
-  exigir(regras !== null && typeof regras === "object", "falta `regras`");
   exigir(Array.isArray(fluxos) && fluxos.length > 0, "a lista de fluxos está vazia");
-  // O painel da árvore (SPEC-arvore-na-pagina.md): as duas árvores, cada uma com nós e uma regra por folha.
-  const { arvores } = replay;
-  exigir(arvores && ["oficial", "ajustada"].every((k) => arvores[k] && Array.isArray(arvores[k].nos) && arvores[k].nos.length > 0), "falta `arvores` (oficial e ajustada)");
-  const extras = arvores.ajustada.colunas.length - colunas.length;
+  // O modelo que prevê as medições (SPEC-replay-floresta.md): a página só lê o nome e o nº de árvores, para mostrar na tela.
+  exigir(modelo && typeof modelo.nome === "string" && Number.isInteger(modelo.arvores) && modelo.arvores > 0, "falta `modelo` (nome e nº de árvores)");
   exigir(Array.isArray(medicoes) && medicoes.length > 0, "a lista de medições está vazia");
 
   fluxos.forEach((fluxo, i) => {
@@ -65,11 +61,6 @@ function validarReplay(replay) {
     exigir(ehNumeroOuNulo(m.rtt) && m.rtt !== undefined, `${onde}: falta \`rtt\``);
     exigir(typeof m.conferivel === "boolean", `${onde}: falta \`conferivel\``);
     exigir(!m.conferivel || (classes.includes(m.futuro) && Number.isFinite(m.t_futuro)), `${onde}: conferível sem \`futuro\` ou \`t_futuro\``);
-    exigir(Array.isArray(m.x) && m.x.length === colunas.length && m.x.every(ehNumeroOuNulo), `${onde}: \`x\` não tem ${colunas.length} valores`);
-    exigir(Number.isInteger(m.folha) && typeof regras[m.folha] === "string", `${onde}: a folha ${m.folha} não tem regra`);
-    exigir(Number.isInteger(m.folha_ajustada) && typeof arvores.ajustada.regras[m.folha_ajustada] === "string", `${onde}: falta \`folha_ajustada\``);
-    exigir(classes.includes(m.previsto_ajustada), `${onde}: falta \`previsto_ajustada\``);
-    exigir(Array.isArray(m.x_ajuste) && m.x_ajuste.length === extras && m.x_ajuste.every(ehNumeroOuNulo), `${onde}: \`x_ajuste\` não tem ${extras} valores`);
   });
 }
 
