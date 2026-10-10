@@ -5,7 +5,8 @@ Este documento **não é o artigo**. É a matéria-prima: a história em ordem, 
 um), as figuras prontas e o raciocínio da escolha do modelo, em linguagem simples. Dá para copiar a ideia, os números
 e as figuras; o texto e o tom ficam com você.
 
-**Tudo aqui é da validação.** O conjunto de teste continua fechado (a medição única é a Tarefa 5). Quando o texto
+**Tudo aqui é da validação.** O conjunto de teste foi aberto em 10/10/2026 e medido uma única vez; os números dele estão em
+[`resultado_teste_final.md`](resultado_teste_final.md), não aqui. Quando o texto
 disser "o modelo acerta X", leia "na validação, com 13.490 medições de 79 fluxos de rede".
 
 **Estado do trabalho (10/10/2026):** a comparação e a exportação estão prontas. O modelo escolhido (Random Forest)
@@ -242,7 +243,7 @@ floresta empatou com o melhor e foi a escolha mais segura".
 
 ## 7. Ressalvas que um bom artigo deve ter
 
-1. **Tudo é validação.** Nenhum número aqui é do teste final, que ainda não foi aberto. A validação foi usada para
+1. **Tudo é validação.** Nenhum número aqui é do teste final (aberto em 10/10/2026; ver `resultado_teste_final.md`). A validação foi usada para
    escolher o tamanho dos modelos *e* para compará-los, o que deixa a comparação levemente otimista.
 2. **Poucos fluxos.** São 79 caminhos e 7 dias. Os intervalos de confiança foram calculados reamostrando fluxos,
    justamente porque medições do mesmo fluxo não são independentes.
@@ -270,7 +271,7 @@ floresta empatou com o melhor e foi a escolha mais segura".
 
 **Estrutura sugerida (blog, ~1.500 a 2.000 palavras):** gancho (a pergunta dos 12 minutos) → o normal de cada caminho →
 a surpresa do rótulo (figura 8) → os três concorrentes e a régua → resultado (figuras 1 e 3) → o que ninguém consegue
-(figura 5) → por que floresta (figura 2 e a regra) → limites → o que vem a seguir (teste final).
+(figura 5) → por que floresta (figura 2 e a regra) → limites → o teste final (feito em 10/10/2026, ver `resultado_teste_final.md`).
 
 ---
 
@@ -284,8 +285,8 @@ a surpresa do rótulo (figura 8) → os três concorrentes e a régua → result
 - **F1 macro:** nota de 0 a 1 que equilibra precisão e recall e dá o mesmo peso às três classes.
 - **Recall de FALHA:** das falhas reais, quantas o modelo achou. **Precisão de FALHA:** dos avisos de falha, quantos
   eram falha de verdade.
-- **Validação / teste:** partes do tempo separadas do treino; a validação serve para escolher, o teste (fechado até
-  agora) para medir uma única vez no fim.
+- **Validação / teste:** partes do tempo separadas do treino; a validação serve para escolher, o teste (aberto em
+  10/10/2026, medido uma única vez no fim).
 - **Intervalo de confiança (IC) de 95 %:** faixa em que a diferença verdadeira provavelmente está; se inclui o zero, não
   dá para afirmar que um modelo é melhor que o outro.
 

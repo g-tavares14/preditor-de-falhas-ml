@@ -3,8 +3,9 @@
 Data: 10/10/2026. Spec: `SPEC-comparacao-modelos.md`. Plano e tarefas: `tasks/plan-comparacao-modelos.md` e
 `tasks/todo-comparacao-modelos.md`. Versão narrativa para o artigo: [`guia_para_o_artigo.md`](guia_para_o_artigo.md).
 
-**Como foi feito.** Tudo foi medido na validação (13.490 medições, 79 fluxos). O teste continua fechado: só o seu N é
-conhecido e nenhuma de suas linhas foi lida ou medida. Cada número deste relatório vem de uma execução: os CSVs de
+**Como foi feito.** Tudo foi medido na validação (13.490 medições, 79 fluxos). O teste foi aberto depois deste relatório, em 10/10/2026, e
+medido uma única vez: o resultado está em [`resultado_teste_final.md`](resultado_teste_final.md). Este relatório continua
+sobre a validação, e não traz números do teste. Cada número deste relatório vem de uma execução: os CSVs de
 `data/modelo/comparacao/` (gravados pelo `comparar`) e o `data/modelo/exportado/LEIA-ME.md` (gravado pelo `exportar`).
 As figuras de `figuras_artigo/` leem só esses CSVs. Semente 16 em tudo.
 
@@ -35,7 +36,7 @@ As figuras de `figuras_artigo/` leem só esses CSVs. Semente 16 em tudo.
 |---|---|---|---|
 | Treino | 34.661 | 2.012 (5,8 %) | só para treinar |
 | Validação | 13.490 | 592 (4,4 %) | para escolher hiperparâmetros e comparar as famílias |
-| Teste | fechado | fechado | medição única na Tarefa 5 |
+| Teste | 20.507 | 1.250 (6,1 %) | aberto em 10/10/2026, medido uma vez (ver `resultado_teste_final.md`; fora desta tabela) |
 
 Validação: 79 fluxos. O conjunto de entrada (X) são as **10 colunas** da árvore ajustada: as 8 da Tarefa 3 mais
 `min5_z` e `media5_z` (o menor e a média do z robusto nas últimas 5 medições). Região, país, IP, rota e RTT absoluto
@@ -263,8 +264,8 @@ produzindo as mesmas saídas de antes (conferido com `diff` contra as cópias de
 
 ## 11. Pendências
 
-- **Teste.** A medição única no teste é a Tarefa 5 e depende da aprovação do modelo pelo dono. Até lá, o teste continua
-  fechado.
+- **Teste.** A medição única no teste foi feita em 10/10/2026, depois da aprovação do dono do modelo (ver
+  `resultado_teste_final.md`). Nada neste relatório foi reescrito por causa dele.
 - **Revisão com a professora.** O peso de classe e o piso da regra 3 estão registrados em `docs/relatorio_analise_arvore.md`
   (seção 8.6). A escolha da Random Forest pela regra, e não pelo F1, precisa ser apresentada como decisão de regra.
 - **Grade.** Ampliar as bordas da busca, se o dono quiser testar o efeito da borda.

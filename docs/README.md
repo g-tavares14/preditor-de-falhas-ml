@@ -39,6 +39,19 @@ Relatório técnico da comparação árvore × Random Forest × XGBoost na valid
 confiança por fluxo, a escolha pela regra da spec e o modelo exportado (`data/modelo/exportado/`, com SHA-256 e versões
 no LEIA-ME). Traz as ressalvas e as pendências; as figuras são as de `figuras_artigo/`.
 
+### [`resultado_teste_final.md`](resultado_teste_final.md)
+
+Relatório do **teste único** da Tarefa 5 (10/10/2026). O teste foi aberto uma vez: a Random Forest e a persistência
+foram medidas nas 20.507 medições do bloco de teste. Traz a matriz 3×3, precisão, recall e F1 por classe, F1 macro, o
+recall de FALHA, o IC do ganho sobre a persistência, a declaração preditor/detector pela regra da spec, os dois casos
+com fluxo e horário e a limitação do fluxo novo. A validação aparece ao lado, para comparação.
+
+### [`ficha_modelo_final.md`](ficha_modelo_final.md)
+
+Ficha do modelo final, na seção 5 do diário da Tarefa 5: problema, unidade, baseline, as 10 colunas (com o dicionário do
+grupo, que aguarda conferência da professora), modelo e parâmetros, resultado do teste, o que o modelo não faz e como
+reproduzir.
+
 ## Referências principais
 
 - [Consultas BigQuery e histórico da seleção regional](../data/docs/query.md)

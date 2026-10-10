@@ -273,6 +273,25 @@ ARQUIVO_EXEMPLO_DE_USO = EXPORTADO / "exemplo_de_uso.py"
 # Versão do formato do dicionário gravado no `.joblib`: muda só se a estrutura mudar (o leitor confere antes de usar).
 FORMATO_EXPORTADO = 1
 
+# --- Teste único da Tarefa 5 (SPEC-teste-final.md; tasks/plan-teste-final.md) ---------------------------------
+# O bloco de teste fica fechado até a abertura (`preditor teste --abrir-o-teste`, uma vez). Tudo o que ela grava vai
+# para `data/modelo/teste/` (ignorada pelo git), com estes nomes. O ensaio grava só o carimbo `ensaio_ok.json`.
+TESTE = MODELO / "teste"
+# Carimbo do ensaio: a abertura só roda com ele válido (hash do modelo e do código de medição). Sem data, para que
+# duas execuções do ensaio gravem o mesmo arquivo.
+ARQUIVO_ENSAIO_OK = TESTE / "ensaio_ok.json"
+# Trava: se existe, o teste já foi aberto (estado `em_andamento` ou `concluido`). O código nunca a apaga.
+ARQUIVO_TESTE_ABERTO = TESTE / "TESTE_ABERTO.json"
+ARQUIVO_RESULTADO_TESTE = TESTE / "resultado.json"  # modelo, SHA-256, N, data e declaração preditor/detector
+ARQUIVO_MATRIZ_TESTE = TESTE / "matriz_teste.csv"  # matriz 3×3 em contagem, modelo e persistência
+ARQUIVO_METRICAS_TESTE = TESTE / "metricas_teste.csv"  # as métricas de sempre, mais o acerto por transição
+ARQUIVO_IC_GANHO_TESTE = TESTE / "ic_ganho_teste.csv"  # IC 95 % por fluxo do ganho de F1 sobre a persistência
+ARQUIVO_CASOS_TESTE = TESTE / "casos_teste.txt"  # os dois casos concretos, com fluxo_id e horário
+# Estados da trava (`TESTE_ABERTO.json`, SPEC-teste-final.md, "Travas"): gravada em `em_andamento` ANTES de ler o bloco de
+# teste, e trocada para `concluido` só no fim. Existir em qualquer dos dois estados recusa uma nova abertura.
+ESTADO_EM_ANDAMENTO = "em_andamento"
+ESTADO_CONCLUIDO = "concluido"
+
 # --- Visualização: replay no mapa-múndi (SPEC-visualizacao.md; tasks/plan-visualizacao.md) ---------------
 # Bloco exibido (spec, "Bloco exibido: validação"): o teste fica fechado até a Tarefa 5. Trocar o bloco é decisão
 # do dono e exige rever as checagens de `visualizacao/execucao.py`, que hoje comparam com a validação.

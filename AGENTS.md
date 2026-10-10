@@ -20,7 +20,9 @@ foco) também: spec em `SPEC-arvore-na-pagina.md`. O piso da regra 3 (10/10/2026
 robustez na seção 8 de `docs/relatorio_analise_arvore.md`. A comparação com Random Forest e XGBoost (10/10/2026) também:
 `floresta.py`, `boosting.py`, `comparacao.py` e `execucao_comparacao.py` em `src/preditor/modelo/`, spec em
 `SPEC-comparacao-modelos.md`, relatório em `docs/relatorio_comparacao_modelos.md`. A regra entre famílias escolheu a
-Random Forest, e o modelo foi exportado para `data/modelo/exportado/` (`exportacao.py`). O teste único (Tarefa 5) vem depois.
+Random Forest, e o modelo foi exportado para `data/modelo/exportado/` (`exportacao.py`). O teste único (Tarefa 5) foi feito
+em 10/10/2026: o teste foi aberto **uma vez** (spec em `SPEC-teste-final.md`; resultado em `docs/resultado_teste_final.md`;
+ficha em `docs/ficha_modelo_final.md`).
 
 A pergunta, as regras de rótulo e a origem dos dados estão em `docs/` (índice em `docs/README.md`; a RFC em
 `docs/projeto_preditor_redes/RFC_Preditor_Degradacao_Rede.md` é a referência das fórmulas, §8.2 a §8.4).
@@ -68,6 +70,9 @@ uv run python -m preditor.visualizacao.coletar_sondas   # só para refazer sonda
 # run (a comparação Random Forest × XGBoost × árvore; comandos à parte, offline, sem Spark nem Java):
 uv run python -m preditor comparar  # data/gold/ + saídas de arvore e ajuste → data/modelo/comparacao/ (~4 min)
 uv run python -m preditor exportar  # escolha.json do comparar → data/modelo/exportado/ (.joblib, LEIA-ME.md, exemplo; ~10 s)
+# run (o teste único, Tarefa 5; comandos à parte, offline, sem Spark nem Java; spec em SPEC-teste-final.md):
+uv run python -m preditor teste --ensaio          # mesmo caminho do teste, nas linhas da VALIDAÇÃO; confere com o comparar e grava ensaio_ok.json
+uv run python -m preditor teste --abrir-o-teste   # o teste foi aberto UMA vez em 10/10/2026, 14:49; recusa com carimbo inválido ou com TESTE_ABERTO.json
 # run (análise do piso da regra 3; fora do pipeline, não grava no projeto; saídas em data/analise_piso_regra3/, ignorada pelo git):
 uv run python data/analise_piso_regra3/robustez_piso.py      # antes × depois: ganho com IC por fluxo, dobra interna, pares (~3 min)
 uv run python data/analise_piso_regra3/conferir_secao8.py    # confere cada número da seção 8 contra numeros_secao8.csv
@@ -113,7 +118,9 @@ exigem a camada anterior no disco: sem ela, terminam com a mensagem de qual coma
 BigQuery). `arvore` também roda offline e exige o Gold (sem ele, pede `uv run python -m preditor gold`). Sem rede,
 verifique ao menos a importação: `uv run python -c "import preditor.__main__"`. `ajuste` exige o Gold com as colunas novas e as saídas do `arvore`. `replay` exige o Gold, as saídas do
 `arvore` e do `ajuste` e o `sondas.csv`; `servir` exige o `replay.json` (cada um diz qual comando rodar antes). `comparar` exige o Gold e as saídas do `arvore` e do
-`ajuste`; `exportar` exige as saídas do `comparar`.
+`ajuste`; `exportar` exige as saídas do `comparar`. `teste --ensaio` exige o `exportar` (o `.joblib` e o LEIA-ME);
+`teste --abrir-o-teste` exige também o carimbo `ensaio_ok.json` válido (SHA-256 do modelo, da escolha e do código de
+medição) e recusa se `TESTE_ABERTO.json` existir. Sem argumento, `teste` não roda.
 
 ## Conventions
 
@@ -130,6 +137,9 @@ verifique ao menos a importação: `uv run python -c "import preditor.__main__"`
   e `Avaliacao` e a regra de escolha de `comparacao.py` (`escolher_por_regra`). `comparacao.py` é só cálculo (regra, IC,
   tabelas) e não importa `floresta` nem `boosting`. `execucao_comparacao.py` treina, verifica e grava; `exportacao.py`
   só grava o `.joblib` depois de abri-lo em processo novo. A árvore ajustada mantém a sua cópia da regra: `ajuste.py` não mudou.
+- O teste único (Tarefa 5) também fica em `modelo/`: `dados_teste.py` lê um bloco do Gold (o teste só com
+  `liberar_teste=True`; só `execucao_teste.py` o importa, conferido por `grep`), e `execucao_teste.py` orquestra o ensaio
+  e a abertura (trava, carimbo, medição, checagens, gravação). Não altera `DadosModelo`.
 - A visualização fica em `visualizacao/`, também fora do medalhão: `rotas.py`, `exportacao.py`, `execucao.py` (orquestra,
   verifica e só então grava), `servidor.py` e `coletar_sondas.py`. Ela reutiliza `modelo/` sem alterá-lo.
 - A página fica em `web/`: `app.js` orquestra; `tempo.js` e `placar.js` são lógica pura (sem DOM, rodam em Node);
@@ -187,8 +197,18 @@ verifique ao menos a importação: `uv run python -c "import preditor.__main__"`
 - **Sem balanceamento de classes na Tarefa 3** (decisão do dono, 01/10/2026): fica para a Tarefa 4, medido contra esta
   árvore. **Comparação obrigatória com a persistência** ("o futuro é igual ao `status_atual`"), com as mesmas métricas
   na mesma validação; se a árvore não ganhar, registra-se assim, sem trocar alvo nem rótulo.
-- **O teste fica fechado até a Tarefa 5:** `DadosModelo` nunca guarda linhas do teste (só o N) e `Avaliacao.medir`
-  recusa esse bloco.
+- **Teste aberto em 10/10/2026, uma vez (14:49:21 a 14:49:23):** o bloco de teste foi medido pelo `teste --abrir-o-teste`,
+  com o carimbo `ensaio_ok.json` válido e a trava `TESTE_ABERTO.json` gravada em `em_andamento` **antes** da leitura. A
+  trava está `concluido` e **não se apaga pelo código**: uma segunda abertura é recusada. Nada foi retreinado, reajustado
+  nem re-escolhido por causa do teste. Resultado e declaração em `docs/resultado_teste_final.md`; ficha em
+  `docs/ficha_modelo_final.md`.
+- **Teste: só a abertura lê o bloco.** `DadosModelo` nunca guarda linhas do teste (só o N), e `Avaliacao.medir` e
+  `quando_muda` recusam o bloco de teste sem `liberar_teste=True`. Só `execucao_teste.py` importa `dados_teste.py`.
+- **Teste: a declaração segue a regra da spec.** "Preditor de 12 minutos" só se o limite inferior do IC 95 % do ganho de
+  F1 macro sobre a persistência for maior que zero (leitura do dono, 10/10/2026; `SPEC-teste-final.md`, regra 4). No teste,
+  o limite inferior foi +0,0168: declarado preditor, com prova fraca.
+- **Teste: o que foi medido.** Só a Random Forest escolhida e a persistência (`modelo_final.joblib`, SHA-256 conferido
+  contra o LEIA-ME). A árvore ajustada e o XGBoost não foram medidos no teste.
 - **Árvore de contraste** (8 colunas + `rtt` + `destination_region`, mesmos hiperparâmetros): só mostra o que a árvore
   faz quando enxerga o RTT absoluto e a região. Não é o modelo do projeto e fica fora da entrega.
 - **Regras em português** saem do caminho real raiz → folha de `tree_` (nada escrito à mão), com limiar de 4 casas e
@@ -217,8 +237,8 @@ verifique ao menos a importação: `uv run python -c "import preditor.__main__"`
 - **Teto conhecido dos dados (rótulo anterior ao piso; não refeito com o piso, seção 8.5 do relatório):** nem um boosting de 300 árvores com 20 colunas passa de 0,77 de F1 macro, nem de 13 %
   de acerto em OK → FALHA; 68 % dos episódios de FALHA duram uma medição (regra 3). Antecipar o início de uma falha a
   12 min não é possível com estas medições (relatório, seção 7). Não insistir em hiperparâmetro.
-- **Visualização = replay, não medição ao vivo:** a página reproduz o bloco de **validação** (o teste continua fechado:
-  o exportador recusa o bloco e nenhum instante do teste entra no JSON). O navegador não calcula métrica do X nem
+- **Visualização = replay, não medição ao vivo:** a página reproduz o bloco de **validação** (o teste foi aberto em
+  10/10/2026, mas a página segue na validação: o exportador recusa o bloco de teste e nenhum instante dele entra no JSON). O navegador não calcula métrica do X nem
   rótulo: só exibe, compara e soma campos do JSON. Trocar o bloco depois da Tarefa 5 exige rever as checagens de
   `visualizacao/execucao.py`.
 - **Rota simulada, cabos reais:** o dataset é de ping, sem traceroute. Cada fluxo segue por terra até uma estação de
@@ -268,7 +288,8 @@ verifique ao menos a importação: `uv run python -c "import preditor.__main__"`
   `SPEC-visualizacao.md`, uses `tasks/plan-visualizacao.md` and `tasks/todo-visualizacao.md`; the Tarefa 4 spec,
   `SPEC-ajuste-arvore.md`, uses `tasks/plan-ajuste-arvore.md` and `tasks/todo-ajuste-arvore.md`; the piso spec, `SPEC-piso-regra3.md`, uses
   `tasks/plan-piso-regra3.md` and `tasks/todo-piso-regra3.md`; the comparison spec, `SPEC-comparacao-modelos.md`, uses
-  `tasks/plan-comparacao-modelos.md` and `tasks/todo-comparacao-modelos.md`).
+  `tasks/plan-comparacao-modelos.md` and `tasks/todo-comparacao-modelos.md`; the teste spec, `SPEC-teste-final.md`, uses
+  `tasks/plan-teste-final.md` and `tasks/todo-teste-final.md`).
 - Agents: `implementer` implements one task and stops for review; `reviewer` reviews the diff without editing.
 - Skills live in `.claude/skills/` and belong to this project: adapt them freely. `.claude/catalog.md` lists catalog skills not installed yet.
 - Do not commit or push without the owner asking.

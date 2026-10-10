@@ -2,7 +2,7 @@
 
 Data: 02/10/2026. Análise exploratória para a Tarefa 4.
 
-**Como foi feito.** Tudo foi medido só com os blocos de treino e validação; o teste continua fechado. Os testes
+**Como foi feito.** Tudo foi medido só com os blocos de treino e validação; o teste foi aberto depois, em 10/10/2026 (ver `resultado_teste_final.md`). Os testes
 rodaram em scripts temporários, fora do repositório: nenhum arquivo de `src/`, `config.py` ou `data/` foi alterado.
 As colunas novas foram calculadas em pandas a partir do `dataset_rotulado_B.parquet`, sem mexer no Gold.
 Semente 16 em tudo.
@@ -286,7 +286,7 @@ o teste antes da Tarefa 5.
 **Escopo.** A regra 3 passou a exigir `aumento_pct` ≥ 30 % além de `z_robusto` ≥ 3,5 (`SPEC-piso-regra3.md`). "Antes" é o
 rótulo do commit `055c422` (`data/gold_antes_do_piso/`, árvores em `data/modelo_antes_do_piso/`). "Depois" é o rótulo
 atual (`data/gold/`, árvores em `data/modelo/`). O X é o mesmo nos dois: a análise confere todas as colunas pela chave
-`(fluxo_id, t)`. O teste continua fechado: só o N aparece.
+`(fluxo_id, t)`. Nesta análise o teste não aparece: ele foi aberto depois, em 10/10/2026 (ver `resultado_teste_final.md`).
 
 **Fontes.** Todo número desta seção está em `data/analise_piso_regra3/numeros_secao8.csv`, com a fonte de cada um: o
 script `robustez_piso.py` (IC, dobra, pares, contagens) ou um CSV de `data/modelo*/`. O rótulo final, com o piso em

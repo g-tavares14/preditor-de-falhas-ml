@@ -17,6 +17,10 @@ execução sem argumento). O código fica em `preditor/modelo/`.
 Com `exportar`: refaz o modelo escolhido pelo `comparar` e a árvore ajustada (só com o treino), grava os `.joblib`, o
 LEIA-ME e o exemplo em `data/modelo/exportado/` depois de abri-los em processo novo (também sem Spark e fora da execução
 sem argumento).
+Com `teste`: o teste único da Tarefa 5 (SPEC-teste-final.md). `teste --ensaio` roda as medições nas linhas da VALIDAÇÃO
+(sem tocar o teste) e confere com o `comparar`, e grava o carimbo `ensaio_ok.json`. `teste --abrir-o-teste` abre o teste
+uma vez: recusa sem carimbo válido ou se a trava `TESTE_ABERTO.json` existir; grava a trava antes de ler o bloco. Sem
+`preditor/modelo/` nem Spark, e fora da execução sem argumento.
 Com `servir`: serve a página `web/` em http://127.0.0.1:8000/ (`--porta N` troca a porta), só com a biblioteca padrão.
 """
 
@@ -36,6 +40,7 @@ from preditor.gold.calculo_y.rotulo import Rotulo
 from preditor.modelo.execucao import ExecucaoArvore
 from preditor.modelo.execucao_ajuste import ExecucaoAjuste
 from preditor.modelo.execucao_comparacao import ExecucaoComparacao
+from preditor.modelo.execucao_teste import ExecucaoTeste
 from preditor.modelo.exportacao import ExportacaoModelo
 from preditor.silver.medicao import Medicoes
 from preditor.spark import build_spark
@@ -531,8 +536,8 @@ def main() -> None:
     analisador.add_argument(
         "camada",
         nargs="?",  # opcional: sem argumento roda o pipeline completo
-        choices=["bronze", "silver", "gold", "arvore", "ajuste", "replay", "comparar", "exportar", "servir"],
-        help="camada a rodar isoladamente, ou `arvore` / `ajuste` / `replay` / `comparar` / `exportar` / `servir` "
+        choices=["bronze", "silver", "gold", "arvore", "ajuste", "replay", "comparar", "exportar", "servir", "teste"],
+        help="camada a rodar isoladamente, ou `arvore` / `ajuste` / `replay` / `comparar` / `exportar` / `servir` / `teste` "
              "(sem argumento: pipeline completo)",
     )
     analisador.add_argument(
@@ -541,8 +546,20 @@ def main() -> None:
         default=config.PORTA_SERVIDOR,
         help=f"só com `servir`: porta da página (padrão {config.PORTA_SERVIDOR})",
     )
+    analisador.add_argument("--ensaio", action="store_true", help="só com `teste`: ensaio nas linhas da validação")
+    analisador.add_argument("--abrir-o-teste", action="store_true", help="só com `teste`: abre o teste uma vez")
     argumentos = analisador.parse_args()
     camada = argumentos.camada
+
+    # O teste pede exatamente um dos dois argumentos (nenhum ou os dois é erro), e eles não são ignorados por outro comando.
+    if camada == "teste":
+        if argumentos.ensaio == argumentos.abrir_o_teste:
+            analisador.error("o comando teste pede exatamente um: --ensaio ou --abrir-o-teste")
+        # Desvio antes de `build_spark`: o teste lê o Gold com pandas e o scikit-learn, como os outros comandos do modelo.
+        ExecucaoTeste().executar(ensaio=argumentos.ensaio)
+        return
+    if argumentos.ensaio or argumentos.abrir_o_teste:
+        analisador.error("--ensaio e --abrir-o-teste só valem com o comando teste")
 
     # A árvore lê o Gold com pandas: desvia antes de `build_spark`, que exige Java.
     # Por isso `arvore` também não entra na execução sem argumento.

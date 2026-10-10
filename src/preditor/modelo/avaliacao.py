@@ -83,13 +83,21 @@ class Mudanca:
 
 class Avaliacao:
     @staticmethod
-    def quando_muda(verdadeiro: pd.Series, previsto: pd.Series, atual: pd.Series, *, bloco: str) -> Mudanca:
+    def _verificar_bloco(bloco: str, liberar_teste: bool) -> None:
+        """Só treino e validação se medem. O teste só se mede com `liberar_teste=True`, que só a abertura (Tarefa 5) passa."""
+        permitido = bloco in BLOCOS_USADOS or (liberar_teste and bloco == config.BLOCO_TESTE)
+        assert permitido, f"só se mede {BLOCOS_USADOS} (o teste só com liberar_teste=True); recebi o bloco {bloco!r}"
+
+    @staticmethod
+    def quando_muda(
+        verdadeiro: pd.Series, previsto: pd.Series, atual: pd.Series, *, bloco: str, liberar_teste: bool = False
+    ) -> Mudanca:
         """Acerto do modelo quando o futuro repete o agora e quando muda, e por transição (SPEC-ajuste-arvore.md).
 
         `atual` é o `status_atual` das mesmas linhas: só separa os grupos, nunca foi coluna de X. O F1 macro sozinho
-        esconde que uma árvore pode só repetir o agora; aqui isso aparece.
+        esconde que uma árvore pode só repetir o agora; aqui isso aparece. `liberar_teste` é o mesmo de `medir`.
         """
-        assert bloco in BLOCOS_USADOS, f"só se mede {BLOCOS_USADOS}; recebi o bloco {bloco!r}"
+        Avaliacao._verificar_bloco(bloco, liberar_teste)
         assert verdadeiro.index.equals(previsto.index) and verdadeiro.index.equals(atual.index), (
             "verdadeiro, previsto e atual precisam ser as mesmas linhas"
         )
@@ -246,14 +254,16 @@ class Avaliacao:
         assert erro.linha.name == min(chaves)[1], f"{caso.titulo}: a linha escolhida não é a primeira da lista ordenada"
 
     @staticmethod
-    def medir(verdadeiro: pd.Series, previsto: pd.Series, *, bloco: str) -> Resultado:
+    def medir(verdadeiro: pd.Series, previsto: pd.Series, *, bloco: str, liberar_teste: bool = False) -> Resultado:
         """Compara a classe verdadeira com a prevista, linha a linha, e confere as próprias contas."""
         # A barreira real contra medir o teste é `DadosModelo`: ele nunca guarda linhas do teste (só o N),
         # então não há o que passar para cá. Este `bloco` é um guarda contra erro de uso: quem chama diz de
-        # onde vêm as linhas, e o teste (fechado até a Tarefa 5) é recusado pelo nome.
+        # onde vêm as linhas, e o teste (fechado até a Tarefa 5) é recusado pelo nome, a menos que `liberar_teste`
+        # seja passado. Só a abertura do teste (`execucao_teste.py`) passa; os outros comandos não, e as saídas deles
+        # não mudam.
         # `treino` é aceito de propósito: a busca de hiperparâmetros mede também o F1 macro de treino
         # (para ver o quanto a árvore decora o treino). Só a validação decide a escolha.
-        assert bloco in BLOCOS_USADOS, f"só se mede {BLOCOS_USADOS}; recebi o bloco {bloco!r}"
+        Avaliacao._verificar_bloco(bloco, liberar_teste)
 
         # Entradas conferidas antes de qualquer conta: duas séries das mesmas linhas, sem ausentes, só com as 3 classes.
         assert len(verdadeiro) > 0, "nada para medir"
