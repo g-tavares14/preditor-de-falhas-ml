@@ -5,18 +5,18 @@ Este documento **não é o artigo**. É a matéria-prima: a história em ordem, 
 um), as figuras prontas e o raciocínio da escolha do modelo, em linguagem simples. Dá para copiar a ideia, os números
 e as figuras; o texto e o tom ficam com você.
 
-**Tudo aqui é da validação.** O conjunto de teste foi aberto em 10/10/2026 e medido uma única vez; os números dele estão em
-[`resultado_teste_final.md`](resultado_teste_final.md), não aqui. Quando o texto
-disser "o modelo acerta X", leia "na validação, com 13.490 medições de 79 fluxos de rede".
+**As seções 2 a 6 são da validação; a seção 7 traz o teste.** O conjunto de teste foi aberto em 10/10/2026 e medido uma
+única vez (relatório técnico em [`resultado_teste_final.md`](resultado_teste_final.md)). Quando o texto disser "o modelo
+acerta X" fora da seção 7, leia "na validação, com 13.490 medições de 79 fluxos de rede".
 
-**Estado do trabalho (10/10/2026):** a comparação e a exportação estão prontas. O modelo escolhido (Random Forest)
+**Estado do trabalho (10/10/2026):** a comparação, a exportação e o teste final estão prontos. O modelo escolhido (Random Forest)
 está gravado em `data/modelo/exportado/modelo_final.joblib` (SHA-256 e versões no `LEIA-ME.md`, na mesma pasta). O relatório técnico
 é [`relatorio_comparacao_modelos.md`](relatorio_comparacao_modelos.md). Os números abaixo vêm da comparação; a pasta `data/`
 não vai para o git.
 
 ---
 
-## 1. A história em seis frases
+## 1. A história em sete frases
 
 1. Redes de computadores degradam: o tempo de ida e volta (RTT) de um caminho sobe, pacotes se perdem. A pergunta é se
    dá para avisar **12 minutos antes** que um caminho vai de "normal" para "em risco" ou "em falha".
@@ -31,6 +31,9 @@ não vai para o git.
    pequena (menos de 0,02 de F1) e não dá para provar que um é melhor que o outro.
 6. Escolhemos a **Random Forest** por uma regra definida antes de ver os resultados: entre os modelos praticamente
    empatados, vence o mais simples. Ela entrega praticamente o desempenho do XGBoost com menos "ajuste fino", mas **não** foi a campeã isolada em F1 (veja a seção 6, que é onde mora a honestidade do artigo).
+7. Abrimos o teste **uma vez** e o resultado manteve o ganho sobre a persistência (F1 macro 0,670 contra 0,613), mas
+   mostrou algo que a validação escondia: **a floresta encontra menos falhas reais (38 %) do que a persistência (43 %)**,
+   embora erre muito menos quando avisa (precisão 0,70 contra 0,43). Veja a seção 7.
 
 ---
 
@@ -49,7 +52,8 @@ não vai para o git.
 - **Separação no tempo:** treino (os primeiros 50 % do tempo), validação (de 50 % a 70 %) e teste (o resto). Sem sorteio
   e sem embaralhar: o modelo nunca vê o futuro. As últimas 3 medições de cada fluxo em treino e validação são
   descartadas (o futuro delas cairia no bloco seguinte).
-- **Tamanho:** 34.661 medições de treino e **13.490 de validação**. Na validação, só 592 (4,4 %) são FALHA.
+- **Tamanho:** 34.661 medições de treino, **13.490 de validação** e **20.507 de teste**. Na validação, só 592 (4,4 %) são
+  FALHA; no teste, 1.250 (6,1 %).
 
 **Uma analogia para o artigo:** é um termômetro que sabe a temperatura "normal" de cada cômodo da casa. Em vez de dizer
 "está fazendo 30 °C" (quente para um quarto, normal para a cozinha com o forno ligado), ele diz "está 8 graus acima do
@@ -241,10 +245,92 @@ floresta empatou com o melhor e foi a escolha mais segura".
 
 ---
 
-## 7. Ressalvas que um bom artigo deve ter
+## 7. O teste final: a prova que só se faz uma vez
 
-1. **Tudo é validação.** Nenhum número aqui é do teste final (aberto em 10/10/2026; ver `resultado_teste_final.md`). A validação foi usada para
-   escolher o tamanho dos modelos *e* para compará-los, o que deixa a comparação levemente otimista.
+O teste é o trecho mais recente do tempo (24/09 08:09 a 25/09 02:07), guardado fechado desde o começo. Foi aberto **uma
+única vez**, em 10/10/2026, com o modelo e as regras já definidos: nada foi ajustado depois de ver o resultado. Mediu-se
+só a Random Forest e a persistência (o XGBoost e a árvore ajustada não foram ao teste, para não gastar a única medição em
+vários modelos). Relatório técnico: [`resultado_teste_final.md`](resultado_teste_final.md).
+
+### 7.1 Validação × teste
+
+![Validação e teste](figuras_artigo/09_validacao_vs_teste.png)
+
+| Métrica | Random Forest, validação | Random Forest, teste | Persistência, teste |
+|---|---|---|---|
+| F1 macro | 0,698 | **0,670** | 0,613 |
+| F1 de OK / RISCO / FALHA | 0,917 / 0,577 / 0,599 | 0,912 / 0,603 / 0,495 | 0,886 / 0,521 / 0,432 |
+| Recall de FALHA | 0,505 | **0,382** | 0,431 |
+| Precisão de FALHA | 0,735 | 0,703 | 0,434 |
+| Acerto geral | 85,5 % | 84,0 % | 79,5 % |
+| Acerto em OK → FALHA | 17,4 % | 12,2 % | 0 % |
+
+(Precisão de FALHA da validação calculada da matriz gravada; as demais, dos CSVs. O número de medições é 13.490 na
+validação e 20.507 no teste.)
+
+**A leitura honesta, em três pontos:**
+
+1. **O ganho se manteve.** O F1 macro da floresta fica 0,057 acima da persistência (na validação eram 0,062), e o
+   intervalo de confiança de 95 % por fluxo, [+0,017; +0,066], continua acima do zero. Pela regra que fixamos antes de
+   abrir o teste, a entrega é um **preditor de 12 minutos**. Mas o limite inferior (+0,017) é pequeno: a prova é real,
+   porém fraca.
+
+   ![Ganho sobre a persistência, validação e teste](figuras_artigo/11_ganho_validacao_vs_teste.png)
+
+2. **O F1 caiu e o recall de FALHA piorou.** Era esperado que o F1 caísse (0,698 para 0,670) num trecho novo do tempo.
+   O que não era esperado: o recall de FALHA da floresta (0,382) ficou **abaixo** do da persistência (0,431). Dos 1.250
+   casos de FALHA do teste, a floresta achou 477 e a persistência, 539.
+3. **Em compensação, a floresta erra muito menos quando avisa.** Ela disse FALHA 679 vezes e acertou 477 (precisão 0,70);
+   a persistência disse FALHA 1.243 vezes e acertou 539 (precisão 0,43). Isto é: **cerca de 200 alarmes falsos contra
+   cerca de 700**. A floresta troca alguns acertos por muito menos ruído.
+
+Uma frase possível para o artigo: *"A floresta é mais cautelosa que a regra 'vai ficar igual': ela deixa passar algumas
+falhas, mas quase não grita à toa."* Sobre o porquê de o recall ter caído, **não investigamos**. O teste é outro trecho
+do tempo e tem uma fatia de FALHA um pouco maior (6,1 %, contra 4,4 % na validação e 5,8 % no treino), mas não
+verificamos se isso explica a queda.
+
+### 7.2 Onde a floresta acerta e erra no teste
+
+![Matrizes de confusão no teste](figuras_artigo/10_matriz_teste.png)
+
+- **Das 1.250 falhas reais**, a floresta classificou 477 como FALHA, 398 como RISCO e 375 como OK. Ou seja, cerca de metade
+  das falhas perdidas foi para a classe vizinha (RISCO): o modelo percebeu que algo estava errado, mas subestimou.
+- **Dos 3.539 casos de RISCO**, só 59 viraram FALHA: a floresta quase nunca "exagera" para FALHA.
+- **Quando o futuro muda** (4.198 casos), a floresta acerta 36,4 %; a persistência, por definição, 0 %. Quando o futuro
+  é igual ao agora, a floresta acerta 96,2 %.
+- **Antecipar o início de uma falha** (OK que vira FALHA, 409 casos): 12,2 %. Continua sendo o que ninguém consegue bem.
+- **Falha que continua** (FALHA que segue FALHA, 539 casos): 77,7 %. É aí que o modelo é mais útil.
+
+### 7.3 Dois casos concretos para ilustrar
+
+(Escolhidos por uma regra definida antes, sem sorteio e sem "pinçar" o exemplo mais bonito.)
+
+- **Acerto em caminho longo e estável:** fluxo `6349|202.6.102.41|154581679`, em 24/09/2026 às 20:27:49, RTT de 382 ms
+  (a mediana do caminho está acima da mediana dos 79 fluxos, ou seja, é um caminho longo). Estava OK, o modelo previu OK, e ficou OK.
+- **Erro relevante:** fluxo `6891|150.164.1.222|28095697`, em 24/09/2026 às 15:08:00. Era FALHA no momento e era FALHA 12
+  minutos depois, mas o modelo previu OK. **Atenção antes de citar:** o RTT desse fluxo é de 0,14 ms, muito baixo para um
+  destino fora da rede da sonda; vale confirmar que o destino é da mesma rede antes de usá-lo como exemplo. Além disso,
+  como a falha já estava em curso, a persistência teria acertado esse caso.
+
+### 7.4 Fluxos que o modelo não viu
+
+Não há. Os 79 fluxos com "normal" calculável aparecem nos três blocos (treino, validação e teste), e os demais não têm
+medições suficientes no período inicial. O diário da Tarefa 5 prevê esse caso: declarar a limitação, sem forçar a conta.
+Portanto **não sabemos como o modelo se comporta num fluxo totalmente novo**. É uma limitação a dizer no artigo.
+
+### 7.5 O que dizer sobre o teste, sem se enganar
+
+- O teste confirmou que o modelo **ganha da régua simples**, e isso é o que se pedia de um preditor.
+- O teste **não** diz que o modelo é bom em achar falhas: o recall de FALHA é de 38 %.
+- O teste **não** compara floresta com árvore ou XGBoost. Essa comparação é só da validação.
+- O resultado vale para 79 fluxos em 7 dias, com a nossa definição de falha (piso de 30 %).
+
+---
+
+## 8. Ressalvas que um bom artigo deve ter
+
+1. **A comparação entre os três modelos é só da validação.** A validação foi usada para escolher o tamanho dos modelos
+   *e* para compará-los, o que deixa a comparação levemente otimista. O teste (seção 7) mediu só a floresta e a persistência.
 2. **Poucos fluxos.** São 79 caminhos e 7 dias. Os intervalos de confiança foram calculados reamostrando fluxos,
    justamente porque medições do mesmo fluxo não são independentes.
 3. **FALHA é rara** (4,4 % da validação). Pequenas mudanças de contagem movem muito o F1 dela.
@@ -257,10 +343,13 @@ floresta empatou com o melhor e foi a escolha mais segura".
 7. **O baseline é fixo**: não acompanha troca de rota, e o conjunto são sondas Anchor, não a rede de um campus.
 8. **O modelo só opera em fluxo com ficha** (1.500 medições válidas no período inicial) e recebe métricas relativas, não
    RTT bruto.
+9. **No teste, a floresta encontrou menos falhas que a persistência** (recall 0,38 contra 0,43). Não dá para vender o
+   modelo como "detector de falhas mais sensível": ele é mais preciso, não mais sensível.
+10. **Fluxo novo não foi testado:** todos os fluxos estão no treino (seção 7.4).
 
 ---
 
-## 8. Ângulos e títulos possíveis
+## 9. Ângulos e títulos possíveis
 
 - *"O normal de cada caminho: como ensinamos uma máquina a desconfiar do jeito certo"* (ênfase no baseline por fluxo).
 - *"Três modelos, uma régua boba: o que acontece quando você compara ML com 'vai ficar igual'"* (ênfase na
@@ -268,14 +357,17 @@ floresta empatou com o melhor e foi a escolha mais segura".
 - *"Quando o rótulo estava errado: 88 % das nossas 'falhas' eram oscilação"* (ênfase no piso; é a melhor história
   de bastidor).
 - *"Por que não escolhemos o modelo com o maior número"* (ênfase na regra fixada antes e no empate).
+- *"A prova que só se faz uma vez: o que o teste final nos contou"* (ênfase na seção 7: o ganho se manteve, mas o
+  recall de FALHA caiu; é o ângulo mais honesto e talvez o mais interessante para o leitor).
 
 **Estrutura sugerida (blog, ~1.500 a 2.000 palavras):** gancho (a pergunta dos 12 minutos) → o normal de cada caminho →
 a surpresa do rótulo (figura 8) → os três concorrentes e a régua → resultado (figuras 1 e 3) → o que ninguém consegue
-(figura 5) → por que floresta (figura 2 e a regra) → limites → o teste final (feito em 10/10/2026, ver `resultado_teste_final.md`).
+(figura 5) → por que floresta (figura 2 e a regra) → o teste final (figuras 9 e 11: o ganho se manteve, mas o recall caiu) →
+limites e o que vem a seguir.
 
 ---
 
-## 9. Glossário em uma linha
+## 10. Glossário em uma linha
 
 - **RTT:** tempo de ida e volta de um pacote, em milissegundos.
 - **Fluxo:** um caminho específico (sonda → destino) medido ao longo do tempo.
@@ -286,13 +378,13 @@ a surpresa do rótulo (figura 8) → os três concorrentes e a régua → result
 - **Recall de FALHA:** das falhas reais, quantas o modelo achou. **Precisão de FALHA:** dos avisos de falha, quantos
   eram falha de verdade.
 - **Validação / teste:** partes do tempo separadas do treino; a validação serve para escolher, o teste (aberto em
-  10/10/2026, medido uma única vez no fim).
+  10/10/2026, medido uma única vez no fim) serve para uma medição final, sem ajustar nada depois.
 - **Intervalo de confiança (IC) de 95 %:** faixa em que a diferença verdadeira provavelmente está; se inclui o zero, não
   dá para afirmar que um modelo é melhor que o outro.
 
 ---
 
-## 10. De onde vem cada número
+## 11. De onde vem cada número
 
 | O que | Arquivo |
 |---|---|
@@ -306,6 +398,9 @@ a surpresa do rótulo (figura 8) → os três concorrentes e a régua → result
 | Piso: regras antes × depois, destino, composição do alvo | `data/analise_piso_regra3/contagem_regras.csv`, `destino_rebaixadas.csv`, `classes_no_modelo.csv`; análise completa na seção 8 de `docs/relatorio_analise_arvore.md` |
 | Tamanho dos blocos | `data/gold/contagem_classes.csv` |
 | Ganho da árvore sobre a persistência, com IC (validação, rótulo atual) | `data/analise_piso_regra3/ic_ganho.csv` |
+| Teste: matriz, métricas por classe, acerto por transição | `data/modelo/teste/matriz_teste.csv`, `metricas_teste.csv` |
+| Teste: IC do ganho, casos concretos, declaração, contagem de fluxos e classes | `data/modelo/teste/ic_ganho_teste.csv`, `casos_teste.txt`, `resultado.json` |
+| Relatório técnico do teste | `docs/resultado_teste_final.md`, `docs/ficha_modelo_final.md` |
 | Modelo exportado: SHA-256, tamanho, versões | `data/modelo/exportado/LEIA-ME.md` |
 | Relatório técnico da comparação | `docs/relatorio_comparacao_modelos.md` |
 
@@ -315,6 +410,6 @@ a surpresa do rótulo (figura 8) → os três concorrentes e a régua → result
 uv run --with matplotlib python docs/figuras_artigo/gerar_figuras.py
 ```
 
-As 8 figuras ficam em `docs/figuras_artigo/` (PNG, 160 dpi, fundo claro). Cada modelo mantém a mesma cor em todas
+As 11 figuras (01 a 08 da validação; 09 a 11 do teste) ficam em `docs/figuras_artigo/` (PNG, 160 dpi, fundo claro). Cada modelo mantém a mesma cor em todas
 (cinza = persistência, violeta = árvore da Tarefa 3, azul = árvore ajustada, laranja = Random Forest, verde =
 XGBoost).

@@ -1,7 +1,8 @@
 """Gera as figuras do guia para o artigo (docs/guia_para_o_artigo.md) a partir dos CSVs já gravados.
 
-Nada é recalculado aqui: cada número vem de um arquivo de `data/modelo/comparacao/`, `data/modelo/` ou
-`data/analise_piso_regra3/`. Só a validação aparece (o teste continua fechado).
+Nada é recalculado aqui: cada número vem de um arquivo de `data/modelo/comparacao/`, `data/modelo/teste/` ou
+`data/analise_piso_regra3/`. As figuras 01 a 08 são da validação; as figuras 09 a 11 mostram o teste (aberto uma vez,
+em 10/10/2026) ao lado da validação.
 
 Uso (a partir da raiz do projeto; o matplotlib não é dependência do projeto):
     uv run --with matplotlib python docs/figuras_artigo/gerar_figuras.py
@@ -21,6 +22,7 @@ import pandas as pd
 RAIZ = Path(__file__).resolve().parents[2]
 COMPARACAO = RAIZ / "data" / "modelo" / "comparacao"
 ANALISE_PISO = RAIZ / "data" / "analise_piso_regra3"
+TESTE = RAIZ / "data" / "modelo" / "teste"
 SAIDA = Path(__file__).resolve().parent
 
 # Paleta de dados validada (slots 1, 2, 3 e 7 da paleta de referência) e tinta de texto; a persistência fica em cinza.
@@ -141,27 +143,36 @@ def f1_por_classe() -> None:
     salvar(figura, "03_f1_por_classe.png")
 
 
-def matrizes() -> None:
-    """04: matriz de confusão (contagens) da persistência e da Random Forest, lado a lado."""
-    tabela = pd.read_csv(COMPARACAO / "matriz_comparacao.csv")
+def desenhar_matriz(eixo, matriz: np.ndarray, titulo: str) -> None:
+    """Uma matriz de confusão 3×3: a cor é a proporção da linha e o número é a contagem."""
     classes = ["OK", "RISCO", "FALHA"]
+    proporcao = matriz / matriz.sum(axis=1, keepdims=True)
+    eixo.imshow(proporcao, cmap="Blues", vmin=0, vmax=1)
+    for i in range(3):
+        for j in range(3):
+            eixo.text(j, i, f"{matriz[i, j]:,}".replace(",", "."), ha="center", va="center",
+                      color="white" if proporcao[i, j] > 0.55 else TINTA, fontsize=11)
+    eixo.set_xticks(range(3), classes)
+    eixo.set_yticks(range(3), classes)
+    eixo.set_xlabel("Previsto (daqui a ~12 min)")
+    eixo.set_ylabel("O que aconteceu")
+    eixo.set_title(titulo, fontsize=11)
+    for lado in eixo.spines.values():
+        lado.set_visible(False)
+
+
+def matriz_de(tabela: pd.DataFrame, modelo: str) -> np.ndarray:
+    classes = ["OK", "RISCO", "FALHA"]
+    sub = tabela[tabela.modelo == modelo].set_index("verdadeiro").loc[classes]
+    return sub[[f"previsto_{c}" for c in classes]].to_numpy()
+
+
+def matrizes() -> None:
+    """04: matriz de confusão (contagens) da persistência e da Random Forest na validação, lado a lado."""
+    tabela = pd.read_csv(COMPARACAO / "matriz_comparacao.csv")
     figura, eixos = plt.subplots(1, 2, figsize=(10, 4.3))
     for eixo, modelo in zip(eixos, ["persistencia", "random_forest"]):
-        sub = tabela[tabela.modelo == modelo].set_index("verdadeiro").loc[classes]
-        matriz = sub[[f"previsto_{c}" for c in classes]].to_numpy()
-        proporcao = matriz / matriz.sum(axis=1, keepdims=True)
-        eixo.imshow(proporcao, cmap="Blues", vmin=0, vmax=1)
-        for i in range(3):
-            for j in range(3):
-                eixo.text(j, i, f"{matriz[i, j]:,}".replace(",", "."), ha="center", va="center",
-                          color="white" if proporcao[i, j] > 0.55 else TINTA, fontsize=11)
-        eixo.set_xticks(range(3), classes)
-        eixo.set_yticks(range(3), classes)
-        eixo.set_xlabel("Previsto (daqui a ~12 min)")
-        eixo.set_ylabel("O que aconteceu")
-        eixo.set_title(NOMES_LINHA[modelo], fontsize=11)
-        for lado in eixo.spines.values():
-            lado.set_visible(False)
+        desenhar_matriz(eixo, matriz_de(tabela, modelo), NOMES_LINHA[modelo])
     figura.suptitle("Matriz de confusão na validação: a cor é a proporção da linha, o número é a contagem",
                     x=0.02, ha="left", fontsize=12)
     figura.tight_layout()
@@ -270,6 +281,85 @@ def piso() -> None:
     salvar(figura, "08_efeito_do_piso_no_rotulo.png")
 
 
+def precisao_falha(matriz: np.ndarray) -> float:
+    return matriz[2, 2] / matriz[:, 2].sum()
+
+
+def validacao_vs_teste() -> None:
+    """09: as métricas da Random Forest e da persistência na validação e no teste."""
+    comparacao = pd.read_csv(COMPARACAO / "comparacao_modelos.csv").set_index("modelo")
+    matriz_val = pd.read_csv(COMPARACAO / "matriz_comparacao.csv")
+    teste = pd.read_csv(TESTE / "metricas_teste.csv")
+
+    def do_teste(modelo: str, metrica: str, classe: str) -> float:
+        return float(teste[(teste.modelo == modelo) & (teste.metrica == metrica) & (teste.classe == classe)].valor.iloc[0])
+
+    nomes = ["F1 macro", "F1 de FALHA", "Recall de FALHA", "Precisão de FALHA"]
+    modelos = ["persistencia", "random_forest"]
+    valores = {"Validação (13.490 medições)": {}, "Teste (20.507 medições)": {}}
+    for modelo in modelos:
+        valores["Validação (13.490 medições)"][modelo] = [
+            comparacao.loc[modelo, "f1_macro"], comparacao.loc[modelo, "f1_FALHA"],
+            comparacao.loc[modelo, "recall_FALHA"], precisao_falha(matriz_de(matriz_val, modelo)),
+        ]
+        valores["Teste (20.507 medições)"][modelo] = [
+            do_teste(modelo, "f1_macro", "todas"), do_teste(modelo, "f1", "FALHA"),
+            do_teste(modelo, "recall", "FALHA"), do_teste(modelo, "precisao", "FALHA"),
+        ]
+    figura, eixos = plt.subplots(1, 2, figsize=(11, 4.4), sharey=True)
+    for eixo, (titulo, por_modelo) in zip(eixos, valores.items()):
+        for i, modelo in enumerate(modelos):
+            posicoes = np.arange(4) + (i - 0.5) * 0.36
+            eixo.bar(posicoes, por_modelo[modelo], width=0.34, color=CORES[modelo], label=NOMES_LINHA[modelo])
+            for x, v in zip(posicoes, por_modelo[modelo]):
+                eixo.text(x, v + 0.012, f"{v:.2f}".replace(".", ","), ha="center", fontsize=8.5)
+        eixo.set_xticks(range(4), [n.replace(" de ", "\nde ") for n in nomes], fontsize=9)
+        eixo.set_title(titulo, loc="left", fontsize=11)
+        eixo.set_ylim(0, 1.0)
+        eixo.yaxis.grid(True, color=GRADE)
+        eixo.set_axisbelow(True)
+    eixos[0].legend(loc="upper left", frameon=False, fontsize=9, ncols=2)
+    figura.suptitle("A floresta acerta mais quando avisa FALHA, mas no teste encontra menos falhas que a persistência",
+                    x=0.02, ha="left", fontsize=12)
+    figura.tight_layout()
+    salvar(figura, "09_validacao_vs_teste.png")
+
+
+def matriz_teste() -> None:
+    """10: matriz de confusão da persistência e da Random Forest no teste."""
+    tabela = pd.read_csv(TESTE / "matriz_teste.csv")
+    figura, eixos = plt.subplots(1, 2, figsize=(10, 4.3))
+    for eixo, modelo in zip(eixos, ["persistencia", "random_forest"]):
+        desenhar_matriz(eixo, matriz_de(tabela, modelo), NOMES_LINHA[modelo])
+    figura.suptitle("Matriz de confusão no teste: a cor é a proporção da linha, o número é a contagem",
+                    x=0.02, ha="left", fontsize=12)
+    figura.tight_layout()
+    salvar(figura, "10_matriz_teste.png")
+
+
+def ganho_validacao_vs_teste() -> None:
+    """11: o ganho de F1 macro da Random Forest sobre a persistência, com IC 95 % por fluxo, na validação e no teste."""
+    validacao = pd.read_csv(COMPARACAO / "ic_pareado.csv")
+    validacao = validacao[(validacao.modelo == "random_forest") & (validacao.referencia == "persistencia")].iloc[0]
+    teste = pd.read_csv(TESTE / "ic_ganho_teste.csv").iloc[0]
+    figura, eixo = plt.subplots(figsize=(8, 2.6))
+    for posicao, (nome, linha) in enumerate([("Validação", validacao), ("Teste", teste)]):
+        eixo.plot([linha.ic_inferior, linha.ic_superior], [posicao, posicao], color=LARANJA, lw=2.5, solid_capstyle="round")
+        eixo.plot(linha.diferenca_f1, posicao, "o", color=LARANJA, markersize=9, markeredgecolor="#fcfcfb", markeredgewidth=2)
+        eixo.text(linha.ic_superior + 0.003, posicao, f"{linha.diferenca_f1:+.3f}".replace(".", ","), va="center")
+        eixo.text(linha.diferenca_f1, posicao + 0.22, f"IC 95 %: [{linha.ic_inferior:+.3f}; {linha.ic_superior:+.3f}]".replace(".", ","),
+                  ha="center", fontsize=8.5, color=TINTA_2)
+    eixo.axvline(0, color=TINTA_2, lw=1)
+    eixo.set_yticks([0, 1], ["Validação", "Teste (aberto uma vez)"])
+    eixo.set_ylim(1.5, -0.5)  # a validação em cima, o teste embaixo
+    eixo.set_xlim(-0.01, 0.1)
+    eixo.xaxis.grid(True, color=GRADE)
+    eixo.set_axisbelow(True)
+    eixo.set_xlabel("Ganho de F1 macro da floresta sobre a persistência (ponto = estimativa, linha = IC 95 % por fluxo)")
+    eixo.set_title("O ganho se manteve no teste, mas o intervalo chega mais perto do zero", loc="left", fontsize=12)
+    salvar(figura, "11_ganho_validacao_vs_teste.png")
+
+
 if __name__ == "__main__":
     f1_macro()
     intervalos()
@@ -279,3 +369,6 @@ if __name__ == "__main__":
     busca()
     importancias()
     piso()
+    validacao_vs_teste()
+    matriz_teste()
+    ganho_validacao_vs_teste()
