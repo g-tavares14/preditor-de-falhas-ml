@@ -27,6 +27,18 @@ Contém o passo a passo enviado pela professora para o projeto acadêmico, inclu
 Análise da árvore da Tarefa 3 (como está, vieses, testes de colunas, pesos e hiperparâmetros), a combinação escolhida para a Tarefa 4, o resultado real depois da implementação e o diagnóstico do teto dos dados. Desde 10/10/2026, a seção 8 mede o piso da
 regra 3 (antes × depois, com IC por fluxo); as seções 1 a 7 valem para o rótulo anterior ao piso.
 
+### [`guia_para_o_artigo.md`](guia_para_o_artigo.md)
+
+Material para escrever o artigo do projeto: a história em ordem, os números da comparação árvore × Random Forest ×
+XGBoost (validação) com a fonte de cada um, o raciocínio da escolha do modelo e as ressalvas. As figuras estão em
+[`figuras_artigo/`](figuras_artigo/) e o script que as gera, `gerar_figuras.py`, lê só os CSVs já gravados.
+
+### [`relatorio_comparacao_modelos.md`](relatorio_comparacao_modelos.md)
+
+Relatório técnico da comparação árvore × Random Forest × XGBoost na validação (10/10/2026): resultados, intervalos de
+confiança por fluxo, a escolha pela regra da spec e o modelo exportado (`data/modelo/exportado/`, com SHA-256 e versões
+no LEIA-ME). Traz as ressalvas e as pendências; as figuras são as de `figuras_artigo/`.
+
 ## Referências principais
 
 - [Consultas BigQuery e histórico da seleção regional](../data/docs/query.md)

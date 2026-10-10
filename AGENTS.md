@@ -17,7 +17,10 @@ também: exportador em `src/preditor/visualizacao/`, página em `web/`, spec em 
 análise em `docs/relatorio_analise_arvore.md`. O painel da árvore na página (as duas árvores, com o caminho do fluxo em
 foco) também: spec em `SPEC-arvore-na-pagina.md`. O piso da regra 3 (10/10/2026) também: a linha 3 do Y exige
 `aumento_pct` ≥ 30 % além de `z_robusto` ≥ 3,5; spec em `SPEC-piso-regra3.md`, com o antes × depois e a análise de
-robustez na seção 8 de `docs/relatorio_analise_arvore.md`. O teste único (Tarefa 5) vem depois.
+robustez na seção 8 de `docs/relatorio_analise_arvore.md`. A comparação com Random Forest e XGBoost (10/10/2026) também:
+`floresta.py`, `boosting.py`, `comparacao.py` e `execucao_comparacao.py` em `src/preditor/modelo/`, spec em
+`SPEC-comparacao-modelos.md`, relatório em `docs/relatorio_comparacao_modelos.md`. A regra entre famílias escolheu a
+Random Forest, e o modelo foi exportado para `data/modelo/exportado/` (`exportacao.py`). O teste único (Tarefa 5) vem depois.
 
 A pergunta, as regras de rótulo e a origem dos dados estão em `docs/` (índice em `docs/README.md`; a RFC em
 `docs/projeto_preditor_redes/RFC_Preditor_Degradacao_Rede.md` é a referência das fórmulas, §8.2 a §8.4).
@@ -29,6 +32,8 @@ A pergunta, as regras de rótulo e a origem dos dados estão em `docs/` (índice
   O Spark fica só no pipeline de dados (Bronze → Gold).
 - A árvore (`src/preditor/modelo/`) usa scikit-learn (`DecisionTreeClassifier`), lendo o Gold com pandas + pyarrow:
   `scikit-learn`, `pandas` e `pyarrow` são dependências do pacote. Sem Spark e sem Java.
+- A comparação usa também `xgboost` (dependência do pacote; no macOS, `brew install libomp` antes) e `joblib` (vem com o
+  scikit-learn). `uv add xgboost` foi rodado pela sessão principal em 10/10/2026.
 - Java 17 (exigido pelo Spark) e `gcloud auth application-default login` para as credenciais do BigQuery (só o Bronze).
 - Fonte: tabela `atlas-ripe-509700.atlasRipe.atlas`, região EU.
 - Notebooks (grupo `notebook`: `requests`, `pandas`, `ipykernel`) usam a API do RIPE Atlas diretamente; `pandas`
@@ -60,6 +65,9 @@ uv run python -m preditor ajuste   # data/gold/ + saídas do `arvore` → data/m
 uv run python -m preditor replay   # data/gold/ → web/dados/replay.json (refaz a árvore oficial)
 uv run python -m preditor servir   # serve web/ em http://127.0.0.1:8000/ (--porta N); não use `python -m http.server`
 uv run python -m preditor.visualizacao.coletar_sondas   # só para refazer sondas.csv (rede: API pública do RIPE Atlas)
+# run (a comparação Random Forest × XGBoost × árvore; comandos à parte, offline, sem Spark nem Java):
+uv run python -m preditor comparar  # data/gold/ + saídas de arvore e ajuste → data/modelo/comparacao/ (~4 min)
+uv run python -m preditor exportar  # escolha.json do comparar → data/modelo/exportado/ (.joblib, LEIA-ME.md, exemplo; ~10 s)
 # run (análise do piso da regra 3; fora do pipeline, não grava no projeto; saídas em data/analise_piso_regra3/, ignorada pelo git):
 uv run python data/analise_piso_regra3/robustez_piso.py      # antes × depois: ganho com IC por fluxo, dobra interna, pares (~3 min)
 uv run python data/analise_piso_regra3/conferir_secao8.py    # confere cada número da seção 8 contra numeros_secao8.csv
@@ -92,14 +100,20 @@ JAVA_HOME=/opt/homebrew/opt/openjdk@17 uv run python data/analise_piso_regra3/co
 #        as duas árvores do painel = `tree_` (todos os nós) e percorrer os nós com o `x` do JSON chega na folha gravada, ajustada
 #        refeita = `arvore_ajustada.json` e matriz/F1 dela = CSVs do ajuste, cada regra seleciona exatamente as linhas da folha, toda
 #        rota começa na sonda, termina no destino e só usa cabo do catálogo, mesma semente = mesmo JSON. A página se
-#        confere abrindo: ao fim do replay o placar e a matriz são iguais aos CSVs)
+#        confere abrindo: ao fim do replay o placar e a matriz são iguais aos CSVs;
+#        Comparação: as 5 linhas nas mesmas linhas da validação, `fit` só no treino, regra entre famílias refeita a partir
+#        do CSV, IC pareado com 2.000 reamostras (mesma semente = mesmo IC), `Avaliacao` recusa o teste, árvores refeitas =
+#        JSON e CSVs do `arvore` e do `ajuste`, duas execuções = mesmos arquivos (exceto `tempos.csv`);
+#        Exportação: o `.joblib` reaberto em processo novo reproduz as previsões da validação, aceita NaN, só devolve
+#        OK/RISCO/FALHA, não cita o pacote `preditor`, o exemplo roda de outra pasta, e o LEIA-ME traz o SHA-256 do arquivo)
 ```
 
 Só `bronze` (e o pipeline completo) precisa de rede e credenciais do BigQuery. `silver` e `gold` rodam offline, mas
 exigem a camada anterior no disco: sem ela, terminam com a mensagem de qual comando rodar antes (nunca recaem no
 BigQuery). `arvore` também roda offline e exige o Gold (sem ele, pede `uv run python -m preditor gold`). Sem rede,
 verifique ao menos a importação: `uv run python -c "import preditor.__main__"`. `ajuste` exige o Gold com as colunas novas e as saídas do `arvore`. `replay` exige o Gold, as saídas do
-`arvore` e do `ajuste` e o `sondas.csv`; `servir` exige o `replay.json` (cada um diz qual comando rodar antes).
+`arvore` e do `ajuste` e o `sondas.csv`; `servir` exige o `replay.json` (cada um diz qual comando rodar antes). `comparar` exige o Gold e as saídas do `arvore` e do
+`ajuste`; `exportar` exige as saídas do `comparar`.
 
 ## Conventions
 
@@ -112,6 +126,10 @@ verifique ao menos a importação: `uv run python -c "import preditor.__main__"`
   `ArvoreBase`, `Regras` e `Avaliacao`; qualquer mudança nesses três precisa manter o `arvore` e o `replay` com
   saídas idênticas com o mesmo Gold (os parâmetros novos têm como padrão o comportamento da Tarefa 3). Com outro Gold
   as saídas mudam: o código não mudou, o dado sim.
+- A comparação fica em `modelo/`, ao lado: `floresta.py` (Random Forest) e `boosting.py` (XGBoost) reutilizam `DadosModelo`
+  e `Avaliacao` e a regra de escolha de `comparacao.py` (`escolher_por_regra`). `comparacao.py` é só cálculo (regra, IC,
+  tabelas) e não importa `floresta` nem `boosting`. `execucao_comparacao.py` treina, verifica e grava; `exportacao.py`
+  só grava o `.joblib` depois de abri-lo em processo novo. A árvore ajustada mantém a sua cópia da regra: `ajuste.py` não mudou.
 - A visualização fica em `visualizacao/`, também fora do medalhão: `rotas.py`, `exportacao.py`, `execucao.py` (orquestra,
   verifica e só então grava), `servidor.py` e `coletar_sondas.py`. Ela reutiliza `modelo/` sem alterá-lo.
 - A página fica em `web/`: `app.js` orquestra; `tempo.js` e `placar.js` são lógica pura (sem DOM, rodam em Node);
@@ -222,6 +240,17 @@ verifique ao menos a importação: `uv run python -c "import preditor.__main__"`
   ajustada, 40 (`SPEC-arvore-na-pagina.md`).
 - **`servir` em vez de `python -m http.server`:** o servidor padrão (fila de 5 conexões, HTTP/1.0) perdia arquivos com
   vários navegadores ao mesmo tempo; o `servir` usa fila de 128 e HTTP/1.1, só em `127.0.0.1`.
+- **Comparação das famílias (10/10/2026, `SPEC-comparacao-modelos.md`):** Random Forest (32 combinações) e XGBoost (16)
+  usam o mesmo X da árvore ajustada (10 colunas), o peso de classe da ajustada adotada e a semente 16; treino só no treino,
+  sem `early_stopping`. A escolha entre famílias é a regra da Tarefa 4 (a até 0,005 do maior F1 macro da validação; vence
+  a mais simples: árvore, depois Random Forest, depois XGBoost). **Escolhida: Random Forest** (F1 macro 0,6977; o XGBoost
+  tem 0,7006, dentro da tolerância, e o IC da diferença cruza o zero). A regra decide, não o maior F1. O IC pareado por fluxo
+  (2.000 reamostras, semente 16) é gravado e não decide.
+- **Tempos fora dos CSVs da comparação:** `tempos.csv` é gravado à parte e fica fora da checagem de arquivos iguais; os
+  demais arquivos de `data/modelo/comparacao/` saem iguais em duas execuções.
+- **Exportação (`exportar`):** o `.joblib` é um pickle, e abrir um pickle executa código. O LEIA-ME traz o SHA-256 e o
+  aviso. O arquivo não cita o pacote `preditor`, e a reabertura em processo novo reproduz as previsões da validação. Se
+  uma checagem falhar, nada vai para `data/modelo/exportado/`, que o git ignora.
 - O baseline usa só o Período A; nada do Período A pode entrar nas features do Período B.
 - Os notebooks `01`–`03` são entregas da primeira fase no formato pedido pela professora: fazem GET/POST na API do
   RIPE Atlas e não usam o BigQuery nem `src/preditor`. Não os migre para o pipeline.
@@ -238,7 +267,8 @@ verifique ao menos a importação: `uv run python -c "import preditor.__main__"`
 - Lifecycle: `/spec` → `/plan` → `/build` → `/verify` → `/review`. Specs live in the repo; the plan in `tasks/plan.md`, tasks in `tasks/todo.md` (the Y spec uses `tasks/plan-calculo-y.md` and `tasks/todo-calculo-y.md`; the tree spec, `SPEC-arvore.md`, uses `tasks/plan-arvore.md` and `tasks/todo-arvore.md`; the visualization spec,
   `SPEC-visualizacao.md`, uses `tasks/plan-visualizacao.md` and `tasks/todo-visualizacao.md`; the Tarefa 4 spec,
   `SPEC-ajuste-arvore.md`, uses `tasks/plan-ajuste-arvore.md` and `tasks/todo-ajuste-arvore.md`; the piso spec, `SPEC-piso-regra3.md`, uses
-  `tasks/plan-piso-regra3.md` and `tasks/todo-piso-regra3.md`).
+  `tasks/plan-piso-regra3.md` and `tasks/todo-piso-regra3.md`; the comparison spec, `SPEC-comparacao-modelos.md`, uses
+  `tasks/plan-comparacao-modelos.md` and `tasks/todo-comparacao-modelos.md`).
 - Agents: `implementer` implements one task and stops for review; `reviewer` reviews the diff without editing.
 - Skills live in `.claude/skills/` and belong to this project: adapt them freely. `.claude/catalog.md` lists catalog skills not installed yet.
 - Do not commit or push without the owner asking.

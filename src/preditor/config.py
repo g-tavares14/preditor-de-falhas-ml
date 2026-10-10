@@ -217,6 +217,62 @@ ARQUIVO_MATRIZ_AJUSTE = MODELO / "matriz_ajuste.csv"  # matriz 3×3 de persistê
 ARQUIVO_METRICAS_AJUSTE = MODELO / "metricas_ajuste.csv"  # as métricas de sempre + futuro muda, transições e regiões
 ARQUIVO_COMPARACAO = MODELO / "comparacao_t3_t4.csv"  # a tabela do diário: F1 macro, recall de FALHA e de RISCO
 
+# --- Comparação de modelos: Random Forest e XGBoost (SPEC-comparacao-modelos.md; tasks/plan-comparacao-modelos.md) ---
+# As duas famílias usam o mesmo X da árvore ajustada (10 colunas), o mesmo peso de classe (o da ajustada adotada, em
+# `floresta.py` e `boosting.py`) e a mesma semente. As grades abaixo são PROPOSTAS do plano (10/10/2026): o tempo de
+# treino confirma: M2 (10/10/2026) 32 florestas em ~3 a 3,5 min; M3, 16 modelos XGBoost em ~22 s. Nenhuma grade passou
+# de ~10 min, então nenhuma foi reduzida (parada obrigatória do todo: tasks/todo-comparacao-modelos.md).
+# Saídas em `data/modelo/comparacao/` (ignorada pelo git): a escrita é do comando `comparar`.
+COMPARACAO = MODELO / "comparacao"
+MODELO_FLORESTA = "random_forest"  # nome na coluna `modelo` dos CSVs da comparação
+# Random Forest: 2 × 4 × 4 = 32 florestas, todas treinadas só no treino e medidas na validação.
+GRADE_ARVORES_FLORESTA = [100, 300]  # `n_estimators` (nº de árvores): proposta do plano
+GRADE_PROFUNDIDADE_FLORESTA = [4, 6, 8, 12]  # `max_depth`: proposta do plano, um pouco mais ampla que a da árvore (2 a 10)
+GRADE_FOLHA_MINIMA_FLORESTA = [20, 50, 100, 200]  # `min_samples_leaf`: proposta do plano; folha menor que a árvore (50 a 500)
+# `sqrt` = raiz de 10 colunas, ~3 por divisão: o padrão do scikit-learn para classificação, pedido no plano.
+MAX_FEATURES_FLORESTA = "sqrt"
+ARQUIVO_BUSCA_FLORESTA = COMPARACAO / "busca_floresta.csv"  # as 32 florestas, com a escolhida marcada (escrito pelo `comparar`)
+MODELO_BOOSTING = "xgboost"  # nome na coluna `modelo` dos CSVs da comparação
+# XGBoost: 2 × 2 × 4 = 16 modelos. Cada rodada de boosting são 3 árvores (uma por classe), então 300 rodadas = 900 árvores.
+GRADE_ARVORES_BOOSTING = [100, 300]  # `n_estimators` (rodadas): proposta do plano
+GRADE_TAXA_APRENDIZADO_BOOSTING = [0.05, 0.1]  # `learning_rate` (passo de cada rodada): proposta do plano
+GRADE_PROFUNDIDADE_BOOSTING = [2, 3, 4, 6]  # `max_depth`: proposta do plano
+# `hist` = divisões por histograma, o método rápido e padrão do XGBoost moderno; pedido no plano.
+TREE_METHOD_BOOSTING = "hist"
+# Sem parada antecipada (`early_stopping_rounds`): ela olharia a validação para decidir o treino (SPEC-comparacao-modelos.md).
+ARQUIVO_BUSCA_BOOSTING = COMPARACAO / "busca_boosting.csv"  # as 16 combinações, com a escolhida marcada (escrito pelo `comparar`)
+
+# Regra de escolha ENTRE famílias (SPEC-comparacao-modelos.md, "Regra de escolha", item 2): a mesma regra da Tarefa 4
+# (a até TOLERANCIA_ESCOLHA do maior F1 macro da validação), e entre as que sobram vence a mais simples. A ordem
+# abaixo é a de simplicidade da spec. A persistência e a árvore da Tarefa 3 são só referência: não concorrem.
+ORDEM_FAMILIAS = [MODELO_AJUSTADA, MODELO_FLORESTA, MODELO_BOOSTING]
+# IC pareado por fluxo (SPEC-comparacao-modelos.md, "Estrutura" e "Regra de escolha", item 2): 2.000 reamostras e
+# nível de 95 %, pedidos na spec; a semente é a SEMENTE do projeto. O IC é gravado e dito no relatório, mas não decide.
+IC_REAMOSTRAS = 2000
+IC_NIVEL = 0.95
+# Tempo de previsão: a mediana de 3 medições na validação (decisão desta execução: uma medição só varia com a carga
+# da máquina). Só vai para `tempos.csv`, que a checagem de "mesma execução = mesmos arquivos" não compara.
+REPETICOES_PREVISAO = 3
+# Saídas da comparação em `data/modelo/comparacao/` (todas, menos `tempos.csv`, iguais em duas execuções).
+ARQUIVO_COMPARACAO_MODELOS = COMPARACAO / "comparacao_modelos.csv"  # as 5 linhas: métricas, transições, tamanho
+ARQUIVO_MATRIZ_COMPARACAO = COMPARACAO / "matriz_comparacao.csv"  # matriz 3×3 das 5 linhas
+ARQUIVO_IC_PAREADO = COMPARACAO / "ic_pareado.csv"  # IC 95 % da diferença de F1 macro por fluxo (não decide)
+ARQUIVO_ESCOLHA = COMPARACAO / "escolha.json"  # o modelo escolhido, os parâmetros e o motivo
+ARQUIVO_IMPORTANCIAS = COMPARACAO / "importancias.csv"  # importância de cada coluna do X, por modelo (soma 1)
+ARQUIVO_TEMPOS = COMPARACAO / "tempos.csv"  # tempos de treino e previsão, impressos e gravados à parte
+
+# --- Exportação do modelo escolhido (SPEC-comparacao-modelos.md, "Exportação"; tasks/todo-comparacao-modelos.md, M6) ---
+# `exportar` lê `escolha.json` (gravado pelo `comparar`), refaz o modelo escolhido e a árvore ajustada só com o treino, e
+# grava em `data/modelo/exportado/` (ignorada pelo git). O `.joblib` é um pickle: abrir executa código, por isso o LEIA-ME
+# traz o SHA-256 e o aviso. Nada é gravado aqui se alguma checagem falhar.
+EXPORTADO = MODELO / "exportado"
+ARQUIVO_MODELO_FINAL = EXPORTADO / "modelo_final.joblib"  # o modelo que a regra escolheu
+ARQUIVO_ARVORE_EXPORTADA = EXPORTADO / "arvore_ajustada.joblib"  # a árvore ajustada, em arquivo à parte (legível em regras)
+ARQUIVO_LEIA_ME = EXPORTADO / "LEIA-ME.md"
+ARQUIVO_EXEMPLO_DE_USO = EXPORTADO / "exemplo_de_uso.py"
+# Versão do formato do dicionário gravado no `.joblib`: muda só se a estrutura mudar (o leitor confere antes de usar).
+FORMATO_EXPORTADO = 1
+
 # --- Visualização: replay no mapa-múndi (SPEC-visualizacao.md; tasks/plan-visualizacao.md) ---------------
 # Bloco exibido (spec, "Bloco exibido: validação"): o teste fica fechado até a Tarefa 5. Trocar o bloco é decisão
 # do dono e exige rever as checagens de `visualizacao/execucao.py`, que hoje comparam com a validação.

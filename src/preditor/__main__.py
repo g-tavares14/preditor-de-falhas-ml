@@ -11,6 +11,12 @@ Com `ajuste`: a árvore ajustada da Tarefa 4, medida contra a da Tarefa 3; lê o
 em `data/modelo/` (também sem rede, sem Spark e sem Java, e fora da execução sem argumento).
 Com `replay`: refaz a árvore oficial e grava `web/dados/replay.json` (o replay da validação no mapa), lendo o Gold
 do disco; também sem rede, sem Spark e sem Java, e fora da execução sem argumento. O código fica em `preditor/visualizacao/`.
+Com `comparar`: Random Forest e XGBoost contra a árvore ajustada e a persistência, nas mesmas linhas da validação; lê o
+Gold e as saídas do `arvore` e do `ajuste`, grava em `data/modelo/comparacao/` (sem rede, sem Spark e sem Java, e fora da
+execução sem argumento). O código fica em `preditor/modelo/`.
+Com `exportar`: refaz o modelo escolhido pelo `comparar` e a árvore ajustada (só com o treino), grava os `.joblib`, o
+LEIA-ME e o exemplo em `data/modelo/exportado/` depois de abri-los em processo novo (também sem Spark e fora da execução
+sem argumento).
 Com `servir`: serve a página `web/` em http://127.0.0.1:8000/ (`--porta N` troca a porta), só com a biblioteca padrão.
 """
 
@@ -29,6 +35,8 @@ from preditor.gold.calculo_y.recorte import BLOCOS, Recorte
 from preditor.gold.calculo_y.rotulo import Rotulo
 from preditor.modelo.execucao import ExecucaoArvore
 from preditor.modelo.execucao_ajuste import ExecucaoAjuste
+from preditor.modelo.execucao_comparacao import ExecucaoComparacao
+from preditor.modelo.exportacao import ExportacaoModelo
 from preditor.silver.medicao import Medicoes
 from preditor.spark import build_spark
 from preditor.visualizacao.execucao import ExecucaoReplay
@@ -523,8 +531,9 @@ def main() -> None:
     analisador.add_argument(
         "camada",
         nargs="?",  # opcional: sem argumento roda o pipeline completo
-        choices=["bronze", "silver", "gold", "arvore", "ajuste", "replay", "servir"],
-        help="camada a rodar isoladamente, ou `arvore` / `ajuste` / `replay` / `servir` (sem argumento: pipeline completo)",
+        choices=["bronze", "silver", "gold", "arvore", "ajuste", "replay", "comparar", "exportar", "servir"],
+        help="camada a rodar isoladamente, ou `arvore` / `ajuste` / `replay` / `comparar` / `exportar` / `servir` "
+             "(sem argumento: pipeline completo)",
     )
     analisador.add_argument(
         "--porta",
@@ -547,6 +556,14 @@ def main() -> None:
     # O replay também só lê o Gold com pandas e refaz a árvore: mesmo desvio, mesma razão.
     if camada == "replay":
         ExecucaoReplay().executar()
+        return
+    # A comparação (Random Forest e XGBoost) também é pandas + scikit-learn + XGBoost: mesmo desvio, sem Spark.
+    if camada == "comparar":
+        ExecucaoComparacao().executar()
+        return
+    # A exportação só lê o Gold e os CSVs com pandas, refaz o modelo escolhido e abre os arquivos em processo novo.
+    if camada == "exportar":
+        ExportacaoModelo().executar()
         return
     # O servidor da página só usa a biblioteca padrão: também fica antes de `build_spark`.
     if camada == "servir":
