@@ -1,15 +1,15 @@
-// painel.js: placar, matriz de confusão e feed das últimas conferências (SPEC-visualizacao.md, "Comportamento da página", item 6).
+// painel.js: placar e feed das últimas previsões conferidas (SPEC-visualizacao.md, "Comportamento da página", item 6).
 //
 // Só escreve no DOM com textContent. As contas do placar vêm de placar.js (que só compara e soma campos do JSON); aqui se
-// montam as tabelas e as linhas uma vez e depois só se trocam os números.
+// montam as linhas do feed uma vez e depois só se trocam os números.
 
-import { TEXTO_ACERTOU, TEXTO_ERROU, criarCelula, criarChip, formatarInstante } from "./comum.js";
+import { NOME_DA_CLASSE, TEXTO_ACERTOU, TEXTO_ERROU, criarCelula, criarChip } from "./comum.js";
 import { acertou, ultimasConferencias } from "./placar.js";
 
-// Linhas do feed das últimas conferências (decisão visual: cabe no painel em 1280x720 junto com o resto).
-const LINHAS_DO_FEED = 6;
+// Linhas do feed das últimas previsões conferidas (decisão visual: cabe no painel em 1280x720 junto com o resto).
+const LINHAS_DO_FEED = 3;
 
-// --- Placar, matriz e feed -------------------------------------------------------------------------------
+// --- Placar e feed -------------------------------------------------------------------------------
 
 // "82,9 %" (uma casa, vírgula); sem conferidas ainda, um traço. É só a razão entre dois contadores do placar.
 function formatarPorcentagem(acertos, conferidas) {
@@ -20,28 +20,7 @@ function formatarPorcentagem(acertos, conferidas) {
   return `${pct.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} %`;
 }
 
-// Monta a matriz 3x3 (linha = verdadeiro, coluna = previsto) na ordem de `classes`; devolve as células de números.
-function montarMatriz(tabela, classes) {
-  const cabeca = tabela.createTHead().insertRow();
-  cabeca.append(criarCelula("th", "aconteceu ↓ previsto →", "canto"));
-  for (const classe of classes) {
-    cabeca.append(criarCelula("th", classe));
-    cabeca.lastChild.scope = "col";
-  }
-  const corpo = tabela.createTBody();
-  return classes.map((verdadeira, i) => {
-    const linha = corpo.insertRow();
-    linha.append(criarCelula("th", verdadeira));
-    linha.lastChild.scope = "row";
-    return classes.map((_, j) => {
-      const celula = criarCelula("td", "0", i === j ? "acerto" : "");
-      linha.append(celula);
-      return celula;
-    });
-  });
-}
-
-// Prepara as linhas do feed (vazias): hora, fluxo, previsto, aconteceu e a marca de acerto ou erro. Cada linha é um
+// Prepara as linhas do feed (vazias): hora, conexão, previsto, aconteceu e a marca de acerto ou erro. Cada linha é um
 // botão: clicar (ou Enter / Espaço) abre o cartão do fluxo dela. `aoSelecionar(f, origem, porTeclado)` recebe o botão da
 // linha (para devolver o foco a ele depois) e se o "clique" veio do teclado (`detail` 0).
 function montarFeed(lista, aoSelecionar) {
@@ -54,13 +33,12 @@ function montarFeed(lista, aoSelecionar) {
     const linha = {
       raiz,
       f: null, // fluxo da conferência que a linha mostra agora
-      hora: criarCelula("span", "", "feed-hora"),
       fluxo: criarCelula("span", "", "feed-fluxo"),
       previsto: criarCelula("span", "", "feed-previsto"),
       real: criarCelula("span", "", "feed-real"),
       marca: criarCelula("span", "", "feed-marca"),
     };
-    raiz.append(linha.hora, linha.fluxo, linha.previsto, linha.real, linha.marca);
+    raiz.append(linha.fluxo, linha.previsto, linha.real, linha.marca);
     raiz.addEventListener("click", (evento) => linha.f !== null && aoSelecionar(linha.f, raiz, evento.detail === 0));
     item.append(raiz);
     lista.append(item);
@@ -69,15 +47,14 @@ function montarFeed(lista, aoSelecionar) {
   return linhas;
 }
 
-// Escreve uma conferência numa linha do feed: hora (do futuro, UTC), fluxo, previsto -> aconteceu e ✓ / ✗ (com o texto
+// Escreve uma conferência numa linha do feed: conexão, previsto -> aconteceu e ✓ / ✗ (com o texto
 // ACERTOU / ERROU para leitor de tela e dica). Só textContent: nada do JSON vira HTML.
 function escreverLinhaDoFeed(linha, medicao, rotulo) {
   const ok = acertou(medicao);
   linha.f = medicao.f;
   linha.raiz.classList.remove("feed-vazia");
   linha.raiz.classList.toggle("feed-erro", !ok);
-  linha.raiz.setAttribute("aria-label", `Ver o fluxo ${rotulo}: previsto ${medicao.previsto}, aconteceu ${medicao.futuro}, ${ok ? TEXTO_ACERTOU : TEXTO_ERROU}`);
-  linha.hora.textContent = formatarInstante(medicao.t_futuro).hora;
+  linha.raiz.setAttribute("aria-label", `Ver a conexão ${rotulo}: o sistema previu ${NOME_DA_CLASSE[medicao.previsto]}, aconteceu ${NOME_DA_CLASSE[medicao.futuro]}, ${ok ? TEXTO_ACERTOU : TEXTO_ERROU}`);
   linha.fluxo.textContent = rotulo;
   linha.fluxo.title = rotulo;
   linha.previsto.replaceChildren(criarChip(medicao.previsto));
@@ -100,7 +77,6 @@ function atualizarPlacar(estado, elementos, partes) {
   };
   escrever(elementos.placar.arvore, placar.acertosArvore);
   escrever(elementos.placar.persistencia, placar.acertosPersistencia);
-  placar.matriz.forEach((linha, i) => linha.forEach((valor, j) => (partes.matriz[i][j].textContent = valor)));
 
   const ultimas = ultimasConferencias(placar, medicoes, conferencias, LINHAS_DO_FEED, aceitaNoFeed(estado));
   partes.feed.forEach((linha, i) => {
@@ -125,4 +101,4 @@ function atualizarPlacarSeMudou(estado, elementos, partes) {
   atualizarPlacar(estado, elementos, partes);
 }
 
-export { atualizarPlacarSeMudou, formatarPorcentagem, montarFeed, montarMatriz };
+export { atualizarPlacarSeMudou, formatarPorcentagem, montarFeed };

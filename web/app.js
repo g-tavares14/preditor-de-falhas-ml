@@ -2,14 +2,14 @@
 //
 // Lê `dados/replay.json` (gerado por `uv run python -m preditor replay`) e reproduz as medições em tempo acelerado.
 // Quem faz o quê: mapa.js (e rotas.js, desenho.js, pulsos.js, selos.js, foco.js) desenha o mapa e os pulsos; tempo.js e
-// placar.js fazem as contas do relógio e do placar (sem DOM, rodam em Node); painel.js monta o placar, a matriz e o feed;
-// cartao.js, o cartão do fluxo; arvore.js (e caminho.js), o painel da árvore. Aqui não se calcula métrica nem rótulo: só se conta e se compara o que já vem no JSON.
+// placar.js fazem as contas do relógio e do placar (sem DOM, rodam em Node); painel.js monta o placar e o feed;
+// cartao.js, o cartão da conexão. Aqui não se calcula métrica nem rótulo: só se conta e se compara o que já vem no JSON.
+// A página é para quem não é da área (sem árvore, matriz nem termos técnicos): os nomes na tela vêm de comum.js.
 
-import { atualizarArvore, montarArvore } from "./arvore.js";
-import { atualizarCartao, montarColunasDoCartao } from "./cartao.js";
+import { atualizarCartao } from "./cartao.js";
 import { criarCelula, formatarInstante, rotuloDoFluxo } from "./comum.js";
 import { criarMapa } from "./mapa.js";
-import { atualizarPlacarSeMudou, formatarPorcentagem, montarFeed, montarMatriz } from "./painel.js";
+import { atualizarPlacarSeMudou, formatarPorcentagem, montarFeed } from "./painel.js";
 import { acertou } from "./placar.js";
 import { DICA_REPLAY, avancarTempo, criarTempo, irParaTempo, regioesDosFluxos, terminou, ultimaDoFluxo } from "./tempo.js";
 
@@ -17,7 +17,9 @@ import { DICA_REPLAY, avancarTempo, criarTempo, irParaTempo, regioesDosFluxos, t
 
 // Velocidades oferecidas: quantos segundos DA SIMULAÇÃO passam a cada segundo real. A 300x as 12 h da validação duram
 // cerca de 2 min 24 s; a 60x, 12 min; a 900x, 48 s. Se subir o maior valor, rever `MAXIMO_DE_PULSOS` em mapa.js.
+// Na tela aparecem com nome (o número só na dica do botão e no aviso do leitor de tela).
 const VELOCIDADES = [60, 300, 900];
+const NOMES_DAS_VELOCIDADES = { 60: "Lento", 300: "Normal", 900: "Rápido" };
 const VELOCIDADE_INICIAL = 300;
 
 // Se a aba ficar escondida, o navegador pausa a animação; ao voltar, o primeiro quadro teria um salto enorme.
@@ -47,7 +49,6 @@ function pegarElementos() {
     alerta: porId("alerta"),
     data: porId("relogio-data"),
     hora: porId("relogio-hora"),
-    velocidade: porId("velocidade"),
     velocidades: porId("velocidades"),
     regioes: porId("regioes"),
     anuncio: porId("anuncio"),
@@ -57,16 +58,13 @@ function pegarElementos() {
     contaTotal: porId("conta-total"),
     contaGeral: porId("conta-geral"),
     contaTimeout: porId("conta-timeout"),
-    contaSemFuturo: porId("conta-sem-futuro"),
     placar: {
       arvore: { acertos: porId("arvore-acertos"), conferidas: porId("arvore-conferidas"), pct: porId("arvore-pct") },
       persistencia: { acertos: porId("persistencia-acertos"), conferidas: porId("persistencia-conferidas"), pct: porId("persistencia-pct") },
     },
-    matriz: porId("matriz"),
     feed: porId("feed"),
     soErros: porId("so-erros"),
     feedFiltrado: porId("feed-filtrado"),
-    arvore: { seletor: porId("arvore-seletor"), situacao: porId("arvore-situacao"), svg: porId("arvore-svg"), passos: porId("arvore-passos"), regra: porId("arvore-regra") },
     legenda: porId("legenda"),
     cartao: { raiz: porId("detalhe-trecho"), tipo: porId("detalhe-tipo"), nome: porId("detalhe-nome"), km: porId("detalhe-km") },
     fluxo: {
@@ -86,9 +84,6 @@ function pegarElementos() {
       previsto: porId("fluxo-previsto"),
       situacao: porId("fluxo-situacao"),
       conferida: porId("fluxo-conferida"),
-      folha: porId("fluxo-folha"),
-      x: porId("fluxo-x"),
-      regra: porId("fluxo-regra"),
     },
   };
 }
@@ -137,12 +132,6 @@ function criarEstado(replay) {
   return {
     tempo: criarTempo(replay), // valida o JSON; lança erro com a dica de `replay` se for de versão antiga
     fluxos: replay.fluxos,
-    colunas: replay.colunas,
-    regras: replay.regras,
-    arvores: replay.arvores, // o painel da árvore: estrutura e regras da oficial e da ajustada
-    // As colunas que a ajustada tem a mais que a oficial (os valores delas vêm em `x_ajuste`, nessa ordem).
-    colunasAjuste: replay.arvores.ajustada.colunas.filter((coluna) => !replay.colunas.includes(coluna)),
-    arvoreEscolhida: "oficial", // a árvore do painel (o resto da página segue sempre a oficial)
     rotulos: replay.fluxos.map(rotuloDoFluxo),
     tocando: false,
     velocidade: VELOCIDADE_INICIAL,
@@ -150,7 +139,7 @@ function criarEstado(replay) {
     todasAsRegioes: regioes,
     regioesLigadas: new Set(regioes), // filtro por região: começa com todas
     visivel: replay.fluxos.map(() => true), // por fluxo: a região dele está ligada?
-    soErros: true, // o feed mostra só as previsões erradas
+    soErros: false, // o feed mostra só as previsões erradas (desligado: a pessoa vê acertos e erros)
     selecionado: null, // índice do fluxo com o cartão aberto, ou null
     origemDoFoco: null, // o elemento que abriu o cartão (selo, linha do feed ou lista): o Esc devolve o foco a ele
     situacaoAnunciada: "pausado", // "pausado", "tocando" ou "fim": o último estado do relógio que o leitor de tela ouviu
@@ -253,7 +242,6 @@ function atualizarPainel(estado, elementos) {
   }
   elementos.contaTotal.textContent = tempo.proxima;
   elementos.contaTimeout.textContent = tempo.timeouts;
-  elementos.contaSemFuturo.textContent = tempo.semFuturo;
   elementos.botao.textContent = textoDoBotao(estado);
   // A barra acompanha o relógio, menos enquanto o ponteiro a segura (senão o relógio brigaria com a mão). No fim do replay o
   // polegar vai para o fim da barra: o `max` dela fica até um passo depois do fim (ver `montarBarra`), e o valor do relógio
@@ -271,12 +259,12 @@ function anunciar(elementos, texto) {
   elementos.anuncio.textContent = texto;
 }
 
-// O placar em uma frase: "Árvore 6733 de 8099 (83,1 %); persistência 6567 de 8099 (81,1 %)."
+// O placar em uma frase: "Quanto o sistema acertou: 6733 de 8099 (83,1 %); palpite simples: 6567 de 8099 (81,1 %)."
 function frasePlacar(estado) {
   const { placar } = estado.tempo;
   const arvore = `${placar.acertosArvore} de ${placar.conferidas} (${formatarPorcentagem(placar.acertosArvore, placar.conferidas)})`;
   const persistencia = `${placar.acertosPersistencia} de ${placar.conferidas} (${formatarPorcentagem(placar.acertosPersistencia, placar.conferidas)})`;
-  return `Placar: árvore ${arvore}; persistência ${persistencia}.`;
+  return `Quanto o sistema acertou: ${arvore}; palpite simples (tudo igual a agora): ${persistencia}.`;
 }
 
 // Anuncia quando o replay passa a tocar, é pausado ou chega ao fim (e o placar nessas duas últimas).
@@ -288,20 +276,21 @@ function anunciarMudancaDoRelogio(estado, elementos) {
   estado.situacaoAnunciada = situacao;
   const hora = textoDoInstante(estado.tempo.agora);
   const frases = {
-    tocando: `Replay tocando a ${estado.velocidade} vezes.`,
-    pausado: `Replay pausado em ${hora}. ${frasePlacar(estado)}`,
-    fim: `Fim do replay em ${hora}. ${frasePlacar(estado)}`,
+    tocando: `Simulação tocando a ${estado.velocidade} vezes a velocidade real.`,
+    pausado: `Simulação pausada em ${hora}. ${frasePlacar(estado)}`,
+    fim: `Fim da simulação em ${hora}. ${frasePlacar(estado)}`,
   };
   anunciar(elementos, frases[situacao]);
 }
 
 // --- Controles: velocidade, barra de tempo e regiões -------------------------------------------------------
 
-// Um botão por velocidade; o escolhido fica "apertado" (aria-pressed, e o CSS o destaca) e a velocidade aparece no título.
+// Um botão por velocidade; o escolhido fica "apertado" (aria-pressed, e o CSS o destaca).
 function montarVelocidades(estado, elementos) {
   const botoes = VELOCIDADES.map((velocidade) => {
-    const botao = criarCelula("button", `${velocidade}×`, "botao-velocidade");
+    const botao = criarCelula("button", NOMES_DAS_VELOCIDADES[velocidade], "botao-velocidade");
     botao.type = "button";
+    botao.title = `${velocidade} vezes a velocidade real: 1 minuto na tela = ${velocidade} minutos da simulação`;
     botao.addEventListener("click", () => {
       estado.velocidade = velocidade;
       marcarVelocidade();
@@ -312,7 +301,6 @@ function montarVelocidades(estado, elementos) {
 
   function marcarVelocidade() {
     botoes.forEach((botao, i) => botao.setAttribute("aria-pressed", String(VELOCIDADES[i] === estado.velocidade)));
-    elementos.velocidade.textContent = estado.velocidade;
   }
   marcarVelocidade();
 }
@@ -431,7 +419,6 @@ function iniciarLaco(estado, mapa, elementos, partes) {
       atualizarPainel(estado, elementos);
       atualizarPlacarSeMudou(estado, elementos, partes);
       atualizarCartao(estado, elementos, partes);
-      atualizarArvore(estado, elementos.arvore, partes.arvore);
       anunciarMudancaDoRelogio(estado, elementos);
     } catch (erro) {
       if (erro.message !== ultimaFalha) {
@@ -498,13 +485,11 @@ async function principal() {
 
   // `mapa` só existe depois de `criarMapa`, mas o clique no selo precisa dele: a função abaixo o lê no momento do clique.
   let mapa = null;
-  // Matriz, feed e cartão são montados uma vez; `desenhado` lembra o que o painel já mostra (ver `atualizarPlacarSeMudou`).
+  // Feed e cartão são montados uma vez; `desenhado` lembra o que o painel já mostra (ver `atualizarPlacarSeMudou`).
   const partes = {
-    matriz: montarMatriz(elementos.matriz, estado.tempo.classes),
     feed: null, // montado abaixo: precisa de `selecionar`
     desenhado: { placar: null, proxima: -1, filtro: -1 },
-    cartao: { chave: null, fluxo: null, valoresDeX: montarColunasDoCartao(elementos.fluxo.x, estado.colunas) },
-    arvore: montarArvore(elementos.arvore, replay, (chave) => (estado.arvoreEscolhida = chave)),
+    cartao: { chave: null, fluxo: null },
   };
 
   // Abre o cartão do fluxo `f` (ou fecha, com null). `origem` é o elemento que o abriu (selo, linha do feed ou lista);
@@ -514,7 +499,7 @@ async function principal() {
     estado.origemDoFoco = f === null ? estado.origemDoFoco : origem;
     selecionarFluxo(estado, mapa, f);
     atualizarCartao(estado, elementos, partes);
-    elementos.fluxo.raiz.setAttribute("aria-label", f === null ? "Fluxo selecionado" : `Fluxo selecionado: ${estado.rotulos[f]}`);
+    elementos.fluxo.raiz.setAttribute("aria-label", f === null ? "Conexão selecionada" : `Conexão selecionada: ${estado.rotulos[f]}`);
     if (f !== null) {
       if (porTeclado) {
         elementos.fluxo.raiz.focus();
@@ -530,7 +515,7 @@ async function principal() {
     const foco = document.activeElement;
     const focoNoCartao = foco === document.body || elementos.fluxo.raiz.contains(foco);
     selecionar(null);
-    anunciar(elementos, "Cartão do fluxo fechado.");
+    anunciar(elementos, "Detalhes da conexão fechados.");
     const destino = focoNoCartao ? elementoParaDevolverOFoco(estado, mapa, f) : null;
     if (destino !== null) {
       destino.focus();
