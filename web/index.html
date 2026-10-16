@@ -11,6 +11,26 @@
   <link rel="stylesheet" href="estilo.css">
 </head>
 <body>
+  <div class="app">
+  <!-- Barra lateral: troca entre os dois modos da página. Replay = os dados do projeto (de onde o modelo aprendeu e foi conferido);
+       Ao vivo = o modelo em pontos de medição que ele nunca viu. São duas páginas (o ao vivo é `?ao-vivo`), por isso são links. O
+       app.js marca o modo atual com aria-current. Texto fixo, nenhum script o altera. -->
+  <nav class="menu" aria-label="Modos da página">
+    <p class="menu-titulo">Modos</p>
+    <a class="menu-item" id="menu-replay" href="./">
+      <span class="menu-nome">Replay</span>
+      <span class="menu-quem">O que o modelo aprendeu</span>
+      <span class="menu-texto">Medições gravadas em setembro de 2026, de pontos do Brasil: os mesmos pontos do treino, em outro período.</span>
+    </a>
+    <a class="menu-item" id="menu-ao-vivo" href="./?ao-vivo">
+      <span class="menu-nome"><span class="menu-ponto" aria-hidden="true"></span>Ao vivo</span>
+      <span class="menu-quem">O modelo no mundo real</span>
+      <span class="menu-texto">Medições de agora, de pontos da América Latina que o modelo nunca viu.</span>
+    </a>
+    <p class="menu-nota">Dois testes diferentes: o replay mostra o modelo onde ele aprendeu; o ao vivo mostra se ele funciona fora dali.</p>
+  </nav>
+
+  <div class="conteudo">
   <!-- Cabeçalho: o título e o que está sendo exibido, e ao lado o aviso fixo (SPEC-visualizacao.md). O texto do aviso
        fica aqui no HTML e nenhum script o altera. Na mesma faixa para sobrar altura à página (1280x720, sem rolagem). -->
   <header class="cabecalho">
@@ -187,6 +207,8 @@
       </section>
     </div>
   </main>
+  </div>
+  </div>
 
   <!-- Aviso para leitor de tela, escrito só quando a simulação para ou recomeça, quando acaba ou quando um fluxo é aberto (nunca
        a cada quadro). Fica fora da tela. O app.js escreve nele com textContent. -->

@@ -571,7 +571,14 @@ function prepararAoVivo(estado, mapa, elementos, partes, replay) {
 
 // --- Início ---------------------------------------------------------------------------------------------
 
+// Marca na barra lateral o modo em que a página está (`aria-current` também avisa o leitor de tela).
+function marcarModoNoMenu() {
+  const atual = document.getElementById(AO_VIVO ? "menu-ao-vivo" : "menu-replay");
+  atual.setAttribute("aria-current", "page");
+}
+
 async function principal() {
+  marcarModoNoMenu();
   const elementos = pegarElementos();
 
   // Cada arquivo tem a sua mensagem: o replay vem do comando em Python; o mapa-base vem da cópia local em vendor/.

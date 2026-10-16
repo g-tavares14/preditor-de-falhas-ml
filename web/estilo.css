@@ -242,6 +242,122 @@ kbd {
   font-weight: 800;
 }
 
+/* --- 4a'. Barra lateral: Replay / Ao vivo --------------------------------------------------------------- */
+
+/* No computador, o menu fica numa coluna à esquerda, com a página ao lado. Em janela estreita (abaixo de 1100 px) vira uma faixa
+   de dois botões no alto. Mesmas bordas, sombras e cores do resto: o modo atual é o botão azul (--acao). */
+.app {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+
+.conteudo {
+  min-width: 0;
+}
+
+.menu {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  align-content: start;
+}
+
+.menu-titulo,
+.menu-nota {
+  display: none;
+}
+
+.menu-item {
+  display: grid;
+  gap: 2px;
+  padding: 6px 10px;
+  background: var(--papel);
+  color: var(--tinta);
+  border: var(--b-peca) solid var(--tinta);
+  box-shadow: var(--sombra-peca);
+  text-decoration: none;
+}
+
+.menu-item:hover {
+  background: var(--risco);
+}
+
+.menu-item[aria-current="page"] {
+  background: var(--acao);
+  box-shadow: none;
+  transform: translate(4px, 4px);
+}
+
+.menu-nome {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--fonte-titulo);
+  font-size: 16px;
+  text-transform: uppercase;
+}
+
+.menu-quem {
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.menu-texto {
+  display: none;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+/* O pontinho do "Ao vivo": vermelho com contorno preto, só enfeite (o nome do modo está em texto). */
+.menu-ponto {
+  width: 10px;
+  height: 10px;
+  background: var(--falha);
+  border: 2px solid var(--tinta);
+  border-radius: 50%;
+}
+
+@media (min-width: 1100px) {
+  .app {
+    grid-template-columns: 190px minmax(0, 1fr);
+    gap: 16px;
+  }
+
+  .menu {
+    grid-template-columns: 1fr;
+    gap: 12px;
+    padding-top: 6px;
+  }
+
+  .menu-titulo {
+    display: block;
+    margin: 0;
+    font-family: var(--fonte-titulo);
+    font-size: 12px;
+    text-transform: uppercase;
+  }
+
+  .menu-item {
+    gap: 4px;
+    padding: 8px 10px;
+  }
+
+  .menu-texto {
+    display: block;
+  }
+
+  .menu-nota {
+    display: block;
+    margin: 0;
+    padding: 8px 10px;
+    background: var(--aviso);
+    border: var(--b-peca) solid var(--tinta);
+    box-shadow: var(--sombra-pequena);
+    font-size: 12px;
+  }
+}
+
 /* --- 4b. Palco: relógio e painéis à direita, mapa à esquerda ------------------------------------------- */
 
 /* A ordem no HTML é a do Tab e da leitura (relógio, mapa, painéis). No computador, o mapa ocupa a coluna da esquerda
