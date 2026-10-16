@@ -19,4 +19,4 @@ dist/
 node_modules/
 npm-debug.log*
 .idea/
-web/dados/
+api/Preditor.Api/wwwroot/dados/

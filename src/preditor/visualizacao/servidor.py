@@ -12,7 +12,7 @@ from preditor.aovivo.parametros import ARQUIVO_PAGINA as ARQUIVO_AO_VIVO
 
 
 class Atendente(SimpleHTTPRequestHandler):
-    """Entrega os arquivos de `web/`, com os tipos e os cabeçalhos que a página espera."""
+    """Entrega os arquivos de `wwwroot/`, com os tipos e os cabeçalhos que a página espera."""
 
     # HTTP/1.1 deixa o navegador reaproveitar a conexão para os ~25 arquivos da página; no padrão (HTTP/1.0) cada
     # arquivo abre e fecha uma conexão. Para isso toda resposta tem de trazer `Content-Length`: a `SimpleHTTPRequestHandler`

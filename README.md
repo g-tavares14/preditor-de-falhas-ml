@@ -158,7 +158,7 @@ Uma página web reproduz o bloco de validação em tempo acelerado (spec em
 os dois offline, sem Spark e sem Java:
 
 ```bash
-uv run python -m preditor replay   # lê data/gold/, refaz as duas árvores e grava web/dados/replay.json
+uv run python -m preditor replay   # lê data/gold/, refaz as duas árvores e grava api/Preditor.Api/wwwroot/dados/replay.json
 uv run python -m preditor servir   # serve a página em http://127.0.0.1:8000/ (--porta N troca a porta)
 ```
 

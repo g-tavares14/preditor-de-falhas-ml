@@ -13,7 +13,7 @@ ARQUIVO_HISTORICO = PASTA / "historico_baseline.parquet"  # as medições cruas 
 ARQUIVO_MEDICOES = PASTA / "medicoes.parquet"  # as medições ao vivo, com a previsão congelada
 ARQUIVO_PREVISOES = PASTA / "previsoes.csv"  # leitura humana: uma linha por medição
 ARQUIVO_RESUMO = PASTA / "resumo.json"  # o placar
-ARQUIVO_PAGINA = config.WEB / "dados" / "aovivo.json"  # a página no modo ao vivo (`web/dados/` é ignorada pelo git)
+ARQUIVO_PAGINA = config.WEB / "dados" / "aovivo.json"  # a página no modo ao vivo (`wwwroot/dados/` é ignorada pelo git)
 
 # --- API do RIPE Atlas ---------------------------------------------------------------------------------------
 URL_API = "https://atlas.ripe.net/api/v2"  # pública, sem chave: https://atlas.ripe.net/docs/apis/rest-api-manual/
@@ -56,7 +56,7 @@ DESTINOS = {
 }
 
 # --- Rota na página ----------------------------------------------------------------------------------------------
-# Longitude do centro do mapa no modo ao vivo: `-ROTACAO_AO_VIVO[0]` em `web/rotas.js` (60 → centro em 60° O, corte em 120° L). A linha
+# Longitude do centro do mapa no modo ao vivo: `-ROTACAO_AO_VIVO[0]` em `wwwroot/rotas.js` (60 → centro em 60° O, corte em 120° L). A linha
 # direta de uma sonda a um destino que cruzaria o corte (a borda do mapa) dá a volta pelo outro lado, para não atravessar o mapa.
 CENTRO_DO_MAPA_AO_VIVO = -60.0
 PONTOS_PARA_CHECAR_O_CORTE = 60  # amostras do círculo máximo para ver se ele cruza o corte

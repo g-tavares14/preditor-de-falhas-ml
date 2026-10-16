@@ -1,4 +1,4 @@
-# Imagem da API em C# (SPEC-api-csharp.md): Web API, páginas MVC e o site do mapa (web/). Monte da raiz do repositório:
+# Imagem da API em C# (SPEC-api-csharp.md): Web API, páginas MVC e o site do mapa (wwwroot/). Monte da raiz do repositório:
 #   docker build -f deploy/Dockerfile.api -t preditor-api .
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS compilar
 WORKDIR /src
@@ -11,8 +11,8 @@ RUN dotnet publish Preditor.Api/Preditor.Api.csproj -c Release -o /saida --no-re
 FROM mcr.microsoft.com/dotnet/aspnet:10.0
 WORKDIR /app
 COPY --from=compilar /saida .
-# O site do mapa, sem alterar (inclui web/dados/replay.json, que sai do comando `replay` e está fora do git).
-COPY web ./web
+# O site do mapa vai junto no publish: ele mora em api/Preditor.Api/wwwroot (inclui dados/replay.json, que sai do comando `replay` e
+# está fora do git).
 
 # O banco SQLite fica num volume. Criar a pasta aqui, com o dono certo, faz o volume novo herdá-lo.
 RUN mkdir /data && chown app /data
@@ -20,7 +20,6 @@ USER app
 
 # Tudo o que muda entre a máquina de desenvolvimento e o contêiner vem por variável de ambiente (appsettings, `__` = `:`).
 ENV ASPNETCORE_URLS=http://+:8080 \
-    Web__Pasta=/app/web \
     ConnectionStrings__Banco="Data Source=/data/preditor.db"
 EXPOSE 8080
 ENTRYPOINT ["dotnet", "Preditor.Api.dll"]

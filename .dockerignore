@@ -4,7 +4,6 @@
 !uv.lock
 !.python-version
 !src/
-!web/
 !api/Preditor.Api/
 !data/modelo/exportado/modelo_final.joblib
 !data/modelo/exportado/LEIA-ME.md
@@ -16,5 +15,5 @@
 **/obj
 api/Preditor.Api/dados
 # O aovivo.json de um serviço local seria um retrato velho: o da imagem vem do volume do serviço ao vivo.
-web/dados/aovivo.json
-web/.DS_Store
+api/Preditor.Api/wwwroot/dados/aovivo.json
+**/.DS_Store

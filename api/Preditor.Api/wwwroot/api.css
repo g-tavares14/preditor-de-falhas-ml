@@ -1,4 +1,4 @@
-/* Estilo das páginas da API (/testar e /historico). O site do mapa tem o seu próprio estilo, em web/. */
+/* Estilo das páginas da API (/testar e /historico). O site do mapa tem o seu próprio estilo, em wwwroot/. */
 :root {
     --fundo: #f6f7f9; --texto: #1d2733; --suave: #5b6b7b; --linha: #d9dee4; --cartao: #fff;
     --ok: #1c7c4a; --risco: #a86a00; --falha: #b3261e; --acento: #1f5fa8;

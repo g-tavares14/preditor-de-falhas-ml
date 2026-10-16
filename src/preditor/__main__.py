@@ -9,7 +9,7 @@ Com `arvore`: a árvore de decisão, lendo o Gold do disco e gravando em `data/m
 sem Java); não entra na execução sem argumento. O código dela fica em `preditor/modelo/`.
 Com `ajuste`: a árvore ajustada da Tarefa 4, medida contra a da Tarefa 3; lê o Gold e as saídas do `arvore` e grava
 em `data/modelo/` (também sem rede, sem Spark e sem Java, e fora da execução sem argumento).
-Com `replay`: prevê a validação com a Random Forest exportada e grava `web/dados/replay.json` (o replay da validação no
+Com `replay`: prevê a validação com a Random Forest exportada e grava `wwwroot/dados/replay.json` (o replay da validação no
 mapa); lê o Gold e as saídas do `exportar` e do `comparar`, sem refazer árvore; também sem rede, sem Spark e sem Java,
 e fora da execução sem argumento. O código fica em `preditor/visualizacao/`.
 Com `comparar`: Random Forest e XGBoost contra a árvore ajustada e a persistência, nas mesmas linhas da validação; lê o
@@ -22,7 +22,7 @@ Com `teste`: o teste único da Tarefa 5 (SPEC-teste-final.md). `teste --ensaio` 
 (sem tocar o teste) e confere com o `comparar`, e grava o carimbo `ensaio_ok.json`. `teste --abrir-o-teste` abre o teste
 uma vez: recusa sem carimbo válido ou se a trava `TESTE_ABERTO.json` existir; grava a trava antes de ler o bloco. Sem
 `preditor/modelo/` nem Spark, e fora da execução sem argumento.
-Com `servir`: serve a página `web/` em http://127.0.0.1:8000/ (`--porta N` troca a porta), só com a biblioteca padrão.
+Com `servir`: serve a página `wwwroot/` em http://127.0.0.1:8000/ (`--porta N` troca a porta), só com a biblioteca padrão.
 """
 
 import argparse

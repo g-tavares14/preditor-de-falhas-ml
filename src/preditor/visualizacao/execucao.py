@@ -41,7 +41,7 @@ class ExecucaoReplay:
         previsto = ExportadorReplay.prever(bloco, exportado.modelo)
         texto = self._exportar(bloco, previsto, exportado)
 
-        # Verifica ANTES de gravar, sobre o JSON em memória: um arquivo reprovado nunca chega a `web/dados/`.
+        # Verifica ANTES de gravar, sobre o JSON em memória: um arquivo reprovado nunca chega a `wwwroot/dados/`.
         documento = json.loads(texto)
         self._verificar_antes_de_gravar(dados, bloco, previsto, exportado)
         self._verificar_documento(documento, dados)

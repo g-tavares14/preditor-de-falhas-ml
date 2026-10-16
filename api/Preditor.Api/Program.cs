@@ -93,16 +93,9 @@ app.Use(async (contexto, proximo) =>
     await proximo();
 });
 app.UseRateLimiter();
-// O site do mapa (web/, sem alterar) é servido na raiz, junto com o wwwroot da própria API. A pasta vem da configuração:
-// ao lado do código (../../web) em desenvolvimento e /app/web no contêiner.
-var pastaWeb = Path.GetFullPath(app.Configuration["Web:Pasta"] ?? "../../web", app.Environment.ContentRootPath);
-if (Directory.Exists(pastaWeb))
-{
-    app.Environment.WebRootFileProvider = new Microsoft.Extensions.FileProviders.CompositeFileProvider(
-        app.Environment.WebRootFileProvider, new Microsoft.Extensions.FileProviders.PhysicalFileProvider(pastaWeb));
-}
-// O aovivo.json é gravado pelo serviço ao vivo (Python) num volume, fora do web/ da imagem; a página o pede em /dados/aovivo.json.
-// Sem `Web:ArquivoAoVivo` configurado, o arquivo (se existir) sai do web/, como no desenvolvimento local.
+// O site do mapa mora no wwwroot da própria API (index.html, JavaScript, vendor/, dados/) e é servido na raiz pelos arquivos estáticos.
+// O aovivo.json é gravado pelo serviço ao vivo (Python) num volume, fora do wwwroot da imagem; a página o pede em /dados/aovivo.json.
+// Sem `Web:ArquivoAoVivo` configurado, o arquivo (se existir) sai do wwwroot/dados/, como no desenvolvimento local.
 var arquivoAoVivo = app.Configuration["Web:ArquivoAoVivo"];
 if (!string.IsNullOrEmpty(arquivoAoVivo))
 {

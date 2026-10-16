@@ -44,7 +44,7 @@ const MENSAGEM_SEM_DADOS = AO_VIVO ? MENSAGEM_SEM_DADOS_AO_VIVO : DICA_REPLAY;
 // Ao vivo, enquanto o arquivo não existe (o serviço ainda está no baseline), a página tenta de novo a cada tanto.
 const ESPERA_SEM_DADOS_MS = 10000;
 const ATUALIZACAO_DO_SELO_MS = 1000;
-const MENSAGEM_SEM_MAPA = "Falta web/vendor/countries-110m.json (ver web/vendor/README.md)";
+const MENSAGEM_SEM_MAPA = "Falta wwwroot/vendor/countries-110m.json (ver wwwroot/vendor/README.md)";
 
 
 // --- Elementos da página ---------------------------------------------------------------------------------

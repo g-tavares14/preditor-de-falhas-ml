@@ -1,5 +1,5 @@
 // desenho.js: o que fica no SVG (por baixo do canvas): mapa-base, trechos, cabos, nós, legenda e o cartão do trecho
-// (SPEC-visualizacao.md, "Comportamento da página", item 1). Usa os globais `d3` e `topojson` (web/vendor/).
+// (SPEC-visualizacao.md, "Comportamento da página", item 1). Usa os globais `d3` e `topojson` (wwwroot/vendor/).
 //
 // Tudo aqui é desenhado uma vez só, no carregamento. Não calcula métrica nem rótulo de classe.
 

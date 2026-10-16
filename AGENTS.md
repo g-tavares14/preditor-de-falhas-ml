@@ -12,7 +12,7 @@ Estágio atual: o pipeline segue a arquitetura medalhão (`SPEC-medalhao.md`): B
 Silver (normalização) e o Gold (cálculo do X: baseline + features; cálculo do Y: rótulo OK / RISCO / FALHA em
 `src/preditor/gold/calculo_y/`, spec em `SPEC-calculo-y.md`) estão prontos. A árvore inicial (Tarefa 3) também:
 código em `src/preditor/modelo/`, spec em `SPEC-arvore.md`. A visualização (replay da validação num mapa-múndi)
-também: exportador em `src/preditor/visualizacao/`, página em `web/`, spec em `SPEC-visualizacao.md`; desde 10/10/2026 o replay prevê com a Random Forest exportada (spec em `SPEC-replay-floresta.md`). O ajuste da
+também: exportador em `src/preditor/visualizacao/`, página em `api/Preditor.Api/wwwroot/`, spec em `SPEC-visualizacao.md`; desde 10/10/2026 o replay prevê com a Random Forest exportada (spec em `SPEC-replay-floresta.md`). O ajuste da
 árvore (Tarefa 4) também: `src/preditor/modelo/ajuste.py` e `execucao_ajuste.py`, spec em `SPEC-ajuste-arvore.md`,
 análise em `docs/relatorio_analise_arvore.md`. O painel da árvore na página (spec em `SPEC-arvore-na-pagina.md`) existiu até 10/10/2026: a página foi
 simplificada para público não técnico e ele saiu (ver "Página para público não técnico" em Decisions). O piso da regra 3 (10/10/2026) também: a linha 3 do Y exige
@@ -42,8 +42,8 @@ A pergunta, as regras de rótulo e a origem dos dados estão em `docs/` (índice
 - Fonte: tabela `atlas-ripe-509700.atlasRipe.atlas`, região EU.
 - Notebooks (grupo `notebook`: `requests`, `pandas`, `ipykernel`) usam a API do RIPE Atlas diretamente; `pandas`
   aparece nos dois lugares porque o grupo é separado das dependências do pacote.
-- A página (`web/`) é HTML + CSS + JavaScript puro em módulos ES, sem framework, sem build e sem CDN: D3, TopoJSON e o
-  contorno do mundo ficam em `web/vendor/` (origem, versão e licença no README de lá). O exportador e o servidor usam
+- A página (`api/Preditor.Api/wwwroot/`) é HTML + CSS + JavaScript puro em módulos ES, sem framework, sem build e sem CDN: D3, TopoJSON e o
+  contorno do mundo ficam em `api/Preditor.Api/wwwroot/vendor/` (origem, versão e licença no README de lá). O exportador e o servidor usam
   só pandas, scikit-learn e a biblioteca padrão.
 - Sem framework de testes, linter ou type-checker configurados.
 
@@ -66,8 +66,8 @@ uv run python -m preditor arvore   # data/gold/ → data/modelo/ (offline, sem S
 # run (a árvore ajustada da Tarefa 4; comando à parte, offline, sem Spark nem Java):
 uv run python -m preditor ajuste   # data/gold/ + saídas do `arvore` → data/modelo/ (não reescreve os arquivos da Tarefa 3)
 # run (a visualização; comandos à parte, offline, sem Spark nem Java):
-uv run python -m preditor replay   # data/gold/ + modelo_final.joblib → web/dados/replay.json (prevê com a Random Forest; sem treinar)
-uv run python -m preditor servir   # serve web/ em http://127.0.0.1:8000/ (--porta N); não use `python -m http.server`
+uv run python -m preditor replay   # data/gold/ + modelo_final.joblib → api/Preditor.Api/wwwroot/dados/replay.json (prevê com a Random Forest; sem treinar)
+uv run python -m preditor servir   # serve api/Preditor.Api/wwwroot/ em http://127.0.0.1:8000/ (--porta N); não use `python -m http.server`
 uv run python -m preditor.visualizacao.coletar_sondas   # só para refazer sondas.csv (rede: API pública do RIPE Atlas)
 # run (o microserviço do modelo, para a API em C#; offline, sem Spark e sem Java; SPEC-api-csharp.md):
 uv run python -m preditor.servico_modelo --conferir   # serviço pela rede × modelo recarregado (0 diferenças) e grava api/Preditor.Api.Tests/Fixtures/paridade.json
@@ -161,14 +161,14 @@ medição) e recusa se `TESTE_ABERTO.json` existir. Sem argumento, `teste` não 
 - O serviço ao vivo fica em `aovivo/`, fora do medalhão: `parametros.py` (constantes dele; o `config.py` não muda porque o carimbo do
   teste guarda o hash dele), `atlas.py` (cliente `urllib` da API e o leitor de um resultado), `calculo.py` (a cópia em pandas de
   `gold/calculo_x/` e `gold/calculo_y/`), `conferencia.py`, `selecao.py`, `servico.py` (preparo, laço e placar), `pagina.py` (o
-  `web/dados/aovivo.json`) e `execucao.py`. Lê `config` e `modelo/` sem alterá-los; as saídas vão para `data/aovivo/` (ignorada).
+  `api/Preditor.Api/wwwroot/dados/aovivo.json`) e `execucao.py`. Lê `config` e `modelo/` sem alterá-los; as saídas vão para `data/aovivo/` (ignorada).
 - O microserviço do modelo fica em `servico_modelo/` (`parametros.py`, `previsor.py`, `servidor.py`, `conferencia.py`, `__main__.py`),
   fora do medalhão, só com a biblioteca padrão para o HTTP. Tem entrada própria (`python -m preditor.servico_modelo`) porque o
   `preditor/__main__.py` importa o PySpark. A API pública é em C# (`api/`, spec em `SPEC-api-csharp.md`, plano em `tasks/plan-api-csharp.md`).
 - A API em C# fica em `api/` (`Preditor.sln`: `Preditor.Api` com Controllers, Views Razor, EF Core + SQLite, e `Preditor.Api.Tests` com xUnit).
-  Nomes em português, PascalCase. Ela não calcula nada do modelo: pergunta ao `servico_modelo` (URL em `ServicoModelo:Url`) e serve `web/`
-  na raiz sem alterá-lo (`Web:Pasta`). A paridade (`Fixtures/paridade.json`) vem de `python -m preditor.servico_modelo --conferir`.
-- A página fica em `web/`: `app.js` orquestra; `tempo.js` e `placar.js` são lógica pura (sem DOM, rodam em Node);
+  Nomes em português, PascalCase. Ela não calcula nada do modelo: pergunta ao `servico_modelo` (URL em `ServicoModelo:Url`) e serve a página, que mora no `wwwroot/` dela (`api/Preditor.Api/wwwroot/`),
+  na raiz pelos arquivos estáticos (o `aovivo.json` do serviço ao vivo vem de `Web:ArquivoAoVivo`). A paridade (`Fixtures/paridade.json`) vem de `python -m preditor.servico_modelo --conferir`.
+- A página fica em `api/Preditor.Api/wwwroot/`: `app.js` orquestra; `tempo.js` e `placar.js` são lógica pura (sem DOM, rodam em Node);
   `mapa.js`, `rotas.js`, `desenho.js`, `pulsos.js`, `selos.js` cuidam do mapa; `cartao.js`, `painel.js`, `foco.js` e
   `comum.js`, do painel (`comum.js` também guarda os nomes na tela: Normal / Atenção / Problema, países por extenso). Sem `innerHTML` com dados; CSP `default-src 'self'`. As constantes só de desenho (durações,
   tamanhos) ficam no topo do módulo JS que as usa, comentadas, porque o JS não lê `config.py`.
@@ -176,7 +176,7 @@ medição) e recusa se `TESTE_ABERTO.json` existir. Sem argumento, `teste` não 
 - O código comenta cada passo, mas não repete a teoria da RFC: referencia a seção.
 - Saídas vão para `data/{bronze,silver,gold}/` (ignoradas pelo git): Parquet para dados, CSV só para leitura humana.
   As da árvore vão para `data/modelo/` (também ignoradas): CSV, JSON e TXT para leitura. O `replay.json` vai para
-  `web/dados/` (ignorada); `visualizacao/sondas.csv` e `web/vendor/` são versionados.
+  `api/Preditor.Api/wwwroot/dados/` (ignorada); `visualizacao/sondas.csv` e `api/Preditor.Api/wwwroot/vendor/` são versionados.
 - O dono está começando em PySpark: prefira transformações legíveis e explicadas a construções compactas.
 
 ## Decisions
@@ -278,12 +278,12 @@ medição) e recusa se `TESTE_ABERTO.json` existir. Sem argumento, `teste` não 
   de tempo dá o mesmo estado que tocar até lá. As medições sem futuro para conferir e as de folga ficam fora.
 - **[Substituída em 10/10/2026: ver a decisão da Random Forest no replay.] A árvore era refeita no `replay`** (mesma semente, conferida contra `arvore_oficial.json`): o `arvore` não grava o
   modelo treinado. As regras das folhas vêm de `Regras._caminhos` (método privado de `modelo/regras.py`).
-- **Página para público não técnico (10/10/2026, dono):** `web/index.html` foi substituída por uma versão sem árvore, sem
+- **Página para público não técnico (10/10/2026, dono):** `api/Preditor.Api/wwwroot/index.html` foi substituída por uma versão sem árvore, sem
   matriz de confusão e sem colunas do X, folha ou regra no cartão; os termos técnicos viraram palavras comuns (OK / RISCO /
   FALHA = Normal / Atenção / Problema; fluxo = conexão; sonda = ponto de medição; RTT = tempo de resposta; persistência =
   palpite simples). Só o texto da tela mudou: o JSON, o exportador e o CSS das classes seguem com os códigos do projeto,
   e, desde a Random Forest (10/10/2026), o `replay` não exporta mais `arvores`, `folha`, `x` nem regras. O placar mantém a comparação com o palpite simples.
-  `arvore.js` e `caminho.js` saíram de `web/`; o painel da árvore abaixo ficou só no histórico (git).
+  `arvore.js` e `caminho.js` saíram de `api/Preditor.Api/wwwroot/`; o painel da árvore abaixo ficou só no histórico (git).
 - **Painel da árvore (03/10/2026, removido da página em 10/10/2026):** mostra a oficial e a ajustada (seletor), mas o seletor muda só o painel: mapa,
   cartão e placar seguem a oficial. O navegador não percorre a árvore com o X: recebe a folha do JSON e sobe pelos pais.
   Por isso o `replay` agora também exige as saídas do `ajuste` (superado em 10/10/2026: o `replay` não exige mais o `ajuste`).

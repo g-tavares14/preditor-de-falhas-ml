@@ -1,4 +1,4 @@
-"""O JSON da página no modo ao vivo (`web/dados/aovivo.json`), no mesmo formato do `replay.json` (SPEC-ao-vivo.md).
+"""O JSON da página no modo ao vivo (`wwwroot/dados/aovivo.json`), no mesmo formato do `replay.json` (SPEC-ao-vivo.md).
 
 A página reaproveita o mapa, o feed e o placar do replay: o que muda é só o relógio (tempo real, atrasado) e a rota,
 que aqui é uma linha direta entre a sonda e o destino. Nada é recalculado na página; este módulo só repete o que o motor

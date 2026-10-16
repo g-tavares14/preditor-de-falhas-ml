@@ -1,6 +1,6 @@
 // rotas.js: tamanho do mapa, projeção e a geometria das rotas (SPEC-visualizacao.md).
 //
-// Só GEOMETRIA e preparo dos dados: nada aqui desenha. Usa o global `d3` (web/vendor/) para a projeção e o círculo máximo.
+// Só GEOMETRIA e preparo dos dados: nada aqui desenha. Usa o global `d3` (wwwroot/vendor/) para a projeção e o círculo máximo.
 // Todas as coordenadas estão no sistema do mapa (LARGURA x ALTURA); o canvas e o SVG são escalados para caber na tela.
 
 // --- Constantes do mapa ---------------------------------------------------------------------------------

@@ -6,7 +6,7 @@
 // relógio chega ao instante de uma medição ela já está no arquivo, e o pulso sai na hora certa em vez de em rajada.
 
 const ARQUIVO_AO_VIVO = "dados/aovivo.json";
-const MENSAGEM_SEM_DADOS_AO_VIVO = "Falta web/dados/aovivo.json. Rode antes: uv run python -m preditor aovivo (a primeira consulta leva cerca de 1 minuto depois do baseline).";
+const MENSAGEM_SEM_DADOS_AO_VIVO = "Falta wwwroot/dados/aovivo.json. Rode antes: uv run python -m preditor aovivo (a primeira consulta leva cerca de 1 minuto depois do baseline).";
 
 // Se o relógio ficar mais que isto atrás do alvo (aba escondida, computador dormindo), ele PULA em vez de soltar centenas de
 // pulsos de uma vez. Decisão visual; o pulso mais lento dura poucos segundos.

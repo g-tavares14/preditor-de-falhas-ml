@@ -11,7 +11,7 @@ As imagens copiam arquivos gerados pelo pipeline. Sem eles o build falha ou a p�
 |---|---|
 | `data/modelo/exportado/modelo_final.joblib` e `LEIA-ME.md` | `uv run python -m preditor exportar` |
 | `data/modelo/comparacao/escolha.json` | `uv run python -m preditor comparar` |
-| `web/dados/replay.json` | `uv run python -m preditor replay` |
+| `api/Preditor.Api/wwwroot/dados/replay.json` | `uv run python -m preditor replay` |
 
 O `.dockerignore` (na raiz) é uma lista de permissão: nada de `data/`, `.venv` ou credenciais entra no contexto além disso.
 

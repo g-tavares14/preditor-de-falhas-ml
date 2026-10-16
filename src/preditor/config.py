@@ -296,8 +296,8 @@ ESTADO_CONCLUIDO = "concluido"
 # Bloco exibido (spec, "Bloco exibido: validação"): o teste fica fechado até a Tarefa 5. Trocar o bloco é decisão
 # do dono e exige rever as checagens de `visualizacao/execucao.py`, que hoje comparam com a validação.
 BLOCO_REPLAY = BLOCO_VALIDACAO
-WEB = Path(__file__).resolve().parents[2] / "web"  # a página estática (HTML, CSS e JS)
-ARQUIVO_REPLAY = WEB / "dados" / "replay.json"  # saída de `visualizacao/`; a pasta `web/dados/` é ignorada pelo git
+WEB = Path(__file__).resolve().parents[2] / "api" / "Preditor.Api" / "wwwroot"  # a página estática (HTML, CSS e JS), dentro da API em C#
+ARQUIVO_REPLAY = WEB / "dados" / "replay.json"  # saída de `visualizacao/`; a pasta `wwwroot/dados/` é ignorada pelo git
 # Servidor local da página (`uv run python -m preditor servir`; `visualizacao/servidor.py`). O `python -m http.server` perdia
 # arquivos sob concorrência (revisão da V7): atende uma conexão por vez (HTTP/1.0), com fila de 5; com 5 navegadores abrindo
 # a página ao mesmo tempo, até 6,5 % das cargas falharam, e se a falha atinge um módulo importado a página fica presa em
