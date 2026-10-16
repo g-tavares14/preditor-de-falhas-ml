@@ -22,7 +22,8 @@ const FORMAS_DOS_NOS = {
 // prefere o meio e se afasta dele (decisão visual; sem fonte externa).
 const FRACOES_DO_ROTULO = [0.5, 0.4, 0.6, 0.3, 0.7, 0.8, 0.2];
 
-const ROTULO_DO_TRECHO = { terrestre: "Trecho terrestre", submarino: "Cabo submarino" };
+// "direto" só existe no modo ao vivo: a linha reta ilustrativa entre a sonda e o destino (SPEC-ao-vivo.md).
+const ROTULO_DO_TRECHO = { terrestre: "Trecho terrestre", submarino: "Cabo submarino", direto: "Linha direta" };
 
 // O km de um cabo no cartão é o do cabo inteiro desenhado, não o de um fluxo; o texto diz isso.
 const SUFIXO_DO_CABO = " (traçado completo)";

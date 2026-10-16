@@ -22,7 +22,9 @@ robustez na seção 8 de `docs/relatorio_analise_arvore.md`. A comparação com 
 `SPEC-comparacao-modelos.md`, relatório em `docs/relatorio_comparacao_modelos.md`. A regra entre famílias escolheu a
 Random Forest, e o modelo foi exportado para `data/modelo/exportado/` (`exportacao.py`). O teste único (Tarefa 5) foi feito
 em 10/10/2026: o teste foi aberto **uma vez** (spec em `SPEC-teste-final.md`; resultado em `docs/resultado_teste_final.md`;
-ficha em `docs/ficha_modelo_final.md`).
+ficha em `docs/ficha_modelo_final.md`). O serviço ao vivo (15/10/2026) também: a Random Forest exportada prevendo, em tempo real, a
+partir da API do RIPE Atlas, com sondas que não estão no treino; código em `src/preditor/aovivo/`, spec em `SPEC-ao-vivo.md`,
+página em `?ao-vivo`.
 
 A pergunta, as regras de rótulo e a origem dos dados estão em `docs/` (índice em `docs/README.md`; a RFC em
 `docs/projeto_preditor_redes/RFC_Preditor_Degradacao_Rede.md` é a referência das fórmulas, §8.2 a §8.4).
@@ -67,6 +69,11 @@ uv run python -m preditor ajuste   # data/gold/ + saídas do `arvore` → data/m
 uv run python -m preditor replay   # data/gold/ + modelo_final.joblib → web/dados/replay.json (prevê com a Random Forest; sem treinar)
 uv run python -m preditor servir   # serve web/ em http://127.0.0.1:8000/ (--porta N); não use `python -m http.server`
 uv run python -m preditor.visualizacao.coletar_sondas   # só para refazer sondas.csv (rede: API pública do RIPE Atlas)
+# run (o modelo ao vivo na API do RIPE Atlas, com sondas fora do treino; comandos à parte, sem Spark nem Java, com rede; SPEC-ao-vivo.md):
+uv run python -m preditor aovivo --conferir   # motor em pandas × Gold (offline) e leitor da API × Silver (rede); não sobe o serviço
+uv run python -m preditor aovivo              # sorteia 10 sondas da América Latina, baixa o baseline de 108 h e consulta a API a cada 60 s (Ctrl+C encerra)
+uv run python -m preditor aovivo --recomecar --retroativo-horas 6 --ciclos 3   # T0 seis horas atrás (as medições desde então entram como se acabassem de chegar)
+uv run python -m preditor servir              # e abra http://127.0.0.1:8000/?ao-vivo (a página sem `?ao-vivo` segue sendo o replay)
 # run (a comparação Random Forest × XGBoost × árvore; comandos à parte, offline, sem Spark nem Java):
 uv run python -m preditor comparar  # data/gold/ + saídas de arvore e ajuste → data/modelo/comparacao/ (~4 min)
 uv run python -m preditor exportar  # escolha.json do comparar → data/modelo/exportado/ (.joblib, LEIA-ME.md, exemplo; ~10 s)
@@ -105,6 +112,10 @@ JAVA_HOME=/opt/homebrew/opt/openjdk@17 uv run python data/analise_piso_regra3/co
 #        nenhuma linha nem instante do teste no JSON; rotas começam na sonda, terminam no destino e só usam cabo do catálogo;
 #        mesma entrada = mesmo JSON; o JSON não tem `arvores`, `folha`, `x` nem regras. A página se
 #        confere abrindo: ao fim do replay o placar (acertos da floresta e do palpite simples) é igual ao do JSON e ao da comparação;
+#        Ao vivo (SPEC-ao-vivo.md): o motor em pandas (baseline, 10 colunas do X, regra, `status_atual`, `status_futuro`) sobre o Silver
+#        = o Gold nas linhas de treino e validação (1e-9) e a Random Forest prevê o mesmo no X dos dois; o leitor da API reproduz
+#        `rtt`, `jitter`, `perda_pct` e `timeout_atual` do Silver numa janela com perda parcial e outra com timeout; o motor roda em
+#        toda partida do serviço;
 #        Comparação: as 5 linhas nas mesmas linhas da validação, `fit` só no treino, regra entre famílias refeita a partir
 #        do CSV, IC pareado com 2.000 reamostras (mesma semente = mesmo IC), `Avaliacao` recusa o teste, árvores refeitas =
 #        JSON e CSVs do `arvore` e do `ajuste`, duas execuções = mesmos arquivos (exceto `tempos.csv`);
@@ -140,6 +151,10 @@ medição) e recusa se `TESTE_ABERTO.json` existir. Sem argumento, `teste` não 
   e a abertura (trava, carimbo, medição, checagens, gravação). Não altera `DadosModelo`.
 - A visualização fica em `visualizacao/`, também fora do medalhão: `rotas.py`, `exportacao.py`, `execucao.py` (orquestra,
   verifica e só então grava), `modelo_exportado.py` (lê o `.joblib` com as mesmas conferências do `teste`, por cópia: `execucao_teste.py` carrega o bloco de teste e não é importado), `servidor.py` e `coletar_sondas.py`. Ela reutiliza `modelo/` sem alterá-lo.
+- O serviço ao vivo fica em `aovivo/`, fora do medalhão: `parametros.py` (constantes dele; o `config.py` não muda porque o carimbo do
+  teste guarda o hash dele), `atlas.py` (cliente `urllib` da API e o leitor de um resultado), `calculo.py` (a cópia em pandas de
+  `gold/calculo_x/` e `gold/calculo_y/`), `conferencia.py`, `selecao.py`, `servico.py` (preparo, laço e placar), `pagina.py` (o
+  `web/dados/aovivo.json`) e `execucao.py`. Lê `config` e `modelo/` sem alterá-los; as saídas vão para `data/aovivo/` (ignorada).
 - A página fica em `web/`: `app.js` orquestra; `tempo.js` e `placar.js` são lógica pura (sem DOM, rodam em Node);
   `mapa.js`, `rotas.js`, `desenho.js`, `pulsos.js`, `selos.js` cuidam do mapa; `cartao.js`, `painel.js`, `foco.js` e
   `comum.js`, do painel (`comum.js` também guarda os nomes na tela: Normal / Atenção / Problema, países por extenso). Sem `innerHTML` com dados; CSP `default-src 'self'`. As constantes só de desenho (durações,
@@ -269,6 +284,15 @@ medição) e recusa se `TESTE_ABERTO.json` existir. Sem argumento, `teste` não 
   período é o de validação; o número do relatório é o do teste, que segue fechado no replay.
 - **Constantes herdadas sem uso (10/10/2026):** `CASAS_X_REPLAY` e `CASAS_LIMIAR_REPLAY` (`config.py`) não são mais lidas pelo replay;
   ficam por não mexer em `config.py`, que faz parte do código de medição do teste (o carimbo `ensaio_ok.json` guarda o hash dele).
+- **Serviço ao vivo (15/10/2026, `SPEC-ao-vivo.md`, dono):** a página ganha o modo `?ao-vivo` e o terminal imprime o placar.
+  As 6 medições do dataset são malhas "Anchoring Mesh" (só âncoras participam) e as 13 âncoras do BR são exatamente as do treino;
+  não existe outra sonda do BR nelas. O dono escolheu **América Latina** (AR, BO, CL, CO, CR, EC, MX, PA, PE, PY, UY, VE), 10
+  sondas sorteadas com a semente 16. O baseline são as 108 h antes de T0 (T0 = a partida), congelado no `estado.json`; nada de depois
+  de T0 entra na ficha. A previsão de cada medição é congelada quando ela chega e conferida quando a 3ª seguinte chega (600 a 840 s).
+  O motor é pandas (sem Spark); o RTT do Silver vem em float32 do BigQuery, o da API é double, e a conferência do leitor tolera isso.
+  A rota na página é uma linha direta (os cabos catalogados partem do BR; a rotação do mapa é a do modo ao vivo, e a linha que cruzaria
+  a borda dá a volta pelo outro lado; o RTT mínimo do cartão vem do círculo máximo); o relógio anda atrasado `ATRASO_DA_PAGINA_S` (300 s),
+  porque a API entrega o resultado cerca de 100 s depois; o JSON da página leva só as últimas 24 h. Outro país de origem é teste de generalização: o modelo treinou só com origem BR.
 - **Desenho do painel com o piso (10/10/2026):** largura proporcional ao número de folhas (80 por folha, mínimo de
   1280 px), com rolagem horizontal que traz a folha em foco para a tela. Com o piso, a oficial tem 29 folhas e a
   ajustada, 40 (`SPEC-arvore-na-pagina.md`).
@@ -298,6 +322,7 @@ medição) e recusa se `TESTE_ABERTO.json` existir. Sem argumento, `teste` não 
 
 ## Agent workflow
 
+- Serviço ao vivo: `SPEC-ao-vivo.md` (spec curta; sem plano nem lista de tarefas à parte).
 - Replay com a Random Forest: `SPEC-replay-floresta.md`, com `tasks/plan-replay-floresta.md` e `tasks/todo-replay-floresta.md`.
 - Lifecycle: `/spec` → `/plan` → `/build` → `/verify` → `/review`. Specs live in the repo; the plan in `tasks/plan.md`, tasks in `tasks/todo.md` (the Y spec uses `tasks/plan-calculo-y.md` and `tasks/todo-calculo-y.md`; the tree spec, `SPEC-arvore.md`, uses `tasks/plan-arvore.md` and `tasks/todo-arvore.md`; the visualization spec,
   `SPEC-visualizacao.md`, uses `tasks/plan-visualizacao.md` and `tasks/todo-visualizacao.md`; the Tarefa 4 spec,

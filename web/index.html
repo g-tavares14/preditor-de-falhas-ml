@@ -18,7 +18,7 @@
       <h1>Preditor de falhas de rede</h1>
       <p class="subtitulo">Prevendo problemas de conexão entre países, 12 minutos antes</p>
     </div>
-    <p class="aviso" role="note">Rota ilustrativa: os cabos existem, mas o caminho de cada conexão é simulado.</p>
+    <p class="aviso" id="aviso" role="note">Rota ilustrativa: os cabos existem, mas o caminho de cada conexão é simulado.</p>
   </header>
 
   <!-- A ordem dos blocos abaixo é a ordem do Tab e da leitura: primeiro os controles do relógio, depois o mapa (com o
@@ -27,7 +27,7 @@
   <main class="palco">
     <!-- Relógio e controles: tocar / pausar, barra de tempo e velocidade. Montados pelo app.js (só com textContent). -->
     <section class="cartao relogio" aria-label="Relógio e controles da simulação">
-      <h2>Relógio da simulação <span class="relogio-velocidade">&middot; hora UTC (Brasília + 3 h)</span></h2>
+      <h2 id="relogio-titulo">Relógio da simulação <span class="relogio-velocidade" id="relogio-nota">&middot; hora UTC (Brasília + 3 h)</span></h2>
       <div class="relogio-linha">
         <div>
           <p class="relogio-data numero" id="relogio-data">----/--/--</p>
@@ -37,6 +37,8 @@
           <button type="button" class="botao" id="botao-tocar" aria-keyshortcuts="Space" title="Tocar ou pausar (barra de espaço)" disabled>Tocar</button>
         </div>
       </div>
+      <!-- Só no modo ao vivo (?ao-vivo): há quanto tempo o serviço gravou os dados. Escrito pelo app.js com textContent. -->
+      <p class="ao-vivo-selo so-ao-vivo" id="ao-vivo-selo" role="status"></p>
       <!-- Barra de tempo: arrastar (ou usar as setas, de 1 em 1 minuto) leva o relógio ao instante escolhido. O
            `aria-valuetext` (data e hora) é escrito pelo app.js. -->
       <input type="range" class="barra" id="barra-tempo" min="0" max="1" step="60" value="0" disabled aria-label="Posição no tempo da simulação">
@@ -80,10 +82,11 @@
             <li><span class="icone-veredito" aria-hidden="true">&#10003; &#10007;</span>Previsão acertou / errou</li>
             <li><svg class="legenda-icone" data-forma="sonda" viewBox="0 0 24 24" aria-hidden="true"></svg>Ponto de medição</li>
             <li><svg class="legenda-icone" data-forma="destino" viewBox="0 0 24 24" aria-hidden="true"></svg>Destino</li>
-            <li><svg class="legenda-icone" data-forma="pop" viewBox="0 0 24 24" aria-hidden="true"></svg>Parada na rota</li>
-            <li><svg class="legenda-icone" data-forma="aterragem" viewBox="0 0 24 24" aria-hidden="true"></svg>Cabo chega à costa</li>
-            <li><svg class="legenda-icone" viewBox="0 0 24 24" aria-hidden="true"><line class="trecho-linha trecho-terrestre-amostra" x1="1" y1="12" x2="23" y2="12"></line></svg>Por terra</li>
-            <li><svg class="legenda-icone" viewBox="0 0 24 24" aria-hidden="true"><line class="trecho-linha trecho-submarino-amostra" x1="1" y1="12" x2="23" y2="12"></line></svg>Cabo submarino</li>
+            <li class="so-replay"><svg class="legenda-icone" data-forma="pop" viewBox="0 0 24 24" aria-hidden="true"></svg>Parada na rota</li>
+            <li class="so-replay"><svg class="legenda-icone" data-forma="aterragem" viewBox="0 0 24 24" aria-hidden="true"></svg>Cabo chega à costa</li>
+            <li class="so-replay"><svg class="legenda-icone" viewBox="0 0 24 24" aria-hidden="true"><line class="trecho-linha trecho-terrestre-amostra" x1="1" y1="12" x2="23" y2="12"></line></svg>Por terra</li>
+            <li class="so-replay"><svg class="legenda-icone" viewBox="0 0 24 24" aria-hidden="true"><line class="trecho-linha trecho-submarino-amostra" x1="1" y1="12" x2="23" y2="12"></line></svg>Cabo submarino</li>
+            <li class="so-ao-vivo"><svg class="legenda-icone" viewBox="0 0 24 24" aria-hidden="true"><line class="trecho-linha trecho-direto-amostra" x1="1" y1="12" x2="23" y2="12"></line></svg>Linha direta (ilustrativa)</li>
             <li class="legenda-selo"><span class="icone-selo" aria-hidden="true">A</span>Quadradinho = o que o sistema prevê para daqui a 12 min (N = Normal, A = Atenção, P = Problema)</li>
           </ul>
         </section>
@@ -146,7 +149,7 @@
       <section class="cartao como-ler" aria-label="Como ler esta página">
         <h2>Como ler</h2>
         <ol class="passos">
-          <li><strong>Medir.</strong> Aparelhos no Brasil cronometram a ida e volta de uma mensagem até servidores no exterior. Cada medição é um pulso no mapa.</li>
+          <li><strong>Medir.</strong> <span id="como-ler-onde">Aparelhos no Brasil</span> cronometram a ida e volta de uma mensagem até servidores no exterior. Cada medição é um pulso no mapa.</li>
           <li><strong>Comparar.</strong> Cada conexão é comparada com o próprio normal:
             <span class="chip chip-ok">Normal</span> habitual,
             <span class="chip chip-risco">Atenção</span> mais lenta,
@@ -158,7 +161,7 @@
       <section class="cartao placar" aria-label="Quanto o sistema acertou">
         <h2 class="titulo-com-nota"><span>Quanto o sistema acertou</span><small>todas as conexões</small></h2>
         <!-- Período e modelo: o nome do modelo é escrito pelo app.js só com textContent. -->
-        <p class="placar-contexto">Período de validação: dados que ajudaram a escolher o modelo. O número do relatório vem de outro período, e por isso pode ser um pouco diferente. Modelo: <span id="modelo-nome"></span>.</p>
+        <p class="placar-contexto"><span id="placar-periodo">Período de validação: dados que ajudaram a escolher o modelo. O número do relatório vem de outro período, e por isso pode ser um pouco diferente.</span> Modelo: <span id="modelo-nome"></span>.</p>
         <div class="placar-colunas">
           <div class="placar-modelo">
             <h3>Nosso sistema</h3>

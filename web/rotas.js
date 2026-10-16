@@ -16,6 +16,11 @@ const ALTURA = 500;
 // conferência do corte (`conferirCorte`) roda em todo carregamento e avisa na página e no console.
 const ROTACAO = [105, 0];
 
+// Rotação do modo ao vivo (?ao-vivo): as sondas são da América Latina, e as linhas diretas delas vão para o Atlântico (Europa,
+// Miami, Belo Horizonte), o Pacífico (Quioto) e o Índico (Singapura, por leste). Com o centro em 60° O o corte cai em 120° L, entre
+// Singapura (104° L) e Quioto (136° L), onde nenhuma linha passa. Escolhida olhando as rotas; a conferência do corte avisa se mudarem.
+const ROTACAO_AO_VIVO = [60, 0];
+
 // --- Constantes da rota ---------------------------------------------------------------------------------
 
 // Raio médio da Terra: o mesmo de `RAIO_TERRA_KM` em config.py, para os km daqui baterem com os do JSON.
@@ -50,8 +55,8 @@ const FOLGA_ENTRE_ROTULOS = 2; // em unidades do mapa
 // --- Projeção e mapa-base --------------------------------------------------------------------------------
 
 // Projeção plana (Natural Earth) ajustada para o mapa inteiro caber em LARGURA x ALTURA.
-function criarProjecao() {
-  return d3.geoNaturalEarth1().rotate(ROTACAO).fitSize([LARGURA, ALTURA], { type: "Sphere" });
+function criarProjecao(rotacao = ROTACAO) {
+  return d3.geoNaturalEarth1().rotate(rotacao).fitSize([LARGURA, ALTURA], { type: "Sphere" });
 }
 
 // --- Geometria: caminhos amostrados pelo círculo máximo ----------------------------------------------------
@@ -366,6 +371,7 @@ function destinoDoFluxo(fluxo) {
 export {
   ALTURA,
   LARGURA,
+  ROTACAO_AO_VIVO,
   amostrarCaminho,
   cabeNoMapa,
   chaveDoPonto,

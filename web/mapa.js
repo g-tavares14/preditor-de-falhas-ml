@@ -30,12 +30,13 @@ import { atualizarNomeDoAlvo, criarSelos, desenharAlvosDosSelos, desenharAnelDeF
 //   aoSelecionar(f, origem, porTeclado): chamada quando alguém clica (ou aperta Enter ou Espaço) no selo do fluxo f; `origem`
 //     é o elemento do selo, para o app.js devolver o foco a ele depois.
 //   semRastro: true para quem pede movimento reduzido (prefers-reduced-motion): o pulso é só a cabeça, sem o rastro.
-function criarMapa({ svg, canvas, topologia, fluxos, cores, cartao, raizDaLegenda, rotulos, aoSelecionar, semRastro = false }) {
+//   rotacao: a rotação da projeção ([longitude, latitude]); sem ela vale a do replay (rotas.js).
+function criarMapa({ svg, canvas, topologia, fluxos, cores, cartao, raizDaLegenda, rotulos, aoSelecionar, semRastro = false, rotacao }) {
   validarFluxos(fluxos);
   svg.setAttribute("viewBox", `0 0 ${LARGURA} ${ALTURA}`);
   canvas.parentElement.style.aspectRatio = `${LARGURA} / ${ALTURA}`;
 
-  const projecao = criarProjecao();
+  const projecao = criarProjecao(rotacao);
   desenharMapaBase(svg, topologia, projecao);
   const rotas = criarRotas(fluxos, projecao);
 

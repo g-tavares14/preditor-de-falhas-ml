@@ -184,6 +184,26 @@ as saídas do `ajuste` (rode `arvore` e `ajuste` antes) e confere a ajustada ref
 As coordenadas das sondas ficam em `src/preditor/visualizacao/sondas.csv`. Para refazê-las (única etapa com rede):
 `uv run python -m preditor.visualizacao.coletar_sondas`.
 
+### Modelo ao vivo (sondas fora do treino, na API do RIPE Atlas)
+
+O replay mostra o que o modelo faz num período que já passou. O serviço ao vivo o roda como uma requisição em tempo real
+(spec em [`SPEC-ao-vivo.md`](SPEC-ao-vivo.md)): busca as medições novas na API pública do Atlas, calcula o X em relação ao
+baseline de cada fluxo, a Random Forest exportada prevê a classe 12 minutos à frente e, quando essa medição chega, o
+serviço confere (contra o palpite simples). As sondas **não são as 13 do treino**: nas 6 medições do dataset só participam
+âncoras e as 13 do BR são as do treino, então o sorteio (semente 16, 10 sondas) é na América Latina. Precisa de rede, não
+de Spark nem de Java.
+
+```bash
+uv run python -m preditor aovivo --conferir   # o motor em pandas × Gold, e o leitor da API × Silver; não sobe o serviço
+uv run python -m preditor aovivo              # sorteia as sondas, baixa o baseline de 108 h e consulta a API a cada 60 s (Ctrl+C encerra)
+uv run python -m preditor servir              # e abra http://127.0.0.1:8000/?ao-vivo
+```
+
+O baseline são as 108 h antes da partida (T0) e fica congelado em `data/aovivo/estado.json`; reiniciar o comando
+retoma dali (`--recomecar` sorteia e calcula de novo). Os resultados saem em `data/aovivo/previsoes.csv` e `resumo.json`.
+Com `--retroativo-horas N` o T0 fica N horas no passado: as medições desde então entram como se tivessem acabado de
+chegar (é uma reprodução do histórico da API, não ao vivo).
+
 ## Como o código está dividido
 
 ```text

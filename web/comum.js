@@ -15,7 +15,12 @@ const NOME_DA_CLASSE = { OK: "Normal", RISCO: "Atenção", FALHA: "Problema" };
 const SIGLA_DA_CLASSE = { OK: "N", RISCO: "A", FALHA: "P" }; // a letra do quadradinho de previsão no mapa
 
 // Países do dataset por extenso (só para exibir; o JSON traz o código de duas letras).
-const NOME_DO_PAIS = { BR: "Brasil", DE: "Alemanha", JP: "Japão", PT: "Portugal", SG: "Singapura", US: "Estados Unidos" };
+const NOME_DO_PAIS = {
+  BR: "Brasil", DE: "Alemanha", JP: "Japão", PT: "Portugal", SG: "Singapura", US: "Estados Unidos",
+  // Origens do modo ao vivo (América Latina, SPEC-ao-vivo.md).
+  AR: "Argentina", BO: "Bolívia", CL: "Chile", CO: "Colômbia", CR: "Costa Rica", EC: "Equador", MX: "México",
+  PA: "Panamá", PE: "Peru", PY: "Paraguai", UY: "Uruguai", VE: "Venezuela",
+};
 
 function nomeDoPais(codigo) {
   return NOME_DO_PAIS[codigo] ?? codigo;
@@ -30,10 +35,15 @@ function detalhesDoFluxo(fluxo) {
   };
 }
 
-// "Ponto 6349 → Frankfurt": o ponto de medição no Brasil (a sonda) e a cidade do destino.
+// O país onde fica o ponto de medição: o replay tem só sondas do Brasil (sem `origem_pais` no JSON); o modo ao vivo traz o país.
+function paisDeOrigem(fluxo) {
+  return nomeDoPais(fluxo.origem_pais ?? "BR");
+}
+
+// "Ponto 6349 → Frankfurt" (replay: a sonda é sempre do Brasil) ou "Ponto 1234 (Chile) → Lisboa" (ao vivo).
 function rotuloDoFluxo(fluxo) {
   const { sonda, cidade } = detalhesDoFluxo(fluxo);
-  return `Ponto ${sonda} → ${cidade}`;
+  return fluxo.origem_pais === undefined ? `Ponto ${sonda} → ${cidade}` : `Ponto ${sonda} (${paisDeOrigem(fluxo)}) → ${cidade}`;
 }
 
 // "2026-09-23T20:09:58.000Z" vira a data (dia/mês/ano) e a hora separadas, sempre em UTC (a hora real da medição).
@@ -59,4 +69,4 @@ function criarCelula(tag, texto, classe) {
   return celula;
 }
 
-export { NOME_DA_CLASSE, SIGLA_DA_CLASSE, TEXTO_ACERTOU, TEXTO_ERROU, criarCelula, criarChip, detalhesDoFluxo, formatarInstante, nomeDoPais, rotuloDoFluxo };
+export { NOME_DA_CLASSE, SIGLA_DA_CLASSE, TEXTO_ACERTOU, TEXTO_ERROU, criarCelula, criarChip, detalhesDoFluxo, formatarInstante, nomeDoPais, paisDeOrigem, rotuloDoFluxo };

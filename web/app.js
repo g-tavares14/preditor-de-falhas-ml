@@ -1,14 +1,18 @@
 // app.js: relógio do replay, controles e teclado (SPEC-visualizacao.md).
 //
-// Lê `dados/replay.json` (gerado por `uv run python -m preditor replay`) e reproduz as medições em tempo acelerado.
+// Lê `dados/replay.json` (gerado por `uv run python -m preditor replay`) e reproduz as medições em tempo acelerado. Com `?ao-vivo`
+// na página lê `dados/aovivo.json` (gerado pelo serviço `uv run python -m preditor aovivo`, SPEC-ao-vivo.md): o mesmo formato, mas o
+// relógio anda em tempo real (atrasado) e o arquivo é relido de tempos em tempos; ver aovivo.js.
 // Quem faz o quê: mapa.js (e rotas.js, desenho.js, pulsos.js, selos.js, foco.js) desenha o mapa e os pulsos; tempo.js e
 // placar.js fazem as contas do relógio e do placar (sem DOM, rodam em Node); painel.js monta o placar e o feed;
 // cartao.js, o cartão da conexão. Aqui não se calcula métrica nem rótulo: só se conta e se compara o que já vem no JSON.
 // A página é para quem não é da área (sem árvore, matriz nem termos técnicos): os nomes na tela vêm de comum.js.
 
+import { ARQUIVO_AO_VIVO, MENSAGEM_SEM_DADOS_AO_VIVO, SALTO_MAXIMO_S, instanteDoRelogio, mesmosFluxos, modoAoVivo, servicoParado, textoDaIdade } from "./aovivo.js";
 import { atualizarCartao } from "./cartao.js";
 import { criarCelula, formatarInstante, rotuloDoFluxo } from "./comum.js";
 import { criarMapa } from "./mapa.js";
+import { ROTACAO_AO_VIVO } from "./rotas.js";
 import { atualizarPlacarSeMudou, formatarPorcentagem, montarFeed } from "./painel.js";
 import { acertou } from "./placar.js";
 import { DICA_REPLAY, avancarTempo, criarTempo, irParaTempo, regioesDosFluxos, terminou, ultimaDoFluxo } from "./tempo.js";
@@ -31,9 +35,15 @@ const TEMPO_MAXIMO_DO_QUADRO_S = 0.1;
 const PASSO_DA_BARRA_S = 60;
 const INTERVALO_DO_TEXTO_DA_BARRA_S = 2;
 
+// Ao vivo (`?ao-vivo`): outro arquivo, outra mensagem e outro ritmo; o resto da página é o mesmo.
+const AO_VIVO = modoAoVivo(window.location.search);
 const ARQUIVO_REPLAY = "dados/replay.json";
+const ARQUIVO_DADOS = AO_VIVO ? ARQUIVO_AO_VIVO : ARQUIVO_REPLAY;
 const ARQUIVO_MAPA = "vendor/countries-110m.json";
-const MENSAGEM_SEM_DADOS = DICA_REPLAY;
+const MENSAGEM_SEM_DADOS = AO_VIVO ? MENSAGEM_SEM_DADOS_AO_VIVO : DICA_REPLAY;
+// Ao vivo, enquanto o arquivo não existe (o serviço ainda está no baseline), a página tenta de novo a cada tanto.
+const ESPERA_SEM_DADOS_MS = 10000;
+const ATUALIZACAO_DO_SELO_MS = 1000;
 const MENSAGEM_SEM_MAPA = "Falta web/vendor/countries-110m.json (ver web/vendor/README.md)";
 
 
@@ -47,6 +57,12 @@ function pegarElementos() {
     status: porId("status"),
     erro: porId("erro"),
     alerta: porId("alerta"),
+    aviso: porId("aviso"),
+    relogioTitulo: porId("relogio-titulo"),
+    relogioNota: porId("relogio-nota"),
+    aoVivoSelo: porId("ao-vivo-selo"),
+    comoLerOnde: porId("como-ler-onde"),
+    placarPeriodo: porId("placar-periodo"),
     data: porId("relogio-data"),
     hora: porId("relogio-hora"),
     velocidades: porId("velocidades"),
@@ -135,7 +151,11 @@ function criarEstado(replay) {
     fluxos: replay.fluxos,
     rotulos: replay.fluxos.map(rotuloDoFluxo),
     tocando: false,
-    velocidade: VELOCIDADE_INICIAL,
+    velocidade: AO_VIVO ? 1 : VELOCIDADE_INICIAL, // ao vivo o relógio anda em tempo real
+    aoVivo: AO_VIVO,
+    atrasoS: replay.meta.atraso_s ?? 0, // só ao vivo: quanto o relógio fica atrás da hora real (ver aovivo.js)
+    geradoEmS: replay.meta.gerado_em_s ?? null, // só ao vivo: quando o serviço gravou o arquivo que a página tem
+    intervaloDoServicoS: replay.meta.intervalo_s ?? 60,
     relogioDaTela: 0, // segundos reais de animação (relógio dos pulsos); ver `animacaoAnda`
     todasAsRegioes: regioes,
     regioesLigadas: new Set(regioes), // filtro por região: começa com todas
@@ -158,7 +178,7 @@ function criarEstado(replay) {
 function irParaInstante(estado, mapa, instante) {
   irParaTempo(estado.tempo, instante);
   mapa.restaurar(ultimasMedicoes(estado));
-  if (terminou(estado.tempo)) {
+  if (terminou(estado.tempo) && !estado.aoVivo) {
     estado.tocando = false;
   }
 }
@@ -182,7 +202,20 @@ function animacaoAnda(estado) {
 // previsões que o relógio acabou de conferir viram ✓ ou ✗ no selo do fluxo.
 function avancarRelogio(estado, mapa, segundosReais) {
   const { tempo } = estado;
-  const { soltas, conferidas } = avancarTempo(tempo, tempo.agora + segundosReais * estado.velocidade);
+  let instante = tempo.agora + segundosReais * estado.velocidade;
+  if (estado.aoVivo) {
+    // Ao vivo o relógio segue a hora real (menos o atraso). Se ficou muito para trás (aba escondida), pula em vez de soltar
+    // centenas de pulsos de uma vez.
+    // O relógio nunca passa da última medição que a página tem (`tempo.fim`): o salto é medido até onde ele PODE ir. Sem isto, com os
+    // dados parados há mais de SALTO_MAXIMO_S, `agora` voltaria a `fim` e o salto repetiria a cada quadro.
+    const alvo = Math.min(instanteDoRelogio(Date.now(), estado.atrasoS), tempo.fim);
+    if (alvo - tempo.agora > SALTO_MAXIMO_S) {
+      irParaInstante(estado, mapa, alvo);
+      return;
+    }
+    instante = alvo;
+  }
+  const { soltas, conferidas } = avancarTempo(tempo, instante);
   for (const indice of soltas) {
     mapa.soltarPulso(tempo.medicoes[indice], estado.relogioDaTela);
   }
@@ -190,8 +223,8 @@ function avancarRelogio(estado, mapa, segundosReais) {
   for (const medicao of conferidas) {
     mapa.marcarConferencia(medicao.f, acertou(medicao), estado.relogioDaTela, duracao);
   }
-  // No fim o relógio para na última medição, em vez de seguir adiante.
-  if (terminou(tempo)) {
+  // No fim o relógio para na última medição, em vez de seguir adiante. Ao vivo não há fim: ele espera a próxima consulta.
+  if (terminou(tempo) && !estado.aoVivo) {
     estado.tocando = false;
   }
 }
@@ -243,6 +276,9 @@ function atualizarPainel(estado, elementos) {
   }
   elementos.contaTotal.textContent = tempo.proxima;
   elementos.contaTimeout.textContent = tempo.timeouts;
+  if (estado.aoVivo) {
+    return; // ao vivo não há botão nem barra de tempo
+  }
   elementos.botao.textContent = textoDoBotao(estado);
   // A barra acompanha o relógio, menos enquanto o ponteiro a segura (senão o relógio brigaria com a mão). No fim do replay o
   // polegar vai para o fim da barra: o `max` dela fica até um passo depois do fim (ver `montarBarra`), e o valor do relógio
@@ -270,6 +306,9 @@ function frasePlacar(estado) {
 
 // Anuncia quando o replay passa a tocar, é pausado ou chega ao fim (e o placar nessas duas últimas).
 function anunciarMudancaDoRelogio(estado, elementos) {
+  if (estado.aoVivo) {
+    return; // ao vivo o relógio nunca "para" nem "termina": nada a anunciar
+  }
   const situacao = terminou(estado.tempo) ? "fim" : estado.tocando ? "tocando" : "pausado";
   if (situacao === estado.situacaoAnunciada) {
     return;
@@ -468,17 +507,85 @@ function ligarTeclado(estado, mapa, fecharCartao) {
   });
 }
 
+// --- Ao vivo --------------------------------------------------------------------------------------------
+
+// Troca os textos que só valem para o replay: o aviso da rota, o título do relógio, "aparelhos no Brasil" e o período do placar.
+// Tudo com textContent. Os textos longos vêm do JSON (`meta.aviso`) ou daqui; nada vira HTML.
+function aplicarTextosAoVivo(elementos, meta) {
+  document.body.classList.add("ao-vivo");
+  elementos.aviso.textContent = meta.aviso;
+  elementos.relogioTitulo.firstChild.nodeValue = "Relógio ao vivo ";
+  elementos.relogioNota.textContent = `· hora UTC, ${Math.round(meta.atraso_s / 60)} min atrás da hora real`;
+  elementos.comoLerOnde.textContent = "Aparelhos na América Latina";
+  elementos.placarPeriodo.textContent =
+    `Ao vivo: pontos de medição que não estão no treino do modelo, lidos na API do RIPE Atlas${meta.janela_h ? ` (últimas ${meta.janela_h} h)` : ""}. ` +
+    "Só entram previsões já conferidas (12 min depois); no começo são poucas.";
+}
+
+// A faixa "ao vivo" do relógio: há quanto tempo o serviço gravou o arquivo, e o aviso de que ele pode ter parado.
+function escreverSeloAoVivo(estado, elementos) {
+  const idade = Math.max(0, Date.now() / 1000 - estado.geradoEmS);
+  const parado = servicoParado(idade, estado.intervaloDoServicoS);
+  elementos.aoVivoSelo.textContent = parado
+    ? `● O serviço parou? Dados de ${textoDaIdade(idade)}. Rode: uv run python -m preditor aovivo`
+    : `● Ao vivo · dados de ${textoDaIdade(idade)}`;
+  elementos.aoVivoSelo.classList.toggle("ao-vivo-parado", parado);
+}
+
+// Relê o arquivo e troca o relógio de dados SEM mexer no instante em que a página está: as medições que já passaram contam sem
+// pulso, as seguintes saem quando o relógio chegar nelas. Se a lista de conexões mudou (o serviço foi recomeçado), recarrega.
+async function atualizarDadosAoVivo(estado, elementos, partes) {
+  let novo;
+  try {
+    novo = await carregarJson(ARQUIVO_AO_VIVO);
+  } catch (erro) {
+    console.warn(erro); // sem arquivo agora: o selo passa a avisar que os dados envelhecem
+    return;
+  }
+  if (novo.meta.gerado_em_s === estado.geradoEmS) {
+    return; // o serviço ainda não regravou
+  }
+  if (!mesmosFluxos(estado.fluxos, novo.fluxos)) {
+    window.location.reload();
+    return;
+  }
+  const antes = estado.tempo.agora;
+  estado.tempo = criarTempo(novo); // valida; se o arquivo estiver fora do formato, o erro aparece na página
+  irParaTempo(estado.tempo, antes);
+  estado.geradoEmS = novo.meta.gerado_em_s;
+  partes.cartao.chave = null; // os índices das medições mudaram: o cartão da conexão se reescreve
+  elementos.contaGeral.textContent = novo.medicoes.length;
+}
+
+function prepararAoVivo(estado, mapa, elementos, partes, replay) {
+  aplicarTextosAoVivo(elementos, replay.meta);
+  // O botão de tocar fica escondido (o CSS), mas habilitado: é o sinal que o verificar-carga.js lê para saber que a página carregou.
+  elementos.botao.disabled = false;
+  // Começa na hora real (menos o atraso): quem abre a página vê o estado de agora, não o começo do serviço.
+  irParaInstante(estado, mapa, instanteDoRelogio(Date.now(), estado.atrasoS));
+  estado.tocando = true;
+  escreverSeloAoVivo(estado, elementos);
+  setInterval(() => escreverSeloAoVivo(estado, elementos), ATUALIZACAO_DO_SELO_MS);
+  setInterval(() => atualizarDadosAoVivo(estado, elementos, partes).catch((erro) => mostrarErro(elementos, `Erro: ${erro.message}`)), (replay.meta.atualizacao_s ?? 30) * 1000);
+}
+
 // --- Início ---------------------------------------------------------------------------------------------
 
 async function principal() {
   const elementos = pegarElementos();
 
   // Cada arquivo tem a sua mensagem: o replay vem do comando em Python; o mapa-base vem da cópia local em vendor/.
-  const replay = await carregarOuMostrarErro(ARQUIVO_REPLAY, MENSAGEM_SEM_DADOS, elementos);
+  let replay = await carregarOuMostrarErro(ARQUIVO_DADOS, MENSAGEM_SEM_DADOS, elementos);
+  // Ao vivo o arquivo só existe depois da primeira consulta do serviço: a página espera, em vez de ficar parada no erro.
+  while (AO_VIVO && replay === null) {
+    await new Promise((resolver) => setTimeout(resolver, ESPERA_SEM_DADOS_MS));
+    replay = await carregarOuMostrarErro(ARQUIVO_DADOS, MENSAGEM_SEM_DADOS, elementos);
+  }
   const topologia = await carregarOuMostrarErro(ARQUIVO_MAPA, MENSAGEM_SEM_MAPA, elementos);
   if (replay === null || topologia === null) {
     return; // a mensagem de erro já está na página
   }
+  elementos.erro.hidden = true; // ao vivo, a mensagem de "ainda sem dados" sai quando o arquivo aparece
 
   const estado = criarEstado(replay);
   elementos.status.hidden = true;
@@ -538,12 +645,15 @@ async function principal() {
     rotulos: estado.rotulos,
     aoSelecionar: selecionar,
     semRastro,
+    rotacao: AO_VIVO ? ROTACAO_AO_VIVO : undefined,
   });
   conferirCorteNoCarregamento(mapa, elementos);
   partes.feed = montarFeed(elementos.feed, selecionar);
 
-  montarVelocidades(estado, elementos);
-  montarBarra(estado, mapa, elementos);
+  if (!AO_VIVO) {
+    montarVelocidades(estado, elementos);
+    montarBarra(estado, mapa, elementos);
+  }
   montarRegioes(estado, mapa, elementos, selecionar);
   montarEscolhaDeFluxo(estado, elementos, selecionar);
   elementos.soErros.checked = estado.soErros;
@@ -554,8 +664,12 @@ async function principal() {
   elementos.fluxo.fechar.addEventListener("click", fecharCartao);
   ligarTeclado(estado, mapa, fecharCartao);
 
-  elementos.botao.disabled = false;
-  elementos.botao.addEventListener("click", () => alternarTocar(estado, mapa));
+  if (AO_VIVO) {
+    prepararAoVivo(estado, mapa, elementos, partes, replay);
+  } else {
+    elementos.botao.disabled = false;
+    elementos.botao.addEventListener("click", () => alternarTocar(estado, mapa));
+  }
   iniciarLaco(estado, mapa, elementos, partes);
 }
 

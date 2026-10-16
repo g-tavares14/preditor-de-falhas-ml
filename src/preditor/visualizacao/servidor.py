@@ -8,6 +8,7 @@ import functools
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 
 from preditor import config
+from preditor.aovivo.parametros import ARQUIVO_PAGINA as ARQUIVO_AO_VIVO
 
 
 class Atendente(SimpleHTTPRequestHandler):
@@ -51,9 +52,13 @@ class ServidorDaPagina(ThreadingHTTPServer):
 
 class Servidor:
     def servir(self, porta: int) -> None:
-        # Sem o JSON do replay a página só mostraria a mensagem de erro: pede o comando antes de subir.
-        if not config.ARQUIVO_REPLAY.exists():
-            raise SystemExit(f"Não encontrei {config.ARQUIVO_REPLAY}.\nRode antes: uv run python -m preditor replay")
+        # Sem o JSON do replay a página só mostraria a mensagem de erro: pede o comando antes de subir. O modo ao vivo
+        # (`?ao-vivo`) lê o `aovivo.json` do serviço, que pode existir sem o replay.
+        if not config.ARQUIVO_REPLAY.exists() and not ARQUIVO_AO_VIVO.exists():
+            raise SystemExit(
+                f"Não encontrei {config.ARQUIVO_REPLAY} nem {ARQUIVO_AO_VIVO}.\n"
+                "Rode antes: uv run python -m preditor replay (ou, para o modo ao vivo, uv run python -m preditor aovivo)"
+            )
 
         if not 1 <= porta <= 65535:
             raise SystemExit(f"Porta inválida: {porta}. Use um número de 1 a 65535.")

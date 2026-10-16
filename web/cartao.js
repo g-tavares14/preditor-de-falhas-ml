@@ -5,7 +5,7 @@
 
 import { acertou } from "./placar.js";
 import { ehTimeout, ultimaConferidaDoFluxo, ultimaDoFluxo } from "./tempo.js";
-import { TEXTO_ACERTOU, TEXTO_ERROU, criarCelula, criarChip, detalhesDoFluxo, formatarInstante, nomeDoPais } from "./comum.js";
+import { TEXTO_ACERTOU, TEXTO_ERROU, criarCelula, criarChip, detalhesDoFluxo, formatarInstante, nomeDoPais, paisDeOrigem } from "./comum.js";
 
 const SEM_FUTURO = "sem como conferir (faltou medição depois)";
 const SEM_CONFERIDA = "nenhuma previsão conferida ainda";
@@ -47,7 +47,7 @@ function escreverRotaDoCartao(campos, fluxo) {
   const { sonda, cidade } = detalhesDoFluxo(fluxo);
   const trechos = fluxo.trechos.map((trecho) => trecho.nome).join(" → ");
   const pais = nomeDoPais(fluxo.pais);
-  campos.titulo.textContent = `Ponto ${sonda} (Brasil) → ${cidade === pais ? cidade : `${cidade}, ${pais}`}`; // "Singapura", não "Singapura, Singapura"
+  campos.titulo.textContent = `Ponto ${sonda} (${paisDeOrigem(fluxo)}) → ${cidade === pais ? cidade : `${cidade}, ${pais}`}`; // "Singapura", não "Singapura, Singapura"
   campos.opcao.textContent = `Rota ilustrativa: ${fluxo.opcao}`;
   campos.trechos.textContent = `Passa por: ${trechos}`;
   campos.trechos.title = trechos;

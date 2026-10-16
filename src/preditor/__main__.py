@@ -43,6 +43,8 @@ from preditor.modelo.execucao_ajuste import ExecucaoAjuste
 from preditor.modelo.execucao_comparacao import ExecucaoComparacao
 from preditor.modelo.execucao_teste import ExecucaoTeste
 from preditor.modelo.exportacao import ExportacaoModelo
+from preditor.aovivo import parametros as parametros_aovivo
+from preditor.aovivo.execucao import ExecucaoAoVivo
 from preditor.silver.medicao import Medicoes
 from preditor.spark import build_spark
 from preditor.visualizacao.execucao import ExecucaoReplay
@@ -537,8 +539,8 @@ def main() -> None:
     analisador.add_argument(
         "camada",
         nargs="?",  # opcional: sem argumento roda o pipeline completo
-        choices=["bronze", "silver", "gold", "arvore", "ajuste", "replay", "comparar", "exportar", "servir", "teste"],
-        help="camada a rodar isoladamente, ou `arvore` / `ajuste` / `replay` / `comparar` / `exportar` / `servir` / `teste` "
+        choices=["bronze", "silver", "gold", "arvore", "ajuste", "replay", "comparar", "exportar", "servir", "teste", "aovivo"],
+        help="camada a rodar isoladamente, ou `arvore` / `ajuste` / `replay` / `comparar` / `exportar` / `servir` / `teste` / `aovivo` "
              "(sem argumento: pipeline completo)",
     )
     analisador.add_argument(
@@ -549,6 +551,14 @@ def main() -> None:
     )
     analisador.add_argument("--ensaio", action="store_true", help="só com `teste`: ensaio nas linhas da validação")
     analisador.add_argument("--abrir-o-teste", action="store_true", help="só com `teste`: abre o teste uma vez")
+    # Opções do serviço ao vivo (SPEC-ao-vivo.md); só valem com `aovivo`.
+    analisador.add_argument("--conferir", action="store_true", help="só com `aovivo`: confere o motor contra o Gold e o leitor contra o Silver (usa a API) e sai")
+    analisador.add_argument("--sem-conferir", action="store_true", help="só com `aovivo`: pula a conferência do motor contra o Gold na partida")
+    analisador.add_argument("--recomecar", action="store_true", help="só com `aovivo`: apaga o estado, sorteia as sondas e calcula o baseline de novo")
+    analisador.add_argument("--quantas", type=int, default=parametros_aovivo.SONDAS_PADRAO, help=f"só com `aovivo`: quantas sondas sortear (padrão {parametros_aovivo.SONDAS_PADRAO})")
+    analisador.add_argument("--paises", default=None, help="só com `aovivo`: países das sondas, em código de 2 letras separados por vírgula (padrão: América Latina)")
+    analisador.add_argument("--retroativo-horas", type=float, default=0.0, help="só com `aovivo`: T0 fica tantas horas no passado (as medições desde então entram como se tivessem acabado de chegar)")
+    analisador.add_argument("--ciclos", type=int, default=None, help="só com `aovivo`: para depois de tantas consultas (padrão: roda até o Ctrl+C)")
     argumentos = analisador.parse_args()
     camada = argumentos.camada
 
@@ -561,6 +571,13 @@ def main() -> None:
         return
     if argumentos.ensaio or argumentos.abrir_o_teste:
         analisador.error("--ensaio e --abrir-o-teste só valem com o comando teste")
+
+    # O serviço ao vivo é pandas + scikit-learn + a API do Atlas: mesmo desvio antes de `build_spark`, sem Spark nem Java.
+    if camada == "aovivo":
+        ExecucaoAoVivo().executar(argumentos)
+        return
+    if argumentos.conferir or argumentos.sem_conferir or argumentos.recomecar or argumentos.paises or argumentos.ciclos is not None:
+        analisador.error("--conferir, --sem-conferir, --recomecar, --paises e --ciclos só valem com o comando aovivo")
 
     # A árvore lê o Gold com pandas: desvia antes de `build_spark`, que exige Java.
     # Por isso `arvore` também não entra na execução sem argumento.

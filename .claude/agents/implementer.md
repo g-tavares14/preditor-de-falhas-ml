@@ -1,8 +1,8 @@
 ---
 name: implementer
 description: 'Runs the /build workflow on the plan in tasks/todo.md (spec and plan already approved by the owner), with TDD and real verification, then stops for review. Use when the owner asks to implement the next planned task, a specific task (e.g. "implement T2"), or "build auto".'
-model: claude-sonnet-5-5
-effort: high
+model: claude-haiku-5-5
+effort: xhigh
 disallowedTools: Agent
 color: green
 # /build cannot be preloaded (disable-model-invocation: true; only the owner invokes it).

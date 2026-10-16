@@ -463,6 +463,25 @@ kbd {
   stroke-width: 0.7;
 }
 
+/* Modo ao vivo (?ao-vivo, app.js põe a classe `ao-vivo` no <body>): sem barra de tempo, velocidades nem botão de tocar (o relógio
+   anda em tempo real), sem a legenda de cabos e paradas (as rotas são linhas diretas). `so-ao-vivo` só aparece nesse modo.
+   O seletor com `body:not(.ao-vivo)` é de propósito mais específico que `.lista-legenda li` (que define `display: flex`). */
+body:not(.ao-vivo) .so-ao-vivo {
+  display: none;
+}
+
+.ao-vivo .so-replay,
+.ao-vivo .barra,
+.ao-vivo .controle-linha,
+.ao-vivo .relogio-controle {
+  display: none;
+}
+
+.ao-vivo-selo {
+  margin-top: 6px;
+  font-weight: 800;
+}
+
 /* Trechos: terrestre = linha cheia; submarino = linha tracejada. Os dois se distinguem pelo traço, não pela cor. */
 .trecho-linha {
   fill: none;
@@ -474,6 +493,14 @@ kbd {
 .trecho-terrestre .trecho-linha,
 .trecho-terrestre-amostra {
   stroke-width: 2.5;
+}
+
+/* Linha direta (só no modo ao vivo): pontilhada, para não parecer cabo nem terra. */
+.trecho-direto .trecho-linha,
+.trecho-direto-amostra {
+  stroke-width: 2;
+  stroke-dasharray: 2 4;
+  stroke-linecap: round;
 }
 
 .trecho-submarino .trecho-linha,
