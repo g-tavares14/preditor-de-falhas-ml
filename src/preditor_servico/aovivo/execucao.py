@@ -33,7 +33,7 @@ class ExecucaoAoVivo:
         servico = ServicoAoVivo(cliente, exportado, estado)
         print(
             f"Ao vivo com {len(servico.utilizaveis)} fluxos de {len(servico.sondas)} sondas; uma consulta por "
-            f"{parametros.INTERVALO_CONSULTA_S} s. Página: uv run python -m preditor_analise servir  →  http://127.0.0.1:8000/?ao-vivo"
+            f"{parametros.INTERVALO_CONSULTA_S} s. Página: dotnet run (em api/Preditor.Api)  →  http://localhost:5053/?ao-vivo"
         )
         servico.rodar(argumentos.ciclos)
 

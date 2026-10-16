@@ -6,23 +6,18 @@ Com `silver`: só a normalização, lendo o Bronze do disco (sem rede).
 Com `gold`: só baseline, features e rótulo, lendo o Silver do disco (sem rede).
 Cada camada lê a anterior do disco, nunca da memória.
 Com `arvore`: a árvore de decisão, lendo o Gold do disco e gravando em `data/modelo/` (sem rede, sem Spark e
-sem Java); não entra na execução sem argumento. O código dela fica em `preditor/modelo/`.
+sem Java); não entra na execução sem argumento. O código dela fica em `preditor_analise/modelo/`.
 Com `ajuste`: a árvore ajustada da Tarefa 4, medida contra a da Tarefa 3; lê o Gold e as saídas do `arvore` e grava
 em `data/modelo/` (também sem rede, sem Spark e sem Java, e fora da execução sem argumento).
 Com `replay`: prevê a validação com a Random Forest exportada e grava `wwwroot/dados/replay.json` (o replay da validação no
 mapa); lê o Gold e as saídas do `exportar` e do `comparar`, sem refazer árvore; também sem rede, sem Spark e sem Java,
-e fora da execução sem argumento. O código fica em `preditor/visualizacao/`.
+e fora da execução sem argumento. O código fica em `preditor_analise/visualizacao/`.
 Com `comparar`: Random Forest e XGBoost contra a árvore ajustada e a persistência, nas mesmas linhas da validação; lê o
 Gold e as saídas do `arvore` e do `ajuste`, grava em `data/modelo/comparacao/` (sem rede, sem Spark e sem Java, e fora da
-execução sem argumento). O código fica em `preditor/modelo/`.
+execução sem argumento). O código fica em `preditor_analise/modelo/`.
 Com `exportar`: refaz o modelo escolhido pelo `comparar` e a árvore ajustada (só com o treino), grava os `.joblib`, o
 LEIA-ME e o exemplo em `data/modelo/exportado/` depois de abri-los em processo novo (também sem Spark e fora da execução
 sem argumento).
-Com `teste`: o teste único da Tarefa 5 (SPEC-teste-final.md). `teste --ensaio` roda as medições nas linhas da VALIDAÇÃO
-(sem tocar o teste) e confere com o `comparar`, e grava o carimbo `ensaio_ok.json`. `teste --abrir-o-teste` abre o teste
-uma vez: recusa sem carimbo válido ou se a trava `TESTE_ABERTO.json` existir; grava a trava antes de ler o bloco. Sem
-`preditor/modelo/` nem Spark, e fora da execução sem argumento.
-Com `servir`: serve a página `wwwroot/` em http://127.0.0.1:8000/ (`--porta N` troca a porta), só com a biblioteca padrão.
 """
 
 import argparse
@@ -41,7 +36,6 @@ from preditor_analise.gold.calculo_y.rotulo import Rotulo
 from preditor_analise.modelo.execucao import ExecucaoArvore
 from preditor_analise.modelo.execucao_ajuste import ExecucaoAjuste
 from preditor_analise.modelo.execucao_comparacao import ExecucaoComparacao
-from preditor_analise.modelo.execucao_teste import ExecucaoTeste
 from preditor_analise.modelo.exportacao import ExportacaoModelo
 from preditor_analise import conferir_aovivo
 from preditor_servico.aovivo import parametros as parametros_aovivo
@@ -50,7 +44,6 @@ from preditor_servico.aovivo.execucao import ExecucaoAoVivo
 from preditor_analise.silver.medicao import Medicoes
 from preditor_analise.spark import build_spark
 from preditor_analise.visualizacao.execucao import ExecucaoReplay
-from preditor_analise.visualizacao.servidor import Servidor
 
 
 class Pipeline:
@@ -541,18 +534,10 @@ def main() -> None:
     analisador.add_argument(
         "camada",
         nargs="?",  # opcional: sem argumento roda o pipeline completo
-        choices=["bronze", "silver", "gold", "arvore", "ajuste", "replay", "comparar", "exportar", "servir", "teste", "aovivo"],
-        help="camada a rodar isoladamente, ou `arvore` / `ajuste` / `replay` / `comparar` / `exportar` / `servir` / `teste` / `aovivo` "
+        choices=["bronze", "silver", "gold", "arvore", "ajuste", "replay", "comparar", "exportar", "aovivo"],
+        help="camada a rodar isoladamente, ou `arvore` / `ajuste` / `replay` / `comparar` / `exportar` / `aovivo` "
              "(sem argumento: pipeline completo)",
     )
-    analisador.add_argument(
-        "--porta",
-        type=int,
-        default=config.PORTA_SERVIDOR,
-        help=f"só com `servir`: porta da página (padrão {config.PORTA_SERVIDOR})",
-    )
-    analisador.add_argument("--ensaio", action="store_true", help="só com `teste`: ensaio nas linhas da validação")
-    analisador.add_argument("--abrir-o-teste", action="store_true", help="só com `teste`: abre o teste uma vez")
     # Opções do serviço ao vivo (SPEC-ao-vivo.md); só valem com `aovivo`.
     analisador.add_argument("--conferir", action="store_true", help="só com `aovivo`: confere o motor contra o Gold e o leitor contra o Silver (usa a API) e sai")
     analisador.add_argument("--sem-conferir", action="store_true", help="só com `aovivo`: pula a conferência do motor contra o Gold na partida")
@@ -563,16 +548,6 @@ def main() -> None:
     analisador.add_argument("--ciclos", type=int, default=None, help="só com `aovivo`: para depois de tantas consultas (padrão: roda até o Ctrl+C)")
     argumentos = analisador.parse_args()
     camada = argumentos.camada
-
-    # O teste pede exatamente um dos dois argumentos (nenhum ou os dois é erro), e eles não são ignorados por outro comando.
-    if camada == "teste":
-        if argumentos.ensaio == argumentos.abrir_o_teste:
-            analisador.error("o comando teste pede exatamente um: --ensaio ou --abrir-o-teste")
-        # Desvio antes de `build_spark`: o teste lê o Gold com pandas e o scikit-learn, como os outros comandos do modelo.
-        ExecucaoTeste().executar(ensaio=argumentos.ensaio)
-        return
-    if argumentos.ensaio or argumentos.abrir_o_teste:
-        analisador.error("--ensaio e --abrir-o-teste só valem com o comando teste")
 
     # O serviço ao vivo é pandas + scikit-learn + a API do Atlas: mesmo desvio antes de `build_spark`, sem Spark nem Java.
     # A conferência do motor contra o Gold mora aqui (a análise lê o Gold; o `preditor_servico` não): `--conferir` roda as duas
@@ -608,11 +583,6 @@ def main() -> None:
     if camada == "exportar":
         ExportacaoModelo().executar()
         return
-    # O servidor da página só usa a biblioteca padrão: também fica antes de `build_spark`.
-    if camada == "servir":
-        Servidor().servir(argumentos.porta)
-        return
-
     # O conector do BigQuery só é necessário quando a execução inclui o Bronze.
     spark = build_spark(com_bigquery=camada in (None, "bronze"))
     try:

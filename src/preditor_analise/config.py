@@ -273,52 +273,17 @@ ARQUIVO_EXEMPLO_DE_USO = EXPORTADO / "exemplo_de_uso.py"
 # Versão do formato do dicionário gravado no `.joblib`: muda só se a estrutura mudar (o leitor confere antes de usar).
 FORMATO_EXPORTADO = 1
 
-# --- Teste único da Tarefa 5 (SPEC-teste-final.md; tasks/plan-teste-final.md) ---------------------------------
-# O bloco de teste fica fechado até a abertura (`preditor teste --abrir-o-teste`, uma vez). Tudo o que ela grava vai
-# para `data/modelo/teste/` (ignorada pelo git), com estes nomes. O ensaio grava só o carimbo `ensaio_ok.json`.
-TESTE = MODELO / "teste"
-# Carimbo do ensaio: a abertura só roda com ele válido (hash do modelo e do código de medição). Sem data, para que
-# duas execuções do ensaio gravem o mesmo arquivo.
-ARQUIVO_ENSAIO_OK = TESTE / "ensaio_ok.json"
-# Trava: se existe, o teste já foi aberto (estado `em_andamento` ou `concluido`). O código nunca a apaga.
-ARQUIVO_TESTE_ABERTO = TESTE / "TESTE_ABERTO.json"
-ARQUIVO_RESULTADO_TESTE = TESTE / "resultado.json"  # modelo, SHA-256, N, data e declaração preditor/detector
-ARQUIVO_MATRIZ_TESTE = TESTE / "matriz_teste.csv"  # matriz 3×3 em contagem, modelo e persistência
-ARQUIVO_METRICAS_TESTE = TESTE / "metricas_teste.csv"  # as métricas de sempre, mais o acerto por transição
-ARQUIVO_IC_GANHO_TESTE = TESTE / "ic_ganho_teste.csv"  # IC 95 % por fluxo do ganho de F1 sobre a persistência
-ARQUIVO_CASOS_TESTE = TESTE / "casos_teste.txt"  # os dois casos concretos, com fluxo_id e horário
-# Estados da trava (`TESTE_ABERTO.json`, SPEC-teste-final.md, "Travas"): gravada em `em_andamento` ANTES de ler o bloco de
-# teste, e trocada para `concluido` só no fim. Existir em qualquer dos dois estados recusa uma nova abertura.
-ESTADO_EM_ANDAMENTO = "em_andamento"
-ESTADO_CONCLUIDO = "concluido"
-
 # --- Visualização: replay no mapa-múndi (SPEC-visualizacao.md; tasks/plan-visualizacao.md) ---------------
 # Bloco exibido (spec, "Bloco exibido: validação"): o teste fica fechado até a Tarefa 5. Trocar o bloco é decisão
 # do dono e exige rever as checagens de `visualizacao/execucao.py`, que hoje comparam com a validação.
 BLOCO_REPLAY = BLOCO_VALIDACAO
 WEB = Path(__file__).resolve().parents[2] / "api" / "Preditor.Api" / "wwwroot"  # a página estática (HTML, CSS e JS), dentro da API em C#
 ARQUIVO_REPLAY = WEB / "dados" / "replay.json"  # saída de `visualizacao/`; a pasta `wwwroot/dados/` é ignorada pelo git
-# Servidor local da página (`uv run python -m preditor_analise servir`; `visualizacao/servidor.py`). O `python -m http.server` perdia
-# arquivos sob concorrência (revisão da V7): atende uma conexão por vez (HTTP/1.0), com fila de 5; com 5 navegadores abrindo
-# a página ao mesmo tempo, até 6,5 % das cargas falharam, e se a falha atinge um módulo importado a página fica presa em
-# "Carregando o replay..." sem mensagem. Com `ThreadingHTTPServer` + fila de 128 + HTTP/1.1, o revisor mediu 0 falhas em
-# 200 cargas (e a mesma coisa só com HTTP/1.1); a V7b repetiu essa medição (relatada na entrega).
-ENDERECO_SERVIDOR = "127.0.0.1"  # só a própria máquina: a página é local e não precisa de ninguém de fora
-PORTA_SERVIDOR = 8000  # a porta que a documentação e o `.claude/launch.json` já usavam; `--porta N` troca
-FILA_DO_SERVIDOR = 128  # `request_queue_size`: conexões esperando na fila (o padrão do Python é 5); 128 é o que o revisor mediu
 # Texto do aviso fixo da página (spec, "O que é real e o que é simulado").
 AVISO_ROTA = "Rota ilustrativa: os cabos existem, mas o caminho de cada fluxo é simulado."
 # Casas decimais do RTT no JSON: milésimo de ms. O RTT só serve para a duração do pulso na tela; mais casas
 # só engordariam o arquivo (decisão da V1).
 CASAS_RTT_REPLAY = 3
-# Casas decimais das 8 colunas do X de cada medição no JSON (`x`, só para o cartão do fluxo). 4 = as casas do limiar
-# impresso nas regras (`CASAS_LIMIAR_REGRA`): mais do que isso engordaria o arquivo sem mudar o que se lê. A execução
-# confere que o valor arredondado cai na MESMA folha que o exato (senão, aumente este número).
-CASAS_X_REPLAY = 4
-# Casas do limiar de cada divisão no painel da árvore (`arvores.*.nos` no JSON, SPEC-arvore-na-pagina.md). 6 = as da
-# ajustada (`CASAS_LIMIAR_REGRA_AJUSTE`), que bastam para as duas: a execução confere que percorrer os nós com o `x` do
-# JSON e estes limiares chega na folha gravada.
-CASAS_LIMIAR_REPLAY = 6
 
 # Pontos candidatos do destino de cada país (spec, "Coordenadas"), em [longitude, latitude] (ordem do GeoJSON e do D3).
 # O dataset só tem o país do destino (`destination_country`), nunca a cidade: cada ponto é uma APROXIMAÇÃO, não uma

@@ -1,6 +1,6 @@
 """Parâmetros do serviço ao vivo (SPEC-ao-vivo.md).
 
-Ficam aqui e não em `config.py` porque o `config.py` faz parte do código de medição do carimbo do teste (AGENTS.md):
+Ficam aqui e não em `config.py` porque o `config.py` foi congelado quando o teste final foi aberto (10/10/2026, AGENTS.md):
 as constantes que já existem lá (janela, limiares, piso, 108 h, 1.500 RTT) são LIDAS de `config`, nunca copiadas.
 """
 

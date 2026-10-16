@@ -159,12 +159,12 @@ Uma página web reproduz o bloco de validação em tempo acelerado (spec em
 os dois offline, sem Spark e sem Java:
 
 ```bash
-uv run python -m preditor_analise replay   # lê data/gold/, refaz as duas árvores e grava api/Preditor.Api/wwwroot/dados/replay.json
-uv run python -m preditor_analise servir   # serve a página em http://127.0.0.1:8000/ (--porta N troca a porta)
+uv run python -m preditor_analise replay   # lê data/gold/, prevê com a Random Forest exportada e grava api/Preditor.Api/wwwroot/dados/replay.json
+cd api/Preditor.Api && dotnet run   # serve a página em http://localhost:5053/ (a API em C# também serve o mapa)
 ```
 
-Use o `servir`, não o `python -m http.server`: a página carrega vários módulos ao mesmo tempo e o servidor padrão do
-Python perde arquivos quando mais de um navegador abre a página.
+A página é servida pela API em C#, que também tem as páginas `/testar`, `/historico` e o `/swagger`. Não use o
+`python -m http.server`: a página carrega vários módulos ao mesmo tempo e o servidor padrão do Python perde arquivos.
 
 O que é real e o que é simulado: as medições, os rótulos e as previsões vêm do Gold e da árvore oficial; os cabos
 submarinos existem (conferidos no mapa da TeleGeography), mas **o caminho de cada fluxo por eles é simulado**, porque
@@ -197,7 +197,7 @@ de Spark nem de Java.
 ```bash
 uv run python -m preditor_analise aovivo --conferir   # o motor em pandas × Gold, e o leitor da API × Silver; não sobe o serviço
 uv run python -m preditor_analise aovivo              # sorteia as sondas, baixa o baseline de 108 h e consulta a API a cada 60 s (Ctrl+C encerra)
-uv run python -m preditor_analise servir              # e abra http://127.0.0.1:8000/?ao-vivo
+cd api/Preditor.Api && dotnet run                     # e abra http://localhost:5053/?ao-vivo
 ```
 
 O baseline são as 108 h antes da partida (T0) e fica congelado em `data/aovivo/estado.json`; reiniciar o comando

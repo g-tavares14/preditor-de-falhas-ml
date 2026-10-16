@@ -258,9 +258,8 @@ class Avaliacao:
         """Compara a classe verdadeira com a prevista, linha a linha, e confere as próprias contas."""
         # A barreira real contra medir o teste é `DadosModelo`: ele nunca guarda linhas do teste (só o N),
         # então não há o que passar para cá. Este `bloco` é um guarda contra erro de uso: quem chama diz de
-        # onde vêm as linhas, e o teste (fechado até a Tarefa 5) é recusado pelo nome, a menos que `liberar_teste`
-        # seja passado. Só a abertura do teste (`execucao_teste.py`) passa; os outros comandos não, e as saídas deles
-        # não mudam.
+        # onde vêm as linhas, e o teste (aberto uma vez, em 10/10/2026, e fechado de novo) é recusado pelo nome, a
+        # menos que `liberar_teste` seja passado. Nenhum comando passa; as saídas deles não mudam.
         # `treino` é aceito de propósito: a busca de hiperparâmetros mede também o F1 macro de treino
         # (para ver o quanto a árvore decora o treino). Só a validação decide a escolha.
         Avaliacao._verificar_bloco(bloco, liberar_teste)

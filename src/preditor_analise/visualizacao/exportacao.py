@@ -20,7 +20,7 @@ from preditor_analise.visualizacao.rotas import Rotas
 EPOCA = pd.Timestamp("1970-01-01")
 FORMATO_INSTANTE = "%Y-%m-%dT%H:%M:%SZ"
 # O nome que a página mostra ("Random Forest, 100 árvores"). O código do projeto (`config.MODELO_FLORESTA`) não serve para
-# quem não é da área. Fica aqui e não em config.py: o `config.py` faz parte do carimbo do teste (`CODIGO_DE_MEDICAO`).
+# quem não é da área. Fica aqui e não em config.py: o `config.py` foi congelado quando o teste final foi aberto (10/10/2026).
 NOME_DA_FLORESTA = "Random Forest"
 
 

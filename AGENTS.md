@@ -67,7 +67,6 @@ uv run python -m preditor_analise arvore   # data/gold/ → data/modelo/ (offlin
 uv run python -m preditor_analise ajuste   # data/gold/ + saídas do `arvore` → data/modelo/ (não reescreve os arquivos da Tarefa 3)
 # run (a visualização; comandos à parte, offline, sem Spark nem Java):
 uv run python -m preditor_analise replay   # data/gold/ + modelo_final.joblib → api/Preditor.Api/wwwroot/dados/replay.json (prevê com a Random Forest; sem treinar)
-uv run python -m preditor_analise servir   # serve api/Preditor.Api/wwwroot/ em http://127.0.0.1:8000/ (--porta N); não use `python -m http.server`
 uv run python -m preditor_analise.visualizacao.coletar_sondas   # só para refazer sondas.csv (rede: API pública do RIPE Atlas)
 # run (o microserviço do modelo, para a API em C#; offline, sem Spark e sem Java; SPEC-api-csharp.md):
 uv run python -m preditor_analise.conferir_servico            # serviço pela rede × modelo recarregado (0 diferenças) e grava api/Preditor.Api.Tests/Fixtures/paridade.json
@@ -80,13 +79,10 @@ cd api && dotnet dotnet-ef migrations add <Nome> --project Preditor.Api --output
 uv run python -m preditor_analise aovivo --conferir   # motor em pandas × Gold (offline) e leitor da API × Silver (rede); não sobe o serviço
 uv run python -m preditor_analise aovivo              # sorteia 10 sondas da América Latina, baixa o baseline de 108 h e consulta a API a cada 60 s (Ctrl+C encerra)
 uv run python -m preditor_analise aovivo --recomecar --retroativo-horas 6 --ciclos 3   # T0 seis horas atrás (as medições desde então entram como se acabassem de chegar)
-uv run python -m preditor_analise servir              # e abra http://127.0.0.1:8000/?ao-vivo (a página sem `?ao-vivo` segue sendo o replay)
+cd api/Preditor.Api && dotnet run                     # e abra http://localhost:5053/?ao-vivo (a página sem `?ao-vivo` segue sendo o replay)
 # run (a comparação Random Forest × XGBoost × árvore; comandos à parte, offline, sem Spark nem Java):
 uv run python -m preditor_analise comparar  # data/gold/ + saídas de arvore e ajuste → data/modelo/comparacao/ (~4 min)
 uv run python -m preditor_analise exportar  # escolha.json do comparar → data/modelo/exportado/ (.joblib, LEIA-ME.md, exemplo; ~10 s)
-# run (o teste único, Tarefa 5; comandos à parte, offline, sem Spark nem Java; spec em SPEC-teste-final.md):
-uv run python -m preditor_analise teste --ensaio          # mesmo caminho do teste, nas linhas da VALIDAÇÃO; confere com o comparar e grava ensaio_ok.json
-uv run python -m preditor_analise teste --abrir-o-teste   # o teste foi aberto UMA vez em 10/10/2026, 14:49; recusa com carimbo inválido ou com TESTE_ABERTO.json
 # run (análise do piso da regra 3; fora do pipeline, não grava no projeto; saídas em data/analise_piso_regra3/, ignorada pelo git):
 uv run python data/analise_piso_regra3/robustez_piso.py      # antes × depois: ganho com IC por fluxo, dobra interna, pares (~3 min)
 uv run python data/analise_piso_regra3/conferir_secao8.py    # confere cada número da seção 8 contra numeros_secao8.csv
@@ -133,10 +129,8 @@ JAVA_HOME=/opt/homebrew/opt/openjdk@17 uv run python data/analise_piso_regra3/co
 Só `bronze` (e o pipeline completo) precisa de rede e credenciais do BigQuery. `silver` e `gold` rodam offline, mas
 exigem a camada anterior no disco: sem ela, terminam com a mensagem de qual comando rodar antes (nunca recaem no
 BigQuery). `arvore` também roda offline e exige o Gold (sem ele, pede `uv run python -m preditor_analise gold`). Sem rede,
-verifique ao menos a importação: `uv run python -c "import preditor_analise.__main__"`. `ajuste` exige o Gold com as colunas novas e as saídas do `arvore`. `replay` exige o Gold, o `.joblib` e o LEIA-ME do `exportar`, as saídas do `comparar` e o `sondas.csv`; `servir` exige o `replay.json` (cada um diz qual comando rodar antes). `comparar` exige o Gold e as saídas do `arvore` e do
-`ajuste`; `exportar` exige as saídas do `comparar`. `teste --ensaio` exige o `exportar` (o `.joblib` e o LEIA-ME);
-`teste --abrir-o-teste` exige também o carimbo `ensaio_ok.json` válido (SHA-256 do modelo, da escolha e do código de
-medição) e recusa se `TESTE_ABERTO.json` existir. Sem argumento, `teste` não roda.
+verifique ao menos a importação: `uv run python -c "import preditor_analise.__main__"`. `ajuste` exige o Gold com as colunas novas e as saídas do `arvore`. `replay` exige o Gold, o `.joblib` e o LEIA-ME do `exportar`, as saídas do `comparar` e o `sondas.csv` (cada um diz qual comando rodar antes). `comparar` exige o Gold e as saídas do `arvore` e do
+`ajuste`; `exportar` exige as saídas do `comparar`.
 
 ## Conventions
 
@@ -153,11 +147,8 @@ medição) e recusa se `TESTE_ABERTO.json` existir. Sem argumento, `teste` não 
   e `Avaliacao` e a regra de escolha de `comparacao.py` (`escolher_por_regra`). `comparacao.py` é só cálculo (regra, IC,
   tabelas) e não importa `floresta` nem `boosting`. `execucao_comparacao.py` treina, verifica e grava; `exportacao.py`
   só grava o `.joblib` depois de abri-lo em processo novo. A árvore ajustada mantém a sua cópia da regra: `ajuste.py` não mudou.
-- O teste único (Tarefa 5) também fica em `modelo/`: `dados_teste.py` lê um bloco do Gold (o teste só com
-  `liberar_teste=True`; só `execucao_teste.py` o importa, conferido por `grep`), e `execucao_teste.py` orquestra o ensaio
-  e a abertura (trava, carimbo, medição, checagens, gravação). Não altera `DadosModelo`.
 - A visualização fica em `visualizacao/`, também fora do medalhão: `rotas.py`, `exportacao.py`, `execucao.py` (orquestra,
-  verifica e só então grava), `modelo_exportado.py` (lê o `.joblib` com as mesmas conferências do `teste`, por cópia: `execucao_teste.py` carrega o bloco de teste e não é importado), `servidor.py` e `coletar_sondas.py`. Ela reutiliza `modelo/` sem alterá-lo.
+  verifica e só então grava), `modelo_exportado.py` (lê o `.joblib` com as mesmas conferências do `teste`, por cópia do que o `teste` fazia) e `coletar_sondas.py`. Ela reutiliza `modelo/` sem alterá-lo.
 - **Dois pacotes Python em `src/`** (separados em 16/10/2026): `preditor_analise` (dados, treino e avaliação: bronze, silver, gold, modelo,
   visualizacao, `spark.py`, `config.py`; precisa de Spark e Java só no pipeline) e `preditor_servico` (o que roda em produção, sem Spark e
   sem o código de treino: `servico_modelo/`, `aovivo/`, `modelo_exportado.py`, `geografia.py`, `dados/sondas.csv`). A imagem do contêiner
@@ -166,8 +157,8 @@ medição) e recusa se `TESTE_ABERTO.json` existir. Sem argumento, `teste` não 
   (2) a análise só importa o serviço nas pontes de conferência (`conferir_servico.py`, `conferir_aovivo.py`, o comando `aovivo` do `__main__.py`),
   porque conferir o serviço contra o Gold exige os dois lados; (3) o que o serviço precisa da análise é copiado, com comentário (hoje:
   `modelo_exportado.py`, `Geografia` e `Sondas.ler` de `rotas.py`, o bloco do modelo e a lista de colunas).
-- O serviço ao vivo fica em `preditor_servico/aovivo/`: `parametros.py` (constantes dele; o `config.py` não muda porque o carimbo do
-  teste guarda o hash dele), `atlas.py` (cliente `urllib` da API e o leitor de um resultado), `calculo.py` (a cópia em pandas de
+- O serviço ao vivo fica em `preditor_servico/aovivo/`: `parametros.py` (constantes dele; o `config.py` não muda: foi congelado quando o teste
+  final foi aberto), `atlas.py` (cliente `urllib` da API e o leitor de um resultado), `calculo.py` (a cópia em pandas de
   `gold/calculo_x/` e `gold/calculo_y/`), `selecao.py`, `servico.py` (preparo, laço e placar), `pagina.py` (o
   `api/Preditor.Api/wwwroot/dados/aovivo.json`) e `execucao.py`. As conferências contra o Gold e o Silver ficam na análise
   (`conferir_aovivo.py`; `uv run python -m preditor_analise aovivo` confere o motor e depois sobe o serviço; no contêiner, `python -m preditor_servico.aovivo`,
@@ -233,13 +224,15 @@ medição) e recusa se `TESTE_ABERTO.json` existir. Sem argumento, `teste` não 
 - **Sem balanceamento de classes na Tarefa 3** (decisão do dono, 01/10/2026): fica para a Tarefa 4, medido contra esta
   árvore. **Comparação obrigatória com a persistência** ("o futuro é igual ao `status_atual`"), com as mesmas métricas
   na mesma validação; se a árvore não ganhar, registra-se assim, sem trocar alvo nem rótulo.
-- **Teste aberto em 10/10/2026, uma vez (14:49:21 a 14:49:23):** o bloco de teste foi medido pelo `teste --abrir-o-teste`,
+- **Teste aberto em 10/10/2026, uma vez (14:49:21 a 14:49:23):** o bloco de teste foi medido pelo comando `teste --abrir-o-teste`,
   com o carimbo `ensaio_ok.json` válido e a trava `TESTE_ABERTO.json` gravada em `em_andamento` **antes** da leitura. A
-  trava está `concluido` e **não se apaga pelo código**: uma segunda abertura é recusada. Nada foi retreinado, reajustado
+  trava está `concluido` e **não se apaga pelo código**: uma segunda abertura é recusada. **O código do `teste`
+  (`execucao_teste.py`, `dados_teste.py`) foi removido do repositório em 16/10/2026**, depois do teste fechado: ele segue no
+  histórico do git (último commit com ele: `11da4e8`), e os arquivos da trava e do resultado seguem em `data/modelo/teste/`. Nada foi retreinado, reajustado
   nem re-escolhido por causa do teste. Resultado e declaração em `docs/resultado_teste_final.md`; ficha em
   `docs/ficha_modelo_final.md`.
 - **Teste: só a abertura lê o bloco.** `DadosModelo` nunca guarda linhas do teste (só o N), e `Avaliacao.medir` e
-  `quando_muda` recusam o bloco de teste sem `liberar_teste=True`. Só `execucao_teste.py` importa `dados_teste.py`.
+  `quando_muda` recusam o bloco de teste sem `liberar_teste=True`. Hoje nenhum comando lê o bloco de teste: `liberar_teste=True` não é passado em lugar nenhum.
 - **Teste: a declaração segue a regra da spec.** "Preditor de 12 minutos" só se o limite inferior do IC 95 % do ganho de
   F1 macro sobre a persistência for maior que zero (leitura do dono, 10/10/2026; `SPEC-teste-final.md`, regra 4). No teste,
   o limite inferior foi +0,0168: declarado preditor, com prova fraca.
@@ -305,8 +298,6 @@ medição) e recusa se `TESTE_ABERTO.json` existir. Sem argumento, `teste` não 
   árvores, parâmetros, SHA-256, colunas). O `replay` não refaz mais a árvore nem a ajustada (~4 s; a spec estimava ~50 s) e
   exige as saídas do `exportar` e do `comparar`. A página mostra "Random Forest, 100 árvores" (com `textContent`) e diz que o
   período é o de validação; o número do relatório é o do teste, que segue fechado no replay.
-- **Constantes herdadas sem uso (10/10/2026):** `CASAS_X_REPLAY` e `CASAS_LIMIAR_REPLAY` (`config.py`) não são mais lidas pelo replay;
-  ficam por não mexer em `config.py`, que faz parte do código de medição do teste (o carimbo `ensaio_ok.json` guarda o hash dele).
 - **Serviço ao vivo (15/10/2026, `SPEC-ao-vivo.md`, dono):** a página ganha o modo `?ao-vivo` e o terminal imprime o placar.
   As 6 medições do dataset são malhas "Anchoring Mesh" (só âncoras participam) e as 13 âncoras do BR são exatamente as do treino;
   não existe outra sonda do BR nelas. O dono escolheu **América Latina** (AR, BO, CL, CO, CR, EC, MX, PA, PE, PY, UY, VE), 10
@@ -319,8 +310,8 @@ medição) e recusa se `TESTE_ABERTO.json` existir. Sem argumento, `teste` não 
 - **Desenho do painel com o piso (10/10/2026):** largura proporcional ao número de folhas (80 por folha, mínimo de
   1280 px), com rolagem horizontal que traz a folha em foco para a tela. Com o piso, a oficial tem 29 folhas e a
   ajustada, 40 (`SPEC-arvore-na-pagina.md`).
-- **`servir` em vez de `python -m http.server`:** o servidor padrão (fila de 5 conexões, HTTP/1.0) perdia arquivos com
-  vários navegadores ao mesmo tempo; o `servir` usa fila de 128 e HTTP/1.1, só em `127.0.0.1`.
+- **Sem `servir` (removido em 16/10/2026):** a página é servida pela API em C# (`cd api/Preditor.Api && dotnet run`,
+  http://localhost:5053/). O servidor Python da porta 8000 ficou redundante. O microserviço do modelo mantém a fila de 128 conexões.
 - **Comparação das famílias (10/10/2026, `SPEC-comparacao-modelos.md`):** Random Forest (32 combinações) e XGBoost (16)
   usam o mesmo X da árvore ajustada (10 colunas), o peso de classe da ajustada adotada e a semente 16; treino só no treino,
   sem `early_stopping`. A escolha entre famílias é a regra da Tarefa 4 (a até 0,005 do maior F1 macro da validação; vence

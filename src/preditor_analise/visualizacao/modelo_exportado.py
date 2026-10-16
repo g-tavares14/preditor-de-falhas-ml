@@ -1,9 +1,7 @@
 """Lê o `modelo_final.joblib` exportado para o replay, com as mesmas conferências do `teste` (SPEC-replay-floresta.md).
 
-O `teste` tem a sua leitura em `modelo/execucao_teste.py`, e esse arquivo não pode mudar (o carimbo do ensaio guarda o hash
-dele). Por isso aqui há uma cópia das duas conferências que importam: o SHA-256 contra o LEIA-ME, feito ANTES de abrir o
-arquivo (um `.joblib` é um pickle, e abrir um pickle executa código), e o pacote contra o `escolha.json`.
-`execucao_teste.py` não é importado daqui: ele carrega o bloco de teste.
+As duas conferências que importam: o SHA-256 contra o LEIA-ME, feito ANTES de abrir o arquivo (um `.joblib` é um pickle, e
+abrir um pickle executa código), e o pacote contra o `escolha.json`.
 """
 
 import hashlib
