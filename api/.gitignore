@@ -3,4 +3,5 @@ obj/
 *.db
 *.db-shm
 *.db-wal
-dados/
+# só a pasta do banco SQLite (o wwwroot/dados/ tem o replay.json, que vai no git)
+/Preditor.Api/dados/

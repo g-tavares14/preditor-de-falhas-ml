@@ -332,6 +332,9 @@ verifique ao menos a importação: `uv run python -c "import preditor_analise.__
 - Nunca versionar credenciais: `RIPE_ATLAS_API_KEY` fica no ambiente ou em `.env` (ignorado pelo git); o BigQuery
   usa as credenciais padrão do gcloud, sem arquivo de chave no repositório.
 - Não commitar dados de nenhuma camada (`data/raw/*`, `data/{bronze,silver,gold}/`), só os READMEs e docs.
+  Exceção (16/10/2026): quatro artefatos pequenos vão no git para um clone rodar e montar o Docker: `data/modelo/exportado/modelo_final.joblib`,
+  `data/modelo/exportado/LEIA-ME.md`, `data/modelo/comparacao/escolha.json` e `api/Preditor.Api/wwwroot/dados/replay.json`. O resto de `data/modelo/` e o
+  `aovivo.json` seguem ignorados. Ao refazer o `exportar`, commite o `.joblib` e o `LEIA-ME.md` juntos (o SHA-256 tem de bater).
 - Não imprimir chaves ou tokens em logs, notebooks ou saídas de célula.
 
 ## Agent workflow

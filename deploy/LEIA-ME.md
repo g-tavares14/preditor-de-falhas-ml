@@ -3,15 +3,18 @@
 Três serviços em contêineres: `modelo` (Python, a Random Forest, só na rede interna), `api` (C#, a única porta publicada) e,
 opcional, `aovivo` (consulta o RIPE Atlas a cada 60 s). Nada aqui cria recursos na AWS; isso exige o OK do dono.
 
-## Antes do build (arquivos que ficam fora do git)
+## Antes do build
 
-As imagens copiam arquivos gerados pelo pipeline. Sem eles o build falha ou a página fica vazia:
+Os quatro arquivos que as imagens copiam **estão no git**, então um clone limpo monta e sobe sem rodar o pipeline:
 
-| Arquivo | Vem de |
-|---|---|
-| `data/modelo/exportado/modelo_final.joblib` e `LEIA-ME.md` | `uv run python -m preditor_analise exportar` |
-| `data/modelo/comparacao/escolha.json` | `uv run python -m preditor_analise comparar` |
-| `api/Preditor.Api/wwwroot/dados/replay.json` | `uv run python -m preditor_analise replay` |
+| Arquivo | Para quê | Como refazer |
+|---|---|---|
+| `data/modelo/exportado/modelo_final.joblib` e `LEIA-ME.md` | o modelo e o SHA-256 que o serviço confere antes de abri-lo (um `.joblib` é um pickle) | `uv run python -m preditor_analise exportar` |
+| `data/modelo/comparacao/escolha.json` | os parâmetros que o pacote do modelo tem de bater | `uv run python -m preditor_analise comparar` |
+| `api/Preditor.Api/wwwroot/dados/replay.json` | o replay da página | `uv run python -m preditor_analise replay` |
+
+Refazer qualquer um deles exige o Gold (que sai do Silver, e este do Bronze, que vem do BigQuery). Se refizer o `exportar`, o
+SHA-256 muda: commite o `.joblib` e o `LEIA-ME.md` juntos.
 
 O `.dockerignore` (na raiz) é uma lista de permissão: nada de `data/`, `.venv` ou credenciais entra no contexto além disso.
 

@@ -1,0 +1,46 @@
+{
+  "modelo": "random_forest",
+  "parametros": {
+    "n_estimators": 100,
+    "max_depth": 8,
+    "min_samples_leaf": 50,
+    "max_features": "sqrt",
+    "criterion": "gini",
+    "class_weight": {
+      "OK": 1.0,
+      "RISCO": 2.0,
+      "FALHA": 1.5
+    },
+    "semente": 16
+  },
+  "regra": "entre as candidatas, as a até tolerancia_escolha do maior F1 macro da validação; vence a mais simples",
+  "tolerancia_escolha": 0.005,
+  "semente": 16,
+  "ordem_familias": [
+    "ajustada_com_peso",
+    "random_forest",
+    "xgboost"
+  ],
+  "candidatas": [
+    {
+      "modelo": "ajustada_com_peso",
+      "f1_macro_validacao": 0.685091,
+      "dentro_da_tolerancia": false
+    },
+    {
+      "modelo": "random_forest",
+      "f1_macro_validacao": 0.697714,
+      "dentro_da_tolerancia": true
+    },
+    {
+      "modelo": "xgboost",
+      "f1_macro_validacao": 0.700588,
+      "dentro_da_tolerancia": true
+    }
+  ],
+  "f1_macro_escolhido": 0.697714,
+  "f1_macro_persistencia": 0.635522,
+  "supera_persistencia": true,
+  "motivo": "O maior F1 macro entre as candidatas é de xgboost (0.7006). Ficaram dentro da tolerância de 0.005: random_forest, xgboost. Entre elas, a mais simples na ordem ajustada_com_peso, random_forest, xgboost é random_forest, com F1 macro 0.6977. Ele supera a persistência (0.6355).",
+  "ic_pareado": "gravado em ic_pareado.csv; não decide a escolha"
+}

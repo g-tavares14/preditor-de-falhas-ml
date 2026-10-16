@@ -16,7 +16,20 @@ dist/
 !/data/raw/.gitkeep
 # Evidência da coleta do notebook 01 (só metadados; JSON e CSV continuam fora)
 !/data/raw/*_metadata.json
+# O modelo servido e o que o confere: sem estes três arquivos o `docker build` falha num clone limpo (deploy/LEIA-ME.md).
+# O resto de `data/modelo/` (CSVs, regras, `.joblib` da árvore ajustada, a trava do teste) continua fora do git.
+!/data/modelo/
+/data/modelo/*
+!/data/modelo/exportado/
+/data/modelo/exportado/*
+!/data/modelo/exportado/modelo_final.joblib
+!/data/modelo/exportado/LEIA-ME.md
+!/data/modelo/comparacao/
+/data/modelo/comparacao/*
+!/data/modelo/comparacao/escolha.json
 node_modules/
 npm-debug.log*
 .idea/
-api/Preditor.Api/wwwroot/dados/
+# O replay.json (2 MB) vai no git: sem ele a página abre vazia num clone limpo. O aovivo.json é o retrato de um serviço local.
+api/Preditor.Api/wwwroot/dados/aovivo.json
+api/Preditor.Api/wwwroot/dados/*.tmp
