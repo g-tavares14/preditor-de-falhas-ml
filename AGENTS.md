@@ -72,6 +72,10 @@ uv run python -m preditor.visualizacao.coletar_sondas   # só para refazer sonda
 # run (o microserviço do modelo, para a API em C#; offline, sem Spark e sem Java; SPEC-api-csharp.md):
 uv run python -m preditor.servico_modelo --conferir   # serviço pela rede × modelo recarregado (0 diferenças) e grava api/Preditor.Api.Tests/Fixtures/paridade.json
 uv run python -m preditor.servico_modelo --porta 8001 # POST /prever, GET /saude (só rede interna; no contêiner, --endereco 0.0.0.0)
+# run (a API em C#, módulo `api` de SPEC-api-csharp.md; precisa do .NET 10 SDK e, para o /prever de verdade, do serviço acima no ar):
+dotnet test api/Preditor.sln                          # 40 testes; o de paridade sobe o serviço Python sozinho (precisa do `uv` no PATH)
+cd api/Preditor.Api && dotnet run                     # http://localhost:5053/ (mapa), /testar, /historico, /swagger, /api/*; banco em api/Preditor.Api/dados/ (ignorado)
+cd api && dotnet dotnet-ef migrations add <Nome> --project Preditor.Api --output-dir Dados/Migracoes   # nova migração (a ferramenta está em api/dotnet-tools.json)
 # run (o modelo ao vivo na API do RIPE Atlas, com sondas fora do treino; comandos à parte, sem Spark nem Java, com rede; SPEC-ao-vivo.md):
 uv run python -m preditor aovivo --conferir   # motor em pandas × Gold (offline) e leitor da API × Silver (rede); não sobe o serviço
 uv run python -m preditor aovivo              # sorteia 10 sondas da América Latina, baixa o baseline de 108 h e consulta a API a cada 60 s (Ctrl+C encerra)
@@ -161,6 +165,9 @@ medição) e recusa se `TESTE_ABERTO.json` existir. Sem argumento, `teste` não 
 - O microserviço do modelo fica em `servico_modelo/` (`parametros.py`, `previsor.py`, `servidor.py`, `conferencia.py`, `__main__.py`),
   fora do medalhão, só com a biblioteca padrão para o HTTP. Tem entrada própria (`python -m preditor.servico_modelo`) porque o
   `preditor/__main__.py` importa o PySpark. A API pública é em C# (`api/`, spec em `SPEC-api-csharp.md`, plano em `tasks/plan-api-csharp.md`).
+- A API em C# fica em `api/` (`Preditor.sln`: `Preditor.Api` com Controllers, Views Razor, EF Core + SQLite, e `Preditor.Api.Tests` com xUnit).
+  Nomes em português, PascalCase. Ela não calcula nada do modelo: pergunta ao `servico_modelo` (URL em `ServicoModelo:Url`) e serve `web/`
+  na raiz sem alterá-lo (`Web:Pasta`). A paridade (`Fixtures/paridade.json`) vem de `python -m preditor.servico_modelo --conferir`.
 - A página fica em `web/`: `app.js` orquestra; `tempo.js` e `placar.js` são lógica pura (sem DOM, rodam em Node);
   `mapa.js`, `rotas.js`, `desenho.js`, `pulsos.js`, `selos.js` cuidam do mapa; `cartao.js`, `painel.js`, `foco.js` e
   `comum.js`, do painel (`comum.js` também guarda os nomes na tela: Normal / Atenção / Problema, países por extenso). Sem `innerHTML` com dados; CSP `default-src 'self'`. As constantes só de desenho (durações,

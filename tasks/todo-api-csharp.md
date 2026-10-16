@@ -21,6 +21,18 @@ nem `gold/`. Dependência nova (NuGet ou Python) e qualquer recurso na AWS: perg
     importável; nenhuma linha do teste.
   - Verificação: `uv run python -m preditor.servico_modelo --conferir` duas vezes (mesmo arquivo).
 
-## Módulo 2: `api` (C#) e módulo 3: `implantacao-aws`
+## Módulo 2: `api` (C#)
 
-Detalhados quando o módulo 1 for aprovado.
+- [x] ✅ **M2.1 Esqueleto, cliente do modelo e validação** (`api/Preditor.Api/`: `Program.cs`, `Modelos/`, `Servicos/`, `Configuracao/`)
+  - Aceite: `POST /api/previsoes` valida (400 com `ProblemDetails` por coluna), chama o `servico-modelo`; serviço fora do ar = 503.
+- [x] ✅ **M2.2 EF Core + SQLite + histórico** (`Dados/`, migração `Inicial`)
+  - Aceite: grava só o que o modelo respondeu; `GET /api/previsoes` pagina da mais nova para a mais antiga.
+- [x] ✅ **M2.3 Testes e paridade** (`api/Preditor.Api.Tests/`)
+  - Aceite: `dotnet test api/Preditor.sln` verde: validação, banco, 400/413/429/503, e a paridade com o Python real (310 linhas,
+    100 com NaN, 1e-9). A paridade achou um erro real: o `PostAsJsonAsync` envia sem `Content-Length` e o serviço respondia 411.
+- [x] ✅ **M2.4 MVC, Swagger e o site `web/`** (`Controllers/PaginasController.cs`, `Views/`, `wwwroot/api.css`)
+  - Aceite: `/testar` (formulário com 3 exemplos, antiforgery), `/historico`, `/swagger`; `/` serve o mapa sem alterar `web/`.
+
+## Módulo 3: `implantacao-aws`
+
+Detalhado quando o módulo 2 for aprovado.
