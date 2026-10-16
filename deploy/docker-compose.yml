@@ -1,0 +1,45 @@
+# Os três serviços da SPEC-api-csharp.md. Da raiz do repositório:
+#   docker compose -f deploy/docker-compose.yml up --build                       # API + modelo
+#   docker compose -f deploy/docker-compose.yml --profile aovivo up --build      # e o serviço ao vivo
+name: preditor
+
+services:
+  # O microserviço do modelo: só a rede interna do Compose enxerga a porta 8001 (`expose`, nunca `ports`).
+  modelo:
+    build: { context: .., dockerfile: deploy/Dockerfile.python }
+    image: preditor-python
+    expose: ["8001"]
+    restart: unless-stopped
+
+  # A única porta publicada. Em produção (EC2) vira a 80; aqui, 8080 (ou PORTA_PUBLICA).
+  api:
+    build: { context: .., dockerfile: deploy/Dockerfile.api }
+    image: preditor-api
+    ports: ["${PORTA_PUBLICA:-8080}:8080"]
+    environment:
+      ServicoModelo__Url: http://modelo:8001
+      Web__ArquivoAoVivo: /vivo/aovivo.json
+    depends_on:
+      modelo: { condition: service_healthy }
+    volumes:
+      - banco:/data
+      - vivo:/vivo:ro
+    restart: unless-stopped
+
+  # O serviço ao vivo (consulta o RIPE Atlas a cada 60 s): fora por padrão, entra com `--profile aovivo`.
+  # A primeira partida baixa 108 h de baseline (alguns minutos); o estado fica no volume e uma reinicialização retoma dele.
+  aovivo:
+    profiles: ["aovivo"]
+    build: { context: .., dockerfile: deploy/Dockerfile.python }
+    image: preditor-python
+    command: ["python", "-m", "preditor.aovivo", "--sem-conferir"]  # sem o Gold no contêiner, a conferência do motor não roda
+    healthcheck: { disable: true }  # a imagem checa o /saude do modelo; este contêiner não serve HTTP
+    volumes:
+      - vivo:/app/web/dados      # onde ele grava o aovivo.json que a API serve
+      - estado_aovivo:/app/data/aovivo
+    restart: unless-stopped
+
+volumes:
+  banco:
+  vivo:
+  estado_aovivo:

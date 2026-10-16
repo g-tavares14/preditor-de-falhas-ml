@@ -1,0 +1,26 @@
+# Imagem da API em C# (SPEC-api-csharp.md): Web API, páginas MVC e o site do mapa (web/). Monte da raiz do repositório:
+#   docker build -f deploy/Dockerfile.api -t preditor-api .
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS compilar
+WORKDIR /src
+# O restore vem antes do código: enquanto o .csproj não muda, as dependências NuGet ficam em cache.
+COPY api/Preditor.Api/Preditor.Api.csproj Preditor.Api/
+RUN dotnet restore Preditor.Api/Preditor.Api.csproj
+COPY api/Preditor.Api Preditor.Api
+RUN dotnet publish Preditor.Api/Preditor.Api.csproj -c Release -o /saida --no-restore
+
+FROM mcr.microsoft.com/dotnet/aspnet:10.0
+WORKDIR /app
+COPY --from=compilar /saida .
+# O site do mapa, sem alterar (inclui web/dados/replay.json, que sai do comando `replay` e está fora do git).
+COPY web ./web
+
+# O banco SQLite fica num volume. Criar a pasta aqui, com o dono certo, faz o volume novo herdá-lo.
+RUN mkdir /data && chown app /data
+USER app
+
+# Tudo o que muda entre a máquina de desenvolvimento e o contêiner vem por variável de ambiente (appsettings, `__` = `:`).
+ENV ASPNETCORE_URLS=http://+:8080 \
+    Web__Pasta=/app/web \
+    ConnectionStrings__Banco="Data Source=/data/preditor.db"
+EXPOSE 8080
+ENTRYPOINT ["dotnet", "Preditor.Api.dll"]

@@ -94,4 +94,25 @@ public partial class PaginasTests
         Assert.Contains("/api/previsoes", contrato);
         Assert.Contains("/api/modelo", contrato);
     }
+
+    [Fact]
+    public async Task Aovivo_json_sai_do_arquivo_configurado_e_da_404_enquanto_ele_nao_existe()
+    {
+        var arquivo = Path.Combine(Path.GetTempPath(), $"aovivo-{Guid.NewGuid():N}.json");
+        using var fabrica = new FabricaDeTeste(new ModeloFalso(), new() { ["Web:ArquivoAoVivo"] = arquivo });
+        using var cliente = fabrica.CreateClient();
+
+        Assert.Equal(HttpStatusCode.NotFound, (await cliente.GetAsync("/dados/aovivo.json")).StatusCode);
+
+        await File.WriteAllTextAsync(arquivo, """{"meta":{"modo":"ao_vivo"}}""");
+        try
+        {
+            var resposta = await cliente.GetAsync("/dados/aovivo.json");
+            Assert.Equal(HttpStatusCode.OK, resposta.StatusCode);
+            Assert.Equal("application/json", resposta.Content.Headers.ContentType?.MediaType);
+            Assert.Contains("no-cache", resposta.Headers.CacheControl?.ToString());
+            Assert.Contains("ao_vivo", await resposta.Content.ReadAsStringAsync());
+        }
+        finally { File.Delete(arquivo); }
+    }
 }

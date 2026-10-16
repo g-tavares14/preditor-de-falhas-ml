@@ -33,6 +33,14 @@ nem `gold/`. Dependência nova (NuGet ou Python) e qualquer recurso na AWS: perg
 - [x] ✅ **M2.4 MVC, Swagger e o site `web/`** (`Controllers/PaginasController.cs`, `Views/`, `wwwroot/api.css`)
   - Aceite: `/testar` (formulário com 3 exemplos, antiforgery), `/historico`, `/swagger`; `/` serve o mapa sem alterar `web/`.
 
-## Módulo 3: `implantacao-aws`
+## Módulo 3: `implantacao-aws` (só local; nada na AWS)
 
-Detalhado quando o módulo 2 for aprovado.
+- [x] ✅ **M3.0 Entradas sem Spark e a rota do ao vivo:** `src/preditor/aovivo/__main__.py` (`python -m preditor.aovivo --sem-conferir`) e
+  `GET /dados/aovivo.json` na API (`Web:ArquivoAoVivo`), com teste (41 testes passam).
+- [x] ✅ **M3.1 Imagens** (`deploy/Dockerfile.python`, `deploy/Dockerfile.api`, `.dockerignore`): `docker compose -f deploy/docker-compose.yml build`
+  termina (16/10/2026). `preditor-python` ~2,8 GB; `preditor-api` ~430 MB.
+- [x] ✅ **M3.2 Compose no ar, local** (`deploy/docker-compose.yml`): testado em 16/10/2026. `modelo` healthy; `/api/saude`, `/swagger`, `/testar`, `/historico`, o mapa
+  e `/dados/replay.json` respondem em `localhost:8080`; a 8001 não responde de fora; um POST em `/api/previsoes` devolveu a classe e as
+  probabilidades da fixture de paridade; o histórico sobreviveu a `down` + `up`; com `--profile aovivo`, o `/dados/aovivo.json` aparece (200) e o estado é retomado
+  depois de `restart`. Achado: o sorteio das sondas lia o Gold; `aovivo/selecao.py` agora cai no `sondas.csv` (o `replay` confere que é o mesmo conjunto).
+- [x] ✅ **M3.3 `deploy/LEIA-ME.md`:** passos para montar as imagens aqui e subir na EC2 (a criação dos recursos na AWS continua exigindo o OK do dono).

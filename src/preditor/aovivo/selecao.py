@@ -17,6 +17,10 @@ class Selecao:
     @staticmethod
     def sondas_do_treino() -> set[int]:
         """Todas as sondas que o projeto já usou: as do baseline do Gold e as do `sondas.csv` do replay."""
+        # No contêiner não há Gold. O `replay` confere que o `sondas.csv` tem exatamente as sondas do baseline do Gold
+        # (`visualizacao/execucao.py`), então, sem o Gold, o CSV sozinho dá a mesma lista.
+        if not config.ARQUIVO_BASELINE.exists():
+            return set(Sondas.ler())
         return set(Sondas.do_gold()) | set(Sondas.ler())
 
     def candidatas(self, paises: tuple[str, ...]) -> dict[int, dict]:

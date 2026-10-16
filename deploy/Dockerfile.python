@@ -1,0 +1,33 @@
+# Imagem do Python (SPEC-api-csharp.md): serve o microserviço do modelo e, com outro comando, o serviço ao vivo.
+# Sem PySpark, XGBoost e Java: só o que a Random Forest e o motor em pandas precisam. Monte de dentro da raiz do repositório:
+#   docker build -f deploy/Dockerfile.python -t preditor-python .
+FROM python:3.14-slim
+
+COPY --from=ghcr.io/astral-sh/uv:0.12.18 /uv /usr/local/bin/uv
+
+# PYTHONPATH em vez de instalar o pacote: o `config.py` acha `data/` e `web/` subindo a partir de `src/preditor/`.
+ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy UV_PYTHON_DOWNLOADS=never \
+    PYTHONUNBUFFERED=1 PYTHONPATH=/app/src PATH="/app/.venv/bin:$PATH"
+WORKDIR /app
+
+# As dependências vêm do uv.lock (as mesmas versões do scikit-learn que gravaram o .joblib: um pickle só abre com elas).
+COPY pyproject.toml uv.lock .python-version ./
+RUN uv sync --frozen --no-install-project --no-install-package pyspark --no-install-package py4j --no-install-package xgboost
+
+COPY src ./src
+# Só os três arquivos que o `ModeloExportado.ler()` confere e abre (o SHA-256 do .joblib tem de bater com o do LEIA-ME).
+COPY data/modelo/exportado/modelo_final.joblib data/modelo/exportado/LEIA-ME.md ./data/modelo/exportado/
+COPY data/modelo/comparacao/escolha.json ./data/modelo/comparacao/
+
+# Usuário sem privilégios. `data/aovivo` e `web/dados` são onde o serviço ao vivo grava (volumes no Compose).
+RUN useradd --system --uid 10001 preditor \
+    && mkdir -p /app/data/aovivo /app/web/dados \
+    && chown -R preditor /app/data /app/web
+USER preditor
+
+EXPOSE 8001
+HEALTHCHECK --interval=15s --timeout=5s --start-period=30s --retries=3 \
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8001/saude', timeout=3)"
+
+# `0.0.0.0` vale só dentro do contêiner; o Compose não publica esta porta.
+CMD ["python", "-m", "preditor.servico_modelo", "--endereco", "0.0.0.0", "--porta", "8001"]

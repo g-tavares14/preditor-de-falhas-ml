@@ -1,0 +1,20 @@
+# Lista de permissão: o contexto de build só leva o que as imagens usam (nada de dados, venv, caches ou segredos).
+**
+!pyproject.toml
+!uv.lock
+!.python-version
+!src/
+!web/
+!api/Preditor.Api/
+!data/modelo/exportado/modelo_final.joblib
+!data/modelo/exportado/LEIA-ME.md
+!data/modelo/comparacao/escolha.json
+
+# Dentro do que entrou:
+**/__pycache__
+**/bin
+**/obj
+api/Preditor.Api/dados
+# O aovivo.json de um serviço local seria um retrato velho: o da imagem vem do volume do serviço ao vivo.
+web/dados/aovivo.json
+web/.DS_Store

@@ -101,6 +101,18 @@ if (Directory.Exists(pastaWeb))
     app.Environment.WebRootFileProvider = new Microsoft.Extensions.FileProviders.CompositeFileProvider(
         app.Environment.WebRootFileProvider, new Microsoft.Extensions.FileProviders.PhysicalFileProvider(pastaWeb));
 }
+// O aovivo.json é gravado pelo serviço ao vivo (Python) num volume, fora do web/ da imagem; a página o pede em /dados/aovivo.json.
+// Sem `Web:ArquivoAoVivo` configurado, o arquivo (se existir) sai do web/, como no desenvolvimento local.
+var arquivoAoVivo = app.Configuration["Web:ArquivoAoVivo"];
+if (!string.IsNullOrEmpty(arquivoAoVivo))
+{
+    app.MapGet("/dados/aovivo.json", (HttpContext contexto) =>
+    {
+        if (!File.Exists(arquivoAoVivo)) return Results.NotFound();
+        contexto.Response.Headers.CacheControl = "no-cache";
+        return Results.File(arquivoAoVivo, "application/json");
+    });
+}
 app.UseDefaultFiles();
 app.UseStaticFiles(new StaticFileOptions
 {
