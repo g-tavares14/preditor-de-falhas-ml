@@ -1,12 +1,12 @@
 // aovivo.js: o modo ao vivo da página (`?ao-vivo`, SPEC-ao-vivo.md).
 //
-// Lógica pura, sem DOM: roda em Node. A página lê `dados/aovivo.json`, que o serviço (`uv run python -m preditor aovivo`) regrava a
+// Lógica pura, sem DOM: roda em Node. A página lê `dados/aovivo.json`, que o serviço (`uv run python -m preditor_analise aovivo`) regrava a
 // cada consulta ao RIPE Atlas, no mesmo formato do `replay.json`. O relógio anda em tempo real, ATRASADO `meta.atraso_s`: a API do
 // Atlas entrega cada medição uns 100 s depois que ela acontece, e o serviço consulta de minuto em minuto. Com o atraso, quando o
 // relógio chega ao instante de uma medição ela já está no arquivo, e o pulso sai na hora certa em vez de em rajada.
 
 const ARQUIVO_AO_VIVO = "dados/aovivo.json";
-const MENSAGEM_SEM_DADOS_AO_VIVO = "Falta wwwroot/dados/aovivo.json. Rode antes: uv run python -m preditor aovivo (a primeira consulta leva cerca de 1 minuto depois do baseline).";
+const MENSAGEM_SEM_DADOS_AO_VIVO = "Falta wwwroot/dados/aovivo.json. Rode antes: uv run python -m preditor_analise aovivo (a primeira consulta leva cerca de 1 minuto depois do baseline).";
 
 // Se o relógio ficar mais que isto atrás do alvo (aba escondida, computador dormindo), ele PULA em vez de soltar centenas de
 // pulsos de uma vez. Decisão visual; o pulso mais lento dura poucos segundos.

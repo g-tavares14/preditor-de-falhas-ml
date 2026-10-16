@@ -32,7 +32,7 @@ services:
     profiles: ["aovivo"]
     build: { context: .., dockerfile: deploy/Dockerfile.python }
     image: preditor-python
-    command: ["python", "-m", "preditor.aovivo", "--sem-conferir"]  # sem o Gold no contêiner, a conferência do motor não roda
+    command: ["python", "-m", "preditor_servico.aovivo"]  # o preditor_servico não confere o motor contra o Gold (no contêiner não há Gold)
     healthcheck: { disable: true }  # a imagem checa o /saude do modelo; este contêiner não serve HTTP
     volumes:
       - vivo:/app/api/Preditor.Api/wwwroot/dados      # onde ele grava o aovivo.json que a API serve

@@ -6,7 +6,7 @@ namespace Preditor.Api.Tests;
 
 /// <summary>
 /// A prova de que o C# não muda nada: a API, falando com o modelo Python de verdade, devolve em cada linha da amostra
-/// (gerada por <c>python -m preditor.servico_modelo --conferir</c>, com as linhas de NaN) a mesma classe e as mesmas probabilidades
+/// (gerada por <c>python -m preditor_analise.conferir_servico</c>, com as linhas de NaN) a mesma classe e as mesmas probabilidades
 /// que o modelo recarregado deu no Python.
 /// </summary>
 public class ParidadeTests : IClassFixture<ServicoPythonReal>

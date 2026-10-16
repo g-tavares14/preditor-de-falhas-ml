@@ -9,7 +9,7 @@
 // As duas usam a mesma soma (`somarConferencia`), então dão sempre o mesmo resultado.
 
 // O que fazer quando o JSON é de uma versão antiga (sem `t_futuro`, por exemplo): o mesmo comando que o gera de novo.
-const DICA_REPLAY = "Rode antes: uv run python -m preditor replay";
+const DICA_REPLAY = "Rode antes: uv run python -m preditor_analise replay";
 
 // As conferíveis em ordem de `t_futuro` (a ordem em que o relógio as alcança). O sort é estável: no mesmo instante,
 // vale a ordem do JSON. Cada item guarda só o índice da medição e o instante, para não copiar as medições.

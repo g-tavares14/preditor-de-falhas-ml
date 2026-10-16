@@ -1,7 +1,7 @@
 // app.js: relógio do replay, controles e teclado (SPEC-visualizacao.md).
 //
-// Lê `dados/replay.json` (gerado por `uv run python -m preditor replay`) e reproduz as medições em tempo acelerado. Com `?ao-vivo`
-// na página lê `dados/aovivo.json` (gerado pelo serviço `uv run python -m preditor aovivo`, SPEC-ao-vivo.md): o mesmo formato, mas o
+// Lê `dados/replay.json` (gerado por `uv run python -m preditor_analise replay`) e reproduz as medições em tempo acelerado. Com `?ao-vivo`
+// na página lê `dados/aovivo.json` (gerado pelo serviço `uv run python -m preditor_analise aovivo`, SPEC-ao-vivo.md): o mesmo formato, mas o
 // relógio anda em tempo real (atrasado) e o arquivo é relido de tempos em tempos; ver aovivo.js.
 // Quem faz o quê: mapa.js (e rotas.js, desenho.js, pulsos.js, selos.js, foco.js) desenha o mapa e os pulsos; tempo.js e
 // placar.js fazem as contas do relógio e do placar (sem DOM, rodam em Node); painel.js monta o placar e o feed;
@@ -527,7 +527,7 @@ function escreverSeloAoVivo(estado, elementos) {
   const idade = Math.max(0, Date.now() / 1000 - estado.geradoEmS);
   const parado = servicoParado(idade, estado.intervaloDoServicoS);
   elementos.aoVivoSelo.textContent = parado
-    ? `● O serviço parou? Dados de ${textoDaIdade(idade)}. Rode: uv run python -m preditor aovivo`
+    ? `● O serviço parou? Dados de ${textoDaIdade(idade)}. Rode: uv run python -m preditor_analise aovivo`
     : `● Ao vivo · dados de ${textoDaIdade(idade)}`;
   elementos.aoVivoSelo.classList.toggle("ao-vivo-parado", parado);
 }

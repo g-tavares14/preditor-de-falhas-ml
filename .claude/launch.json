@@ -4,7 +4,7 @@
     {
       "name": "replay-web",
       "runtimeExecutable": "uv",
-      "runtimeArgs": ["run", "python", "-m", "preditor", "servir", "--porta", "8000"],
+      "runtimeArgs": ["run", "python", "-m", "preditor_analise", "servir", "--porta", "8000"],
       "port": 8000
     }
   ]

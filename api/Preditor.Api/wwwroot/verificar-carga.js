@@ -8,7 +8,7 @@
 (function () {
   // O replay local carrega em ~1 s; 8 s dá folga a um computador lento sem deixar quem espera olhando um aviso vazio.
   var ESPERA_MS = 8000;
-  var MENSAGEM = "A página não carregou por completo. Recarregue (F5). Use `uv run python -m preditor servir`.";
+  var MENSAGEM = "A página não carregou por completo. Recarregue (F5). Use `uv run python -m preditor_analise servir`.";
 
   setTimeout(function () {
     var botao = document.getElementById("botao-tocar");

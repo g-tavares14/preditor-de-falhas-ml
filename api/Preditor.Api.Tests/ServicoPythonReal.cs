@@ -5,7 +5,7 @@ using System.Net.Sockets;
 namespace Preditor.Api.Tests;
 
 /// <summary>
-/// Sobe o microserviço Python de verdade (<c>uv run python -m preditor.servico_modelo</c>) numa porta livre e o derruba no fim.
+/// Sobe o microserviço Python de verdade (<c>uv run python -m preditor_servico.servico_modelo</c>) numa porta livre e o derruba no fim.
 /// É o que torna o teste de paridade uma prova: o modelo é o .joblib real, não um falso.
 /// </summary>
 public sealed class ServicoPythonReal : IAsyncLifetime
@@ -18,7 +18,7 @@ public sealed class ServicoPythonReal : IAsyncLifetime
     {
         var porta = PortaLivre();
         Url = $"http://127.0.0.1:{porta}";
-        _processo = Process.Start(new ProcessStartInfo("uv", $"run python -m preditor.servico_modelo --porta {porta}")
+        _processo = Process.Start(new ProcessStartInfo("uv", $"run python -m preditor_servico.servico_modelo --porta {porta}")
         {
             WorkingDirectory = RaizDoRepositorio(),
             RedirectStandardOutput = true,

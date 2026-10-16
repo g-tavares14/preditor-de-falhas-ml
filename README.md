@@ -14,7 +14,8 @@ Este README cobre só o código: como rodar e o que ele produz.
 
 | Pasta | O que é |
 |---|---|
-| `src/preditor/` | Código-fonte do projeto: o pipeline de dados em PySpark e a árvore de decisão em scikit-learn (`modelo/`) |
+| `src/preditor_analise/` | Dados e treino: o pipeline em PySpark (bronze, silver, gold), os modelos em scikit-learn e a geração do replay |
+| `src/preditor_servico/` | O que roda em produção, sem Spark: o microserviço do modelo e o serviço ao vivo |
 | `docs/` | Documentação acadêmica e dos dados, com índice em [`docs/README.md`](docs/README.md) |
 | `notebooks/` | Entregas da primeira fase, no formato pedido pela professora: 01 (GET) e 02 (POST) direto na API do RIPE Atlas, 03 (rótulo `status_real` por limiar fixo). Não usam o BigQuery nem `src/preditor` |
 | `data/{bronze,silver,gold}/` | Saídas de cada camada do pipeline (ignoradas pelo git) |
@@ -62,10 +63,10 @@ O pipeline segue a arquitetura medalhão: três camadas, cada uma gravada em dis
 lida pela seguinte (detalhes em [`SPEC-medalhao.md`](SPEC-medalhao.md)).
 
 ```bash
-uv run python -m preditor          # bronze → silver → gold
-uv run python -m preditor bronze   # lê o BigQuery e grava data/bronze/ (rede e gcloud)
-uv run python -m preditor silver   # lê o Bronze do disco e grava data/silver/ (offline)
-uv run python -m preditor gold     # lê o Silver do disco e grava data/gold/ (offline)
+uv run python -m preditor_analise          # bronze → silver → gold
+uv run python -m preditor_analise bronze   # lê o BigQuery e grava data/bronze/ (rede e gcloud)
+uv run python -m preditor_analise silver   # lê o Bronze do disco e grava data/silver/ (offline)
+uv run python -m preditor_analise gold     # lê o Silver do disco e grava data/gold/ (offline)
 ```
 
 Só o `bronze` precisa de rede e de credenciais. Na primeira execução o Spark baixa o
@@ -89,7 +90,7 @@ features, o baseline tem 81 fluxos (2 insuficientes) e o dataset rotulado tem as
 linhas das features, com `regra` e `status_atual` coerentes, `status_futuro` conferido por
 um caminho independente e os blocos em ordem de tempo, cada um com as três classes. Essas
 contagens valem para o dataset de 7 dias atual: se a coleta for refeita, as checagens falham
-de propósito (ver `src/preditor/config.py`). O Gold também imprime os fluxos excluídos, a
+de propósito (ver `src/preditor_analise/config.py`). O Gold também imprime os fluxos excluídos, a
 contagem por classe e três exemplos reais (um OK, um RISCO e um FALHA) para o diário.
 
 ### Árvore de decisão
@@ -98,12 +99,12 @@ A árvore inicial (Tarefa 3, spec em [`SPEC-arvore.md`](SPEC-arvore.md)) é um c
 pandas e treina com scikit-learn. Roda offline, sem Spark e sem Java, e **não** entra na execução sem argumento.
 
 ```bash
-uv run python -m preditor arvore   # lê data/gold/ e grava data/modelo/ (offline)
+uv run python -m preditor_analise arvore   # lê data/gold/ e grava data/modelo/ (offline)
 ```
 
 Ela prevê a classe do mesmo fluxo 12 minutos à frente (`status_futuro`) com 8 métricas relativas ao baseline, e é
 medida na validação ao lado da persistência ("o futuro é igual ao `status_atual`"). Sem o Gold no disco, termina
-dizendo para rodar `uv run python -m preditor gold` antes. O bloco de teste fica fechado: aparece só como N.
+dizendo para rodar `uv run python -m preditor_analise gold` antes. O bloco de teste fica fechado: aparece só como N.
 
 | Arquivo em `data/modelo/` | Conteúdo |
 |---|---|
@@ -127,7 +128,7 @@ O ajuste (spec em [`SPEC-ajuste-arvore.md`](SPEC-ajuste-arvore.md), análise em
 e sem Java. A árvore da Tarefa 3 **não muda**: a ajustada nasce ao lado e é medida contra ela.
 
 ```bash
-uv run python -m preditor ajuste   # lê data/gold/ e as saídas do `arvore`; grava data/modelo/ (offline)
+uv run python -m preditor_analise ajuste   # lê data/gold/ e as saídas do `arvore`; grava data/modelo/ (offline)
 ```
 
 Ela usa as 8 colunas da Tarefa 3 mais duas do Gold, `min5_z` e `media5_z` (o menor e a média do `z_robusto` nas
@@ -158,8 +159,8 @@ Uma página web reproduz o bloco de validação em tempo acelerado (spec em
 os dois offline, sem Spark e sem Java:
 
 ```bash
-uv run python -m preditor replay   # lê data/gold/, refaz as duas árvores e grava api/Preditor.Api/wwwroot/dados/replay.json
-uv run python -m preditor servir   # serve a página em http://127.0.0.1:8000/ (--porta N troca a porta)
+uv run python -m preditor_analise replay   # lê data/gold/, refaz as duas árvores e grava api/Preditor.Api/wwwroot/dados/replay.json
+uv run python -m preditor_analise servir   # serve a página em http://127.0.0.1:8000/ (--porta N troca a porta)
 ```
 
 Use o `servir`, não o `python -m http.server`: a página carrega vários módulos ao mesmo tempo e o servidor padrão do
@@ -181,8 +182,8 @@ lado do limiar, a lista dos passos em texto e a regra da folha. Um seletor alter
 a ajustada (Tarefa 4); ele muda só o painel: mapa, cartão e placar seguem a oficial. Por isso o `replay` exige também
 as saídas do `ajuste` (rode `arvore` e `ajuste` antes) e confere a ajustada refeita contra elas.
 
-As coordenadas das sondas ficam em `src/preditor/visualizacao/sondas.csv`. Para refazê-las (única etapa com rede):
-`uv run python -m preditor.visualizacao.coletar_sondas`.
+As coordenadas das sondas ficam em `src/preditor_servico/dados/sondas.csv`. Para refazê-las (única etapa com rede):
+`uv run python -m preditor_analise.visualizacao.coletar_sondas`.
 
 ### Modelo ao vivo (sondas fora do treino, na API do RIPE Atlas)
 
@@ -194,9 +195,9 @@ serviço confere (contra o palpite simples). As sondas **não são as 13 do trei
 de Spark nem de Java.
 
 ```bash
-uv run python -m preditor aovivo --conferir   # o motor em pandas × Gold, e o leitor da API × Silver; não sobe o serviço
-uv run python -m preditor aovivo              # sorteia as sondas, baixa o baseline de 108 h e consulta a API a cada 60 s (Ctrl+C encerra)
-uv run python -m preditor servir              # e abra http://127.0.0.1:8000/?ao-vivo
+uv run python -m preditor_analise aovivo --conferir   # o motor em pandas × Gold, e o leitor da API × Silver; não sobe o serviço
+uv run python -m preditor_analise aovivo              # sorteia as sondas, baixa o baseline de 108 h e consulta a API a cada 60 s (Ctrl+C encerra)
+uv run python -m preditor_analise servir              # e abra http://127.0.0.1:8000/?ao-vivo
 ```
 
 O baseline são as 108 h antes da partida (T0) e fica congelado em `data/aovivo/estado.json`; reiniciar o comando
@@ -207,7 +208,7 @@ chegar (é uma reprodução do histórico da API, não ao vivo).
 ## Como o código está dividido
 
 ```text
-src/preditor/
+src/preditor_analise/
   config.py                parâmetros globais: tabela, corte A/B, piso, limiares da regra, horizonte do futuro, recorte, colunas e grade da árvore e caminhos
   spark.py                 SparkSession local (o conector BigQuery só entra no bronze)
   __main__.py              Pipeline         escolhe a camada (ou `arvore`), orquestra, grava e verifica
@@ -232,6 +233,20 @@ src/preditor/
     ajuste.py              ArvoreAjustada   Tarefa 4: busca com as colunas novas, peso de classe e regra de escolha
     execucao_ajuste.py     ExecucaoAjuste   compara com a Tarefa 3, verifica e grava os arquivos do ajuste
 ```
+
+O que roda em produção (sem Spark e sem o código de treino) fica no outro pacote:
+
+```text
+src/preditor_servico/
+  servico_modelo/          microserviço HTTP do modelo (POST /prever, GET /saude); a API em C# o chama
+  aovivo/                  serviço ao vivo: consulta o RIPE Atlas, prevê com a Random Forest e grava o aovivo.json
+  modelo_exportado.py      abre o modelo_final.joblib depois de conferir o SHA-256
+  geografia.py             distância em círculo máximo, RTT mínimo teórico e leitura do sondas.csv
+  dados/sondas.csv         coordenadas das sondas (versionado)
+```
+
+`preditor_servico` só importa o `config.py` de `preditor_analise`. As conferências que precisam dos dois lados
+(`conferir_servico.py`, `conferir_aovivo.py`) ficam na análise.
 
 As fórmulas seguem a RFC (§8.2 a §8.4). O código comenta cada passo e não
 repete a teoria.

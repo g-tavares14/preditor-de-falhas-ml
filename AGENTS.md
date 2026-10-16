@@ -10,20 +10,20 @@ mesma, então o modelo usa métricas **relativas ao baseline de cada fluxo**, n�
 
 Estágio atual: o pipeline segue a arquitetura medalhão (`SPEC-medalhao.md`): Bronze (cópia do BigQuery),
 Silver (normalização) e o Gold (cálculo do X: baseline + features; cálculo do Y: rótulo OK / RISCO / FALHA em
-`src/preditor/gold/calculo_y/`, spec em `SPEC-calculo-y.md`) estão prontos. A árvore inicial (Tarefa 3) também:
-código em `src/preditor/modelo/`, spec em `SPEC-arvore.md`. A visualização (replay da validação num mapa-múndi)
-também: exportador em `src/preditor/visualizacao/`, página em `api/Preditor.Api/wwwroot/`, spec em `SPEC-visualizacao.md`; desde 10/10/2026 o replay prevê com a Random Forest exportada (spec em `SPEC-replay-floresta.md`). O ajuste da
-árvore (Tarefa 4) também: `src/preditor/modelo/ajuste.py` e `execucao_ajuste.py`, spec em `SPEC-ajuste-arvore.md`,
+`src/preditor_analise/gold/calculo_y/`, spec em `SPEC-calculo-y.md`) estão prontos. A árvore inicial (Tarefa 3) também:
+código em `src/preditor_analise/modelo/`, spec em `SPEC-arvore.md`. A visualização (replay da validação num mapa-múndi)
+também: exportador em `src/preditor_analise/visualizacao/`, página em `api/Preditor.Api/wwwroot/`, spec em `SPEC-visualizacao.md`; desde 10/10/2026 o replay prevê com a Random Forest exportada (spec em `SPEC-replay-floresta.md`). O ajuste da
+árvore (Tarefa 4) também: `src/preditor_analise/modelo/ajuste.py` e `execucao_ajuste.py`, spec em `SPEC-ajuste-arvore.md`,
 análise em `docs/relatorio_analise_arvore.md`. O painel da árvore na página (spec em `SPEC-arvore-na-pagina.md`) existiu até 10/10/2026: a página foi
 simplificada para público não técnico e ele saiu (ver "Página para público não técnico" em Decisions). O piso da regra 3 (10/10/2026) também: a linha 3 do Y exige
 `aumento_pct` ≥ 30 % além de `z_robusto` ≥ 3,5; spec em `SPEC-piso-regra3.md`, com o antes × depois e a análise de
 robustez na seção 8 de `docs/relatorio_analise_arvore.md`. A comparação com Random Forest e XGBoost (10/10/2026) também:
-`floresta.py`, `boosting.py`, `comparacao.py` e `execucao_comparacao.py` em `src/preditor/modelo/`, spec em
+`floresta.py`, `boosting.py`, `comparacao.py` e `execucao_comparacao.py` em `src/preditor_analise/modelo/`, spec em
 `SPEC-comparacao-modelos.md`, relatório em `docs/relatorio_comparacao_modelos.md`. A regra entre famílias escolheu a
 Random Forest, e o modelo foi exportado para `data/modelo/exportado/` (`exportacao.py`). O teste único (Tarefa 5) foi feito
 em 10/10/2026: o teste foi aberto **uma vez** (spec em `SPEC-teste-final.md`; resultado em `docs/resultado_teste_final.md`;
 ficha em `docs/ficha_modelo_final.md`). O serviço ao vivo (15/10/2026) também: a Random Forest exportada prevendo, em tempo real, a
-partir da API do RIPE Atlas, com sondas que não estão no treino; código em `src/preditor/aovivo/`, spec em `SPEC-ao-vivo.md`,
+partir da API do RIPE Atlas, com sondas que não estão no treino; código em `src/preditor_servico/aovivo/`, spec em `SPEC-ao-vivo.md`,
 página em `?ao-vivo`.
 
 A pergunta, as regras de rótulo e a origem dos dados estão em `docs/` (índice em `docs/README.md`; a RFC em
@@ -34,7 +34,7 @@ A pergunta, as regras de rótulo e a origem dos dados estão em `docs/` (índice
 - Python 3.11, gerenciado com `uv` (build backend `uv_build`, pacote `preditor` em `src/`).
 - PySpark 3.5 em modo local; só a camada Bronze lê do BigQuery, via conector Spark (baixado na primeira execução).
   O Spark fica só no pipeline de dados (Bronze → Gold).
-- A árvore (`src/preditor/modelo/`) usa scikit-learn (`DecisionTreeClassifier`), lendo o Gold com pandas + pyarrow:
+- A árvore (`src/preditor_analise/modelo/`) usa scikit-learn (`DecisionTreeClassifier`), lendo o Gold com pandas + pyarrow:
   `scikit-learn`, `pandas` e `pyarrow` são dependências do pacote. Sem Spark e sem Java.
 - A comparação usa também `xgboost` (dependência do pacote; no macOS, `brew install libomp` antes) e `joblib` (vem com o
   scikit-learn). `uv add xgboost` foi rodado pela sessão principal em 10/10/2026.
@@ -55,38 +55,38 @@ uv sync
 # install (notebooks):
 uv sync --group notebook
 # run (pipeline completo: bronze → silver → gold):
-uv run python -m preditor
+uv run python -m preditor_analise
 # run (uma camada; cada uma lê a anterior do disco):
-uv run python -m preditor bronze   # BigQuery → data/bronze/ (rede + gcloud)
-uv run python -m preditor silver   # data/bronze/ → data/silver/ (offline)
-uv run python -m preditor gold     # data/silver/ → data/gold/ (offline; inclui dataset_rotulado_B.parquet
+uv run python -m preditor_analise bronze   # BigQuery → data/bronze/ (rede + gcloud)
+uv run python -m preditor_analise silver   # data/bronze/ → data/silver/ (offline)
+uv run python -m preditor_analise gold     # data/silver/ → data/gold/ (offline; inclui dataset_rotulado_B.parquet
                                    # e contagem_classes.csv)
 # run (a árvore; comando à parte, não entra na execução sem argumento):
-uv run python -m preditor arvore   # data/gold/ → data/modelo/ (offline, sem Spark nem Java)
+uv run python -m preditor_analise arvore   # data/gold/ → data/modelo/ (offline, sem Spark nem Java)
 # run (a árvore ajustada da Tarefa 4; comando à parte, offline, sem Spark nem Java):
-uv run python -m preditor ajuste   # data/gold/ + saídas do `arvore` → data/modelo/ (não reescreve os arquivos da Tarefa 3)
+uv run python -m preditor_analise ajuste   # data/gold/ + saídas do `arvore` → data/modelo/ (não reescreve os arquivos da Tarefa 3)
 # run (a visualização; comandos à parte, offline, sem Spark nem Java):
-uv run python -m preditor replay   # data/gold/ + modelo_final.joblib → api/Preditor.Api/wwwroot/dados/replay.json (prevê com a Random Forest; sem treinar)
-uv run python -m preditor servir   # serve api/Preditor.Api/wwwroot/ em http://127.0.0.1:8000/ (--porta N); não use `python -m http.server`
-uv run python -m preditor.visualizacao.coletar_sondas   # só para refazer sondas.csv (rede: API pública do RIPE Atlas)
+uv run python -m preditor_analise replay   # data/gold/ + modelo_final.joblib → api/Preditor.Api/wwwroot/dados/replay.json (prevê com a Random Forest; sem treinar)
+uv run python -m preditor_analise servir   # serve api/Preditor.Api/wwwroot/ em http://127.0.0.1:8000/ (--porta N); não use `python -m http.server`
+uv run python -m preditor_analise.visualizacao.coletar_sondas   # só para refazer sondas.csv (rede: API pública do RIPE Atlas)
 # run (o microserviço do modelo, para a API em C#; offline, sem Spark e sem Java; SPEC-api-csharp.md):
-uv run python -m preditor.servico_modelo --conferir   # serviço pela rede × modelo recarregado (0 diferenças) e grava api/Preditor.Api.Tests/Fixtures/paridade.json
-uv run python -m preditor.servico_modelo --porta 8001 # POST /prever, GET /saude (só rede interna; no contêiner, --endereco 0.0.0.0)
+uv run python -m preditor_analise.conferir_servico            # serviço pela rede × modelo recarregado (0 diferenças) e grava api/Preditor.Api.Tests/Fixtures/paridade.json
+uv run python -m preditor_servico.servico_modelo --porta 8001 # POST /prever, GET /saude (só rede interna; no contêiner, --endereco 0.0.0.0)
 # run (a API em C#, módulo `api` de SPEC-api-csharp.md; precisa do .NET 10 SDK e, para o /prever de verdade, do serviço acima no ar):
 dotnet test api/Preditor.sln                          # 40 testes; o de paridade sobe o serviço Python sozinho (precisa do `uv` no PATH)
 cd api/Preditor.Api && dotnet run                     # http://localhost:5053/ (mapa), /testar, /historico, /swagger, /api/*; banco em api/Preditor.Api/dados/ (ignorado)
 cd api && dotnet dotnet-ef migrations add <Nome> --project Preditor.Api --output-dir Dados/Migracoes   # nova migração (a ferramenta está em api/dotnet-tools.json)
 # run (o modelo ao vivo na API do RIPE Atlas, com sondas fora do treino; comandos à parte, sem Spark nem Java, com rede; SPEC-ao-vivo.md):
-uv run python -m preditor aovivo --conferir   # motor em pandas × Gold (offline) e leitor da API × Silver (rede); não sobe o serviço
-uv run python -m preditor aovivo              # sorteia 10 sondas da América Latina, baixa o baseline de 108 h e consulta a API a cada 60 s (Ctrl+C encerra)
-uv run python -m preditor aovivo --recomecar --retroativo-horas 6 --ciclos 3   # T0 seis horas atrás (as medições desde então entram como se acabassem de chegar)
-uv run python -m preditor servir              # e abra http://127.0.0.1:8000/?ao-vivo (a página sem `?ao-vivo` segue sendo o replay)
+uv run python -m preditor_analise aovivo --conferir   # motor em pandas × Gold (offline) e leitor da API × Silver (rede); não sobe o serviço
+uv run python -m preditor_analise aovivo              # sorteia 10 sondas da América Latina, baixa o baseline de 108 h e consulta a API a cada 60 s (Ctrl+C encerra)
+uv run python -m preditor_analise aovivo --recomecar --retroativo-horas 6 --ciclos 3   # T0 seis horas atrás (as medições desde então entram como se acabassem de chegar)
+uv run python -m preditor_analise servir              # e abra http://127.0.0.1:8000/?ao-vivo (a página sem `?ao-vivo` segue sendo o replay)
 # run (a comparação Random Forest × XGBoost × árvore; comandos à parte, offline, sem Spark nem Java):
-uv run python -m preditor comparar  # data/gold/ + saídas de arvore e ajuste → data/modelo/comparacao/ (~4 min)
-uv run python -m preditor exportar  # escolha.json do comparar → data/modelo/exportado/ (.joblib, LEIA-ME.md, exemplo; ~10 s)
+uv run python -m preditor_analise comparar  # data/gold/ + saídas de arvore e ajuste → data/modelo/comparacao/ (~4 min)
+uv run python -m preditor_analise exportar  # escolha.json do comparar → data/modelo/exportado/ (.joblib, LEIA-ME.md, exemplo; ~10 s)
 # run (o teste único, Tarefa 5; comandos à parte, offline, sem Spark nem Java; spec em SPEC-teste-final.md):
-uv run python -m preditor teste --ensaio          # mesmo caminho do teste, nas linhas da VALIDAÇÃO; confere com o comparar e grava ensaio_ok.json
-uv run python -m preditor teste --abrir-o-teste   # o teste foi aberto UMA vez em 10/10/2026, 14:49; recusa com carimbo inválido ou com TESTE_ABERTO.json
+uv run python -m preditor_analise teste --ensaio          # mesmo caminho do teste, nas linhas da VALIDAÇÃO; confere com o comparar e grava ensaio_ok.json
+uv run python -m preditor_analise teste --abrir-o-teste   # o teste foi aberto UMA vez em 10/10/2026, 14:49; recusa com carimbo inválido ou com TESTE_ABERTO.json
 # run (análise do piso da regra 3; fora do pipeline, não grava no projeto; saídas em data/analise_piso_regra3/, ignorada pelo git):
 uv run python data/analise_piso_regra3/robustez_piso.py      # antes × depois: ganho com IC por fluxo, dobra interna, pares (~3 min)
 uv run python data/analise_piso_regra3/conferir_secao8.py    # confere cada número da seção 8 contra numeros_secao8.csv
@@ -132,8 +132,8 @@ JAVA_HOME=/opt/homebrew/opt/openjdk@17 uv run python data/analise_piso_regra3/co
 
 Só `bronze` (e o pipeline completo) precisa de rede e credenciais do BigQuery. `silver` e `gold` rodam offline, mas
 exigem a camada anterior no disco: sem ela, terminam com a mensagem de qual comando rodar antes (nunca recaem no
-BigQuery). `arvore` também roda offline e exige o Gold (sem ele, pede `uv run python -m preditor gold`). Sem rede,
-verifique ao menos a importação: `uv run python -c "import preditor.__main__"`. `ajuste` exige o Gold com as colunas novas e as saídas do `arvore`. `replay` exige o Gold, o `.joblib` e o LEIA-ME do `exportar`, as saídas do `comparar` e o `sondas.csv`; `servir` exige o `replay.json` (cada um diz qual comando rodar antes). `comparar` exige o Gold e as saídas do `arvore` e do
+BigQuery). `arvore` também roda offline e exige o Gold (sem ele, pede `uv run python -m preditor_analise gold`). Sem rede,
+verifique ao menos a importação: `uv run python -c "import preditor_analise.__main__"`. `ajuste` exige o Gold com as colunas novas e as saídas do `arvore`. `replay` exige o Gold, o `.joblib` e o LEIA-ME do `exportar`, as saídas do `comparar` e o `sondas.csv`; `servir` exige o `replay.json` (cada um diz qual comando rodar antes). `comparar` exige o Gold e as saídas do `arvore` e do
 `ajuste`; `exportar` exige as saídas do `comparar`. `teste --ensaio` exige o `exportar` (o `.joblib` e o LEIA-ME);
 `teste --abrir-o-teste` exige também o carimbo `ensaio_ok.json` válido (SHA-256 do modelo, da escolha e do código de
 medição) e recusa se `TESTE_ABERTO.json` existir. Sem argumento, `teste` não roda.
@@ -158,25 +158,35 @@ medição) e recusa se `TESTE_ABERTO.json` existir. Sem argumento, `teste` não 
   e a abertura (trava, carimbo, medição, checagens, gravação). Não altera `DadosModelo`.
 - A visualização fica em `visualizacao/`, também fora do medalhão: `rotas.py`, `exportacao.py`, `execucao.py` (orquestra,
   verifica e só então grava), `modelo_exportado.py` (lê o `.joblib` com as mesmas conferências do `teste`, por cópia: `execucao_teste.py` carrega o bloco de teste e não é importado), `servidor.py` e `coletar_sondas.py`. Ela reutiliza `modelo/` sem alterá-lo.
-- O serviço ao vivo fica em `aovivo/`, fora do medalhão: `parametros.py` (constantes dele; o `config.py` não muda porque o carimbo do
+- **Dois pacotes Python em `src/`** (separados em 16/10/2026): `preditor_analise` (dados, treino e avaliação: bronze, silver, gold, modelo,
+  visualizacao, `spark.py`, `config.py`; precisa de Spark e Java só no pipeline) e `preditor_servico` (o que roda em produção, sem Spark e
+  sem o código de treino: `servico_modelo/`, `aovivo/`, `modelo_exportado.py`, `geografia.py`, `dados/sondas.csv`). A imagem do contêiner
+  leva `preditor_servico` e só o `config.py` da análise. **Regras:** (1) `preditor_servico` importa da análise apenas `preditor_analise.config`
+  (conferido por `grep -rnE "(from|import) preditor_analise" src/preditor_servico`, que só pode listar `from preditor_analise import config`);
+  (2) a análise só importa o serviço nas pontes de conferência (`conferir_servico.py`, `conferir_aovivo.py`, o comando `aovivo` do `__main__.py`),
+  porque conferir o serviço contra o Gold exige os dois lados; (3) o que o serviço precisa da análise é copiado, com comentário (hoje:
+  `modelo_exportado.py`, `Geografia` e `Sondas.ler` de `rotas.py`, o bloco do modelo e a lista de colunas).
+- O serviço ao vivo fica em `preditor_servico/aovivo/`: `parametros.py` (constantes dele; o `config.py` não muda porque o carimbo do
   teste guarda o hash dele), `atlas.py` (cliente `urllib` da API e o leitor de um resultado), `calculo.py` (a cópia em pandas de
-  `gold/calculo_x/` e `gold/calculo_y/`), `conferencia.py`, `selecao.py`, `servico.py` (preparo, laço e placar), `pagina.py` (o
-  `api/Preditor.Api/wwwroot/dados/aovivo.json`) e `execucao.py`. Lê `config` e `modelo/` sem alterá-los; as saídas vão para `data/aovivo/` (ignorada).
-- O microserviço do modelo fica em `servico_modelo/` (`parametros.py`, `previsor.py`, `servidor.py`, `conferencia.py`, `__main__.py`),
-  fora do medalhão, só com a biblioteca padrão para o HTTP. Tem entrada própria (`python -m preditor.servico_modelo`) porque o
-  `preditor/__main__.py` importa o PySpark. A API pública é em C# (`api/`, spec em `SPEC-api-csharp.md`, plano em `tasks/plan-api-csharp.md`).
+  `gold/calculo_x/` e `gold/calculo_y/`), `selecao.py`, `servico.py` (preparo, laço e placar), `pagina.py` (o
+  `api/Preditor.Api/wwwroot/dados/aovivo.json`) e `execucao.py`. As conferências contra o Gold e o Silver ficam na análise
+  (`conferir_aovivo.py`; `uv run python -m preditor_analise aovivo` confere o motor e depois sobe o serviço; no contêiner, `python -m preditor_servico.aovivo`,
+  sem conferência). Lê só o `config`; as saídas vão para `data/aovivo/` (ignorada).
+- O microserviço do modelo fica em `preditor_servico/servico_modelo/` (`parametros.py`, `previsor.py`, `servidor.py`, `__main__.py`),
+  só com a biblioteca padrão para o HTTP; sobe sem Spark e sem Java (`python -m preditor_servico.servico_modelo`). A conferência dele contra o modelo
+  (a paridade) é `preditor_analise/conferir_servico.py`. A API pública é em C# (`api/`, spec em `SPEC-api-csharp.md`, plano em `tasks/plan-api-csharp.md`).
 - A API em C# fica em `api/` (`Preditor.sln`: `Preditor.Api` com Controllers, Views Razor, EF Core + SQLite, e `Preditor.Api.Tests` com xUnit).
-  Nomes em português, PascalCase. Ela não calcula nada do modelo: pergunta ao `servico_modelo` (URL em `ServicoModelo:Url`) e serve a página, que mora no `wwwroot/` dela (`api/Preditor.Api/wwwroot/`),
-  na raiz pelos arquivos estáticos (o `aovivo.json` do serviço ao vivo vem de `Web:ArquivoAoVivo`). A paridade (`Fixtures/paridade.json`) vem de `python -m preditor.servico_modelo --conferir`.
+  Nomes em português, PascalCase. Ela não calcula nada do modelo: pergunta ao `preditor_servico.servico_modelo` (URL em `ServicoModelo:Url`) e serve a página, que mora no `wwwroot/` dela (`api/Preditor.Api/wwwroot/`),
+  na raiz pelos arquivos estáticos (o `aovivo.json` do serviço ao vivo vem de `Web:ArquivoAoVivo`). A paridade (`Fixtures/paridade.json`) vem de `python -m preditor_analise.conferir_servico`.
 - A página fica em `api/Preditor.Api/wwwroot/`: `app.js` orquestra; `tempo.js` e `placar.js` são lógica pura (sem DOM, rodam em Node);
   `mapa.js`, `rotas.js`, `desenho.js`, `pulsos.js`, `selos.js` cuidam do mapa; `cartao.js`, `painel.js`, `foco.js` e
   `comum.js`, do painel (`comum.js` também guarda os nomes na tela: Normal / Atenção / Problema, países por extenso). Sem `innerHTML` com dados; CSP `default-src 'self'`. As constantes só de desenho (durações,
   tamanhos) ficam no topo do módulo JS que as usa, comentadas, porque o JS não lê `config.py`.
-- Todo "número mágico" vai para `src/preditor/config.py`, com comentário dizendo a origem (seção da RFC ou decisão).
+- Todo "número mágico" vai para `src/preditor_analise/config.py`, com comentário dizendo a origem (seção da RFC ou decisão).
 - O código comenta cada passo, mas não repete a teoria da RFC: referencia a seção.
 - Saídas vão para `data/{bronze,silver,gold}/` (ignoradas pelo git): Parquet para dados, CSV só para leitura humana.
   As da árvore vão para `data/modelo/` (também ignoradas): CSV, JSON e TXT para leitura. O `replay.json` vai para
-  `api/Preditor.Api/wwwroot/dados/` (ignorada); `visualizacao/sondas.csv` e `api/Preditor.Api/wwwroot/vendor/` são versionados.
+  `api/Preditor.Api/wwwroot/dados/` (ignorada); `preditor_servico/dados/sondas.csv` e `api/Preditor.Api/wwwroot/vendor/` são versionados.
 - O dono está começando em PySpark: prefira transformações legíveis e explicadas a construções compactas.
 
 ## Decisions

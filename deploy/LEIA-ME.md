@@ -9,9 +9,9 @@ As imagens copiam arquivos gerados pelo pipeline. Sem eles o build falha ou a p�
 
 | Arquivo | Vem de |
 |---|---|
-| `data/modelo/exportado/modelo_final.joblib` e `LEIA-ME.md` | `uv run python -m preditor exportar` |
-| `data/modelo/comparacao/escolha.json` | `uv run python -m preditor comparar` |
-| `api/Preditor.Api/wwwroot/dados/replay.json` | `uv run python -m preditor replay` |
+| `data/modelo/exportado/modelo_final.joblib` e `LEIA-ME.md` | `uv run python -m preditor_analise exportar` |
+| `data/modelo/comparacao/escolha.json` | `uv run python -m preditor_analise comparar` |
+| `api/Preditor.Api/wwwroot/dados/replay.json` | `uv run python -m preditor_analise replay` |
 
 O `.dockerignore` (na raiz) é uma lista de permissão: nada de `data/`, `.venv` ou credenciais entra no contexto além disso.
 
@@ -35,7 +35,7 @@ docker compose -f deploy/docker-compose.yml --profile aovivo up -d
 
 O `aovivo.json` aparece em `/dados/aovivo.json` (e a página em `/?ao-vivo`). O estado fica no volume `preditor_estado_aovivo`;
 reiniciar retoma dele. Para sortear sondas de novo, apague esse volume. No contêiner não há Gold, por isso o comando usa
-`--sem-conferir` (a conferência do motor contra o Gold roda na sua máquina: `uv run python -m preditor aovivo --conferir`).
+o `preditor_servico` não confere o motor contra o Gold (a conferência roda na sua máquina: `uv run python -m preditor_analise aovivo --conferir`).
 
 ## Na EC2 (a fazer, com o OK do dono)
 
