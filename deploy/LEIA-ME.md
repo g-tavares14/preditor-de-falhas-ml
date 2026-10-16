@@ -40,14 +40,51 @@ O `aovivo.json` aparece em `/dados/aovivo.json` (e a página em `/?ao-vivo`). O 
 reiniciar retoma dele. Para sortear sondas de novo, apague esse volume. No contêiner não há Gold, por isso o comando usa
 o `preditor_servico` não confere o motor contra o Gold (a conferência roda na sua máquina: `uv run python -m preditor_analise aovivo --conferir`).
 
-## Na EC2 (a fazer, com o OK do dono)
+## Na AWS (no ar desde 16/10/2026, conta 274394226829, us-east-1)
 
-1. Imagens para a arquitetura da instância. Um Mac com Apple Silicon gera `arm64`; numa EC2 `x86_64` use
-   `docker buildx build --platform linux/amd64 ...` (ou escolha uma instância Graviton, `arm64`, e não mude nada).
-   A `preditor-python` pesa cerca de 2,8 GB (scikit-learn, pandas, scipy); a `preditor-api`, cerca de 430 MB.
-2. Levar as imagens à instância: um registro (ECR) ou `docker save | gzip` + `scp` + `docker load`.
-3. Copiar só `deploy/docker-compose.yml` e rodar com `PORTA_PUBLICA=80`. As imagens já estão montadas, então use `up -d` sem `--build`
-   (e troque o bloco `build:` por `image:` se não levar o código-fonte).
-4. Grupo de segurança: abrir só a 80 (e a 22 para o seu IP). Nunca a 8001.
-5. O `.joblib` é um pickle (abrir executa código): o serviço confere o SHA-256 contra o `LEIA-ME.md` antes de abrir.
-   `/api/saude` devolve esse SHA-256; ele tem de bater com o do `data/modelo/exportado/LEIA-ME.md`.
+Endereço: **https://d3csgsins36z0x.cloudfront.net/** (o CloudFront entrega por HTTPS e fala HTTP com a instância).
+
+| Recurso | Identificação | Para quê |
+|---|---|---|
+| EC2 `t4g.small` (ARM, Amazon Linux 2023, disco de 20 GB) | `i-0e4d39c1fdd61a114`, IP elástico `32.196.251.180` (`eipalloc-011c1d48b3e492563`) | roda o `docker-compose.prod.yml` (modelo, api e ao vivo) |
+| Grupo de segurança | `sg-0332e91bcfda1c976` (`preditor-sg`) | só a porta 80, só a partir do CloudFront (lista de prefixos da AWS). Sem SSH, sem 8001 |
+| CloudFront | `E3LILOS5GGIQ7W` | HTTPS, todos os métodos HTTP (a API usa POST), todas as bordas (`PriceClass_All`, inclui São Paulo). Respeita o `Cache-Control` do servidor: código, estilo, mapa e `replay.json` ficam 5 min no navegador e na borda (`vendor/`, 1 dia); a API, as páginas MVC e o `aovivo.json` nunca ficam em cache |
+| ECR | `preditor-python` e `preditor-api` | as imagens ARM montadas neste Mac |
+| IAM | função e perfil `preditor-ec2` | SSM (acesso administrativo sem SSH) e leitura do ECR |
+
+Custo: a instância liga o tempo todo (cerca de US$ 12 a 15 por mês), mais centavos de ECR, IP elástico em uso e CloudFront.
+
+**Atualizar** (depois de mudar o código): refaça as imagens, envie ao ECR e reinicie lá.
+
+```bash
+docker compose -f deploy/docker-compose.yml build
+aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 274394226829.dkr.ecr.us-east-1.amazonaws.com
+for r in preditor-python preditor-api; do docker tag "${r}:latest" "274394226829.dkr.ecr.us-east-1.amazonaws.com/${r}:latest"; docker push "274394226829.dkr.ecr.us-east-1.amazonaws.com/${r}:latest"; done
+aws ssm send-command --region us-east-1 --instance-ids i-0e4d39c1fdd61a114 --document-name AWS-RunShellScript \
+  --parameters 'commands=["cd /opt/preditor && aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 274394226829.dkr.ecr.us-east-1.amazonaws.com && docker compose pull && docker compose up -d"]'
+aws cloudfront create-invalidation --distribution-id E3LILOS5GGIQ7W --paths '/*'   # sem isto, a versão antiga fica até 5 min nas bordas
+```
+
+**Entrar na instância:** `aws ssm start-session --target i-0e4d39c1fdd61a114` (precisa do plugin Session Manager). Os arquivos ficam em `/opt/preditor`.
+
+**Desligar tudo e parar de pagar** (nesta ordem; o CloudFront leva alguns minutos para desativar):
+
+```bash
+aws cloudfront get-distribution-config --id E3LILOS5GGIQ7W > /tmp/cf.json   # edite "Enabled": false e use o ETag em --if-match
+aws cloudfront update-distribution --id E3LILOS5GGIQ7W --if-match <ETAG> --distribution-config file://cf-desligado.json
+aws cloudfront wait distribution-deployed --id E3LILOS5GGIQ7W
+aws cloudfront delete-distribution --id E3LILOS5GGIQ7W --if-match <NOVO_ETAG>
+aws ec2 terminate-instances --region us-east-1 --instance-ids i-0e4d39c1fdd61a114
+aws ec2 wait instance-terminated --region us-east-1 --instance-ids i-0e4d39c1fdd61a114
+aws ec2 release-address --region us-east-1 --allocation-id eipalloc-011c1d48b3e492563
+aws ec2 delete-security-group --region us-east-1 --group-id sg-0332e91bcfda1c976
+aws ecr delete-repository --region us-east-1 --repository-name preditor-python --force
+aws ecr delete-repository --region us-east-1 --repository-name preditor-api --force
+aws iam remove-role-from-instance-profile --instance-profile-name preditor-ec2 --role-name preditor-ec2
+aws iam delete-instance-profile --instance-profile-name preditor-ec2
+aws iam detach-role-policy --role-name preditor-ec2 --policy-arn arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+aws iam detach-role-policy --role-name preditor-ec2 --policy-arn arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly
+aws iam delete-role --role-name preditor-ec2
+```
+
+Só desligar a instância (`stop-instances`) não basta: o IP elástico solto e o disco continuam cobrando.

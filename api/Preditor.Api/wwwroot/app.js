@@ -114,9 +114,10 @@ function lerCoresDoCss() {
 
 // --- Carregar dados --------------------------------------------------------------------------------------
 
-async function carregarJson(url) {
-  // `no-cache` = o navegador pergunta ao servidor se o arquivo mudou: o `replay.json` é regravado a cada `replay`.
-  const resposta = await fetch(url, { cache: "no-cache" });
+async function carregarJson(url, revalidar = false) {
+  // `revalidar` (`no-cache`) = o navegador pergunta ao servidor se o arquivo mudou: só o `aovivo.json`, regravado a cada minuto.
+  // O resto usa o cache normal (o servidor manda `max-age`), para trocar de modo sem rebaixar tudo.
+  const resposta = await fetch(url, revalidar ? { cache: "no-cache" } : undefined);
   if (!resposta.ok) {
     throw new Error(`${url}: HTTP ${resposta.status}`);
   }
@@ -124,9 +125,9 @@ async function carregarJson(url) {
 }
 
 // Devolve o JSON, ou mostra a mensagem na página e devolve null se o arquivo não carregar.
-async function carregarOuMostrarErro(url, mensagem, elementos) {
+async function carregarOuMostrarErro(url, mensagem, elementos, revalidar = false) {
   try {
-    return await carregarJson(url);
+    return await carregarJson(url, revalidar);
   } catch (erro) {
     console.error(erro);
     mostrarErro(elementos, mensagem);
@@ -537,7 +538,7 @@ function escreverSeloAoVivo(estado, elementos) {
 async function atualizarDadosAoVivo(estado, elementos, partes) {
   let novo;
   try {
-    novo = await carregarJson(ARQUIVO_AO_VIVO);
+    novo = await carregarJson(ARQUIVO_AO_VIVO, true);
   } catch (erro) {
     console.warn(erro); // sem arquivo agora: o selo passa a avisar que os dados envelhecem
     return;
@@ -582,13 +583,15 @@ async function principal() {
   const elementos = pegarElementos();
 
   // Cada arquivo tem a sua mensagem: o replay vem do comando em Python; o mapa-base vem da cópia local em vendor/.
-  let replay = await carregarOuMostrarErro(ARQUIVO_DADOS, MENSAGEM_SEM_DADOS, elementos);
+  // O mapa-base começa a baixar já, junto com os dados (antes um esperava o outro).
+  const promessaTopologia = carregarOuMostrarErro(ARQUIVO_MAPA, MENSAGEM_SEM_MAPA, elementos);
+  let replay = await carregarOuMostrarErro(ARQUIVO_DADOS, MENSAGEM_SEM_DADOS, elementos, AO_VIVO);
   // Ao vivo o arquivo só existe depois da primeira consulta do serviço: a página espera, em vez de ficar parada no erro.
   while (AO_VIVO && replay === null) {
     await new Promise((resolver) => setTimeout(resolver, ESPERA_SEM_DADOS_MS));
-    replay = await carregarOuMostrarErro(ARQUIVO_DADOS, MENSAGEM_SEM_DADOS, elementos);
+    replay = await carregarOuMostrarErro(ARQUIVO_DADOS, MENSAGEM_SEM_DADOS, elementos, true);
   }
-  const topologia = await carregarOuMostrarErro(ARQUIVO_MAPA, MENSAGEM_SEM_MAPA, elementos);
+  const topologia = await promessaTopologia;
   if (replay === null || topologia === null) {
     return; // a mensagem de erro já está na página
   }

@@ -109,8 +109,16 @@ if (!string.IsNullOrEmpty(arquivoAoVivo))
 app.UseDefaultFiles();
 app.UseStaticFiles(new StaticFileOptions
 {
-    // O replay.json e o aovivo.json mudam sem o nome mudar: o navegador pergunta antes de reusar (como o servidor do Python faz).
-    OnPrepareResponse = contexto => contexto.Context.Response.Headers.CacheControl = "no-cache",
+    // O aovivo.json é regravado a cada minuto sem mudar de nome: o navegador pergunta antes de reusar. O resto (código, estilo, mapa-base,
+    // replay.json) só muda quando a imagem é refeita: cinco minutos de cache no navegador e no CloudFront (vendor/, um dia).
+    // Sem isso, cada troca entre Replay e Ao vivo rebaixava ~20 arquivos da Virgínia. Ao publicar uma versão nova, invalide o CloudFront.
+    OnPrepareResponse = contexto =>
+    {
+        var cabecalhos = contexto.Context.Response.Headers;
+        if (contexto.File.Name == "aovivo.json") cabecalhos.CacheControl = "no-cache";
+        else if (contexto.Context.Request.Path.StartsWithSegments("/vendor")) cabecalhos.CacheControl = "public, max-age=86400";
+        else cabecalhos.CacheControl = "public, max-age=300";
+    },
 });
 app.UseSwagger();
 app.UseSwaggerUI();

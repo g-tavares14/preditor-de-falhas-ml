@@ -96,6 +96,17 @@ public partial class PaginasTests
     }
 
     [Fact]
+    public async Task Arquivos_do_site_vem_com_cache_e_so_o_aovivo_json_pergunta_antes_de_reusar()
+    {
+        using var fabrica = new FabricaDeTeste(new ModeloFalso());
+        using var cliente = fabrica.CreateClient();
+
+        // Código e estilo: cinco minutos; as bibliotecas de vendor/: um dia. Sem isso, trocar de modo rebaixava o site inteiro.
+        Assert.Contains("max-age=300", (await cliente.GetAsync("/app.js")).Headers.CacheControl?.ToString());
+        Assert.Contains("max-age=86400", (await cliente.GetAsync("/vendor/d3.min.js")).Headers.CacheControl?.ToString());
+    }
+
+    [Fact]
     public async Task Aovivo_json_sai_do_arquivo_configurado_e_da_404_enquanto_ele_nao_existe()
     {
         var arquivo = Path.Combine(Path.GetTempPath(), $"aovivo-{Guid.NewGuid():N}.json");

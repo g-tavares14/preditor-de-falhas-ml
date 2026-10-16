@@ -1,0 +1,36 @@
+# Compose de produção (EC2): as mesmas imagens do docker-compose.yml, mas baixadas do ECR em vez de montadas no lugar.
+# `REGISTRO` vem do `.env` ao lado deste arquivo (ex.: 274394226829.dkr.ecr.us-east-1.amazonaws.com). Porta 80 para o CloudFront.
+name: preditor
+
+services:
+  modelo:
+    image: ${REGISTRO}/preditor-python:latest
+    expose: ["8001"]
+    restart: unless-stopped
+
+  api:
+    image: ${REGISTRO}/preditor-api:latest
+    ports: ["80:8080"]
+    environment:
+      ServicoModelo__Url: http://modelo:8001
+      Web__ArquivoAoVivo: /vivo/aovivo.json
+    depends_on:
+      modelo: { condition: service_healthy }
+    volumes:
+      - banco:/data
+      - vivo:/vivo:ro
+    restart: unless-stopped
+
+  aovivo:
+    image: ${REGISTRO}/preditor-python:latest
+    command: ["python", "-m", "preditor_servico.aovivo"]
+    healthcheck: { disable: true }
+    volumes:
+      - vivo:/app/api/Preditor.Api/wwwroot/dados
+      - estado_aovivo:/app/data/aovivo
+    restart: unless-stopped
+
+volumes:
+  banco:
+  vivo:
+  estado_aovivo:

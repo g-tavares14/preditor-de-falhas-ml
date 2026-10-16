@@ -9,6 +9,22 @@
   <title>Preditor de falhas de rede</title>
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
   <link rel="stylesheet" href="estilo.css">
+  <!-- Carga em paralelo: os módulos de app.js são pedidos já, em vez de um nível esperar o anterior, e o mapa-base (sempre usado)
+       começa a baixar antes do JavaScript pedi-lo. Só caminhos da própria origem (CSP default-src 'self'). -->
+  <link rel="modulepreload" href="app.js">
+  <link rel="modulepreload" href="aovivo.js">
+  <link rel="modulepreload" href="cartao.js">
+  <link rel="modulepreload" href="comum.js">
+  <link rel="modulepreload" href="desenho.js">
+  <link rel="modulepreload" href="foco.js">
+  <link rel="modulepreload" href="mapa.js">
+  <link rel="modulepreload" href="painel.js">
+  <link rel="modulepreload" href="placar.js">
+  <link rel="modulepreload" href="pulsos.js">
+  <link rel="modulepreload" href="rotas.js">
+  <link rel="modulepreload" href="selos.js">
+  <link rel="modulepreload" href="tempo.js">
+  <link rel="preload" href="vendor/countries-110m.json" as="fetch" crossorigin="anonymous">
 </head>
 <body>
   <div class="app">
