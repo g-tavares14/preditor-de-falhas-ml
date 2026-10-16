@@ -69,6 +69,9 @@ uv run python -m preditor ajuste   # data/gold/ + saídas do `arvore` → data/m
 uv run python -m preditor replay   # data/gold/ + modelo_final.joblib → web/dados/replay.json (prevê com a Random Forest; sem treinar)
 uv run python -m preditor servir   # serve web/ em http://127.0.0.1:8000/ (--porta N); não use `python -m http.server`
 uv run python -m preditor.visualizacao.coletar_sondas   # só para refazer sondas.csv (rede: API pública do RIPE Atlas)
+# run (o microserviço do modelo, para a API em C#; offline, sem Spark e sem Java; SPEC-api-csharp.md):
+uv run python -m preditor.servico_modelo --conferir   # serviço pela rede × modelo recarregado (0 diferenças) e grava api/Preditor.Api.Tests/Fixtures/paridade.json
+uv run python -m preditor.servico_modelo --porta 8001 # POST /prever, GET /saude (só rede interna; no contêiner, --endereco 0.0.0.0)
 # run (o modelo ao vivo na API do RIPE Atlas, com sondas fora do treino; comandos à parte, sem Spark nem Java, com rede; SPEC-ao-vivo.md):
 uv run python -m preditor aovivo --conferir   # motor em pandas × Gold (offline) e leitor da API × Silver (rede); não sobe o serviço
 uv run python -m preditor aovivo              # sorteia 10 sondas da América Latina, baixa o baseline de 108 h e consulta a API a cada 60 s (Ctrl+C encerra)
@@ -155,6 +158,9 @@ medição) e recusa se `TESTE_ABERTO.json` existir. Sem argumento, `teste` não 
   teste guarda o hash dele), `atlas.py` (cliente `urllib` da API e o leitor de um resultado), `calculo.py` (a cópia em pandas de
   `gold/calculo_x/` e `gold/calculo_y/`), `conferencia.py`, `selecao.py`, `servico.py` (preparo, laço e placar), `pagina.py` (o
   `web/dados/aovivo.json`) e `execucao.py`. Lê `config` e `modelo/` sem alterá-los; as saídas vão para `data/aovivo/` (ignorada).
+- O microserviço do modelo fica em `servico_modelo/` (`parametros.py`, `previsor.py`, `servidor.py`, `conferencia.py`, `__main__.py`),
+  fora do medalhão, só com a biblioteca padrão para o HTTP. Tem entrada própria (`python -m preditor.servico_modelo`) porque o
+  `preditor/__main__.py` importa o PySpark. A API pública é em C# (`api/`, spec em `SPEC-api-csharp.md`, plano em `tasks/plan-api-csharp.md`).
 - A página fica em `web/`: `app.js` orquestra; `tempo.js` e `placar.js` são lógica pura (sem DOM, rodam em Node);
   `mapa.js`, `rotas.js`, `desenho.js`, `pulsos.js`, `selos.js` cuidam do mapa; `cartao.js`, `painel.js`, `foco.js` e
   `comum.js`, do painel (`comum.js` também guarda os nomes na tela: Normal / Atenção / Problema, países por extenso). Sem `innerHTML` com dados; CSP `default-src 'self'`. As constantes só de desenho (durações,
