@@ -1,0 +1,1 @@
+timestamp,fluxo_id,periodo,cenario,sent,rcvd,latencia_ms,perda_pct,jitter_ms,timeout_atual,probe_id

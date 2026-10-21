@@ -1,0 +1,10 @@
+id,rota,escopo,rede,ponta_a,ip_a,ponta_b,ip_b,cabo,porta_a_no_pt,porta_b_no_pt
+L1,BR→UY,Regional,10.0.1.0/30,R-BR,10.0.1.1,R-UY,10.0.1.2,Copper Cross-Over,g0/1,g0/1
+L2,BR→BO,Regional,10.0.2.0/30,R-BR,10.0.2.1,R-BO,10.0.2.2,Copper Cross-Over,g0/2,g0/1
+L3,DE→PT,Regional,10.0.3.0/30,R-DE,10.0.3.1,R-PT,10.0.3.2,Copper Cross-Over,g0/1,g0/1
+L4,ES→PL,Regional,10.0.4.0/30,R-ES,10.0.4.1,R-PL,10.0.4.2,Copper Cross-Over,g0/1,g0/1
+L5,ZA→KE,Regional,10.0.5.0/30,R-ZA,10.0.5.1,R-KE,10.0.5.2,Copper Cross-Over,g0/1,g0/1
+L6,IN→SG,Regional,10.0.6.0/30,R-IN,10.0.6.1,R-SG,10.0.6.2,Copper Cross-Over,g0/1,g0/1
+L7,BR→JP,Longo,10.0.11.0/30,R-BR,10.0.11.1,R-JP,10.0.11.2,Serial DCE (R-BR primeiro),s0/3/0,s0/3/0
+L8,BR→IN,Longo,10.0.12.0/30,R-BR,10.0.12.1,R-IN,10.0.12.2,Serial DCE (R-BR primeiro),s0/3/1,s0/3/0
+L9,BR→ZA,Longo,10.0.13.0/30,R-BR,10.0.13.1,R-ZA,10.0.13.2,Serial DCE (R-BR primeiro),s0/2/0,s0/3/0

@@ -1,0 +1,13 @@
+n,rota,escopo,executar_em,comando,enviados,recebidos,perda_pct,ttl,min_ms,max_ms,media_ms,status,observacao
+1,BR → BR,Curto,Probe-BR,ping 192.168.10.10,4,4,0,128,0,0,0,Testado,"Mesma LAN (SW-BR); <1ms, anotar como 0,5 ms no CSV"
+2,BR → UY,Regional,Probe-BR,ping 192.168.11.10,4,3,25,126,0,0,0,Testado,1º pacote perdido (ARP); 2 roteadores no caminho
+3,BR → BO,Regional,Probe-BR,ping 192.168.12.10,4,3,25,126,0,10,3,Testado,1º pacote perdido (ARP)
+4,BR → JP,Longo,Probe-BR,ping 192.168.42.10,4,3,25,126,1,12,5,Testado,1º pacote perdido (ARP); enlace serial
+5,BR → IN,Longo,Probe-BR,ping 192.168.40.10,4,3,25,126,1,11,4,Testado,1º pacote perdido (ARP); enlace serial
+6,BR → ZA,Longo,Probe-BR,ping 192.168.30.10,4,3,25,126,1,1,1,Testado,1º pacote perdido (ARP); enlace serial
+7,DE → DE,Curto,Probe-DE,ping 192.168.20.10,4,4,0,128,0,0,0,Testado,"Mesma LAN (SW-DE); <1ms, anotar como 0,5 ms no CSV"
+8,DE → PT,Regional,Probe-DE,ping 192.168.21.10,4,4,0,126,0,12,3,Testado,Sem perda (ARP já aquecido); 2 roteadores no caminho
+9,AR → AR,Curto,Probe-AR,ping 192.168.13.10,4,4,0,128,0,0,0,Testado,"Mesma LAN (SW-AR); <1ms, anotar como 0,5 ms no CSV"
+10,ES → PL,Regional,Probe-ES,ping 192.168.23.10,4,3,25,126,0,1,0,Testado,1º pacote perdido (ARP); 2 roteadores no caminho
+11,ZA → KE,Regional,Probe-ZA,ping 192.168.31.10,4,3,25,126,0,0,0,Testado,1º pacote perdido (ARP); 2 roteadores no caminho
+12,IN → SG,Regional,Probe-IN,ping 192.168.41.10,4,3,25,126,0,1,0,Testado,1º pacote perdido (ARP); 2 roteadores no caminho
