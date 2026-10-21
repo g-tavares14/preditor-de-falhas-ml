@@ -16,7 +16,7 @@ def _recusar_constante(texto: str):
 
 
 class Atendente(BaseHTTPRequestHandler):
-    # HTTP/1.1 deixa a API em C# reaproveitar a conexão; para isso toda resposta traz `Content-Length`.
+    # HTTP/1.1 deixa o servidor em Go reaproveitar a conexão; para isso toda resposta traz `Content-Length`.
     protocol_version = "HTTP/1.1"
     previsor: Previsor  # preenchido por `criar_servidor`
 

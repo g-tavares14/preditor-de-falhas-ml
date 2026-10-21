@@ -3,7 +3,7 @@
 `uv run python -m preditor_analise.conferir_servico`. Fica na análise porque lê o Gold (o `preditor_servico` não o lê).
 
 Sobe o servidor numa porta livre, manda a amostra de treino e validação (nunca o teste) e exige 0 diferenças. A mesma amostra,
-com a resposta esperada, vai para o `paridade.json`, que o teste da API em C# usa para provar que o C# não muda nada.
+com a resposta esperada, vai para o `paridade.json`, que o teste da API em Go usa para provar que o Go não muda nada.
 """
 
 import http.client

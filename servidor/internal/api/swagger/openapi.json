@@ -1,0 +1,155 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Preditor de falhas de rede",
+    "version": "1.0.0",
+    "description": "Prevê a classe de uma rota de rede (OK, RISCO ou FALHA) 12 minutos à frente, a partir de 10 métricas relativas ao baseline da rota. A previsão vem de uma Random Forest que roda num microserviço interno; esta API valida a medição, pergunta ao modelo e guarda a resposta num histórico. Coluna ausente (null) é aceita e chega ao modelo como ausente, nunca como zero."
+  },
+  "paths": {
+    "/api/previsoes": {
+      "post": {
+        "summary": "Prevê a classe da rota 12 minutos à frente e guarda o resultado",
+        "operationId": "criarPrevisao",
+        "parameters": [
+          {
+            "name": "origem",
+            "in": "query",
+            "required": false,
+            "description": "De onde vem o pedido. Só informativo: aparece no histórico. Omitido = api.",
+            "schema": { "type": "string", "enum": ["api", "formulario"], "default": "api" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/Medicao" },
+              "example": { "z_robusto": 6.0, "aumento_pct": 45.0, "jitter_relativo": 2.0, "perda_pct": 0.0, "timeout_atual": 0, "n5_timeout": 0, "n5_aumento80": 0, "n5_moderado": 1, "min5_z": 0.1, "media5_z": 0.5 }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "A previsão, já gravada no histórico.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PrevisaoResposta" } } } },
+          "400": { "description": "Corpo que não é uma medição (JSON torto, coluna desconhecida, texto no lugar de número) ou coluna fora da faixa; neste último caso `errors` traz a mensagem de cada coluna.", "content": { "application/problem+json": { "schema": { "$ref": "#/components/schemas/Problema" } } } },
+          "413": { "description": "Corpo maior que o limite (16.384 bytes).", "content": { "application/problem+json": { "schema": { "$ref": "#/components/schemas/Problema" } } } },
+          "415": { "description": "O corpo tem de ser application/json.", "content": { "application/problem+json": { "schema": { "$ref": "#/components/schemas/Problema" } } } },
+          "429": { "description": "Pedidos demais deste endereço (60 por minuto). O cabeçalho Retry-After diz quantos segundos esperar.", "content": { "application/problem+json": { "schema": { "$ref": "#/components/schemas/Problema" } } } },
+          "503": { "description": "O serviço do modelo está fora do ar, lento ou respondeu algo inesperado. Nada é gravado.", "content": { "application/problem+json": { "schema": { "$ref": "#/components/schemas/Problema" } } } }
+        }
+      },
+      "get": {
+        "summary": "O histórico, da previsão mais nova para a mais antiga",
+        "operationId": "listarPrevisoes",
+        "parameters": [
+          { "name": "pagina", "in": "query", "required": false, "schema": { "type": "integer", "minimum": 1, "default": 1 } },
+          { "name": "tamanho", "in": "query", "required": false, "schema": { "type": "integer", "minimum": 1, "maximum": 100, "default": 20 } }
+        ],
+        "responses": {
+          "200": { "description": "Uma página do histórico.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PaginaDePrevisoes" } } } },
+          "400": { "description": "`pagina` começa em 1 e `tamanho` vai de 1 a 100.", "content": { "application/problem+json": { "schema": { "$ref": "#/components/schemas/Problema" } } } },
+          "429": { "description": "Pedidos demais deste endereço.", "content": { "application/problem+json": { "schema": { "$ref": "#/components/schemas/Problema" } } } }
+        }
+      }
+    },
+    "/api/modelo": {
+      "get": {
+        "summary": "A ficha do modelo carregado: família, parâmetros, colunas, classes e o SHA-256 do arquivo",
+        "operationId": "fichaDoModelo",
+        "responses": {
+          "200": { "description": "A resposta do /saude do microserviço do modelo, repassada sem mudar.", "content": { "application/json": { "schema": { "type": "object", "additionalProperties": true } } } },
+          "503": { "description": "O serviço do modelo está fora do ar.", "content": { "application/problem+json": { "schema": { "$ref": "#/components/schemas/Problema" } } } }
+        }
+      }
+    },
+    "/api/saude": {
+      "get": {
+        "summary": "A API está de pé? E o serviço do modelo?",
+        "operationId": "saude",
+        "description": "Responde 200 nos dois casos; o campo `modelo` diz se o serviço do modelo está fora do ar. O Compose usa este endereço como \"a API está viva\".",
+        "responses": {
+          "200": { "description": "Estado dos dois serviços.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Saude" } } } }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Medicao": {
+        "type": "object",
+        "description": "As 10 colunas que a Random Forest recebe. Todas opcionais: ausente ou null = valor ausente (o modelo o aceita). Coluna que o modelo não usa é recusada com 400.",
+        "additionalProperties": false,
+        "properties": {
+          "z_robusto": { "type": "number", "nullable": true, "description": "Quantos desvios (robustos) o RTT de agora está acima do normal da rota." },
+          "aumento_pct": { "type": "number", "nullable": true, "description": "Quanto o RTT de agora passa da mediana do baseline da rota, em %." },
+          "jitter_relativo": { "type": "number", "nullable": true, "description": "Jitter de agora dividido pelo jitter típico da rota." },
+          "perda_pct": { "type": "number", "nullable": true, "minimum": 0, "maximum": 100, "description": "Pings sem resposta na rajada, de 0 a 100." },
+          "timeout_atual": { "type": "number", "nullable": true, "enum": [0, 1], "description": "1 se a medição de agora deu timeout, senão 0." },
+          "n5_timeout": { "type": "integer", "nullable": true, "minimum": 0, "maximum": 5, "description": "Timeouts nas últimas 5 medições." },
+          "n5_aumento80": { "type": "integer", "nullable": true, "minimum": 0, "maximum": 5, "description": "Aumentos ≥ 80 % nas últimas 5 medições." },
+          "n5_moderado": { "type": "integer", "nullable": true, "minimum": 0, "maximum": 5, "description": "Aumentos moderados nas últimas 5 medições." },
+          "min5_z": { "type": "number", "nullable": true, "description": "O menor z robusto da janela de 5." },
+          "media5_z": { "type": "number", "nullable": true, "description": "A média do z robusto da janela de 5." }
+        }
+      },
+      "Probabilidades": {
+        "type": "object",
+        "required": ["FALHA", "OK", "RISCO"],
+        "properties": {
+          "FALHA": { "type": "number" },
+          "OK": { "type": "number" },
+          "RISCO": { "type": "number" }
+        }
+      },
+      "PrevisaoResposta": {
+        "type": "object",
+        "required": ["id", "criadaEmUtc", "classe", "probabilidades", "modeloSha256"],
+        "properties": {
+          "id": { "type": "integer", "format": "int64" },
+          "criadaEmUtc": { "type": "string", "format": "date-time" },
+          "classe": { "type": "string", "enum": ["OK", "RISCO", "FALHA"], "description": "A classe prevista para daqui a 12 minutos." },
+          "probabilidades": { "$ref": "#/components/schemas/Probabilidades" },
+          "modeloSha256": { "type": "string", "description": "SHA-256 do arquivo do modelo que respondeu." }
+        }
+      },
+      "ItemDoHistorico": {
+        "type": "object",
+        "required": ["previsao", "entrada", "origem"],
+        "properties": {
+          "previsao": { "$ref": "#/components/schemas/PrevisaoResposta" },
+          "entrada": { "$ref": "#/components/schemas/Medicao" },
+          "origem": { "type": "string", "enum": ["api", "formulario"] }
+        }
+      },
+      "PaginaDePrevisoes": {
+        "type": "object",
+        "required": ["pagina", "tamanho", "total", "itens"],
+        "properties": {
+          "pagina": { "type": "integer" },
+          "tamanho": { "type": "integer" },
+          "total": { "type": "integer" },
+          "itens": { "type": "array", "items": { "$ref": "#/components/schemas/ItemDoHistorico" } }
+        }
+      },
+      "Saude": {
+        "type": "object",
+        "required": ["api", "modelo", "sha256"],
+        "properties": {
+          "api": { "type": "string", "example": "ok" },
+          "modelo": { "type": "string", "enum": ["ok", "fora do ar"] },
+          "sha256": { "type": "string", "nullable": true }
+        }
+      },
+      "Problema": {
+        "type": "object",
+        "description": "Erro no formato RFC 9457 (application/problem+json).",
+        "required": ["title", "status"],
+        "properties": {
+          "title": { "type": "string" },
+          "status": { "type": "integer" },
+          "detail": { "type": "string" },
+          "errors": { "type": "object", "description": "Só na validação (400): a lista de mensagens de cada coluna.", "additionalProperties": { "type": "array", "items": { "type": "string" } } }
+        }
+      }
+    }
+  }
+}
