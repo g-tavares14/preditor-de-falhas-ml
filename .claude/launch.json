@@ -2,10 +2,22 @@
   "version": "0.0.1",
   "configurations": [
     {
+      "name": "modelo",
+      "runtimeExecutable": "uv",
+      "runtimeArgs": ["run", "python", "-m", "preditor_servico.servico_modelo", "--porta", "8001"],
+      "port": 8001
+    },
+    {
       "name": "replay-web",
-      "runtimeExecutable": "dotnet",
-      "runtimeArgs": ["run", "--project", "api/Preditor.Api"],
+      "runtimeExecutable": "sh",
+      "runtimeArgs": ["-c", "cd servidor && Web__Pasta=../web/dist exec go run ./cmd/preditor"],
       "port": 5053
+    },
+    {
+      "name": "web-dev",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": ["-c", "cd web && exec npm run dev -- --port 5173 --strictPort"],
+      "port": 5173
     }
   ]
 }

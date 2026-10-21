@@ -9,7 +9,7 @@ Com `arvore`: a árvore de decisão, lendo o Gold do disco e gravando em `data/m
 sem Java); não entra na execução sem argumento. O código dela fica em `preditor_analise/modelo/`.
 Com `ajuste`: a árvore ajustada da Tarefa 4, medida contra a da Tarefa 3; lê o Gold e as saídas do `arvore` e grava
 em `data/modelo/` (também sem rede, sem Spark e sem Java, e fora da execução sem argumento).
-Com `replay`: prevê a validação com a Random Forest exportada e grava `wwwroot/dados/replay.json` (o replay da validação no
+Com `replay`: prevê a validação com a Random Forest exportada e grava `web/public/dados/replay.json` (o replay da validação no
 mapa); lê o Gold e as saídas do `exportar` e do `comparar`, sem refazer árvore; também sem rede, sem Spark e sem Java,
 e fora da execução sem argumento. O código fica em `preditor_analise/visualizacao/`.
 Com `comparar`: Random Forest e XGBoost contra a árvore ajustada e a persistência, nas mesmas linhas da validação; lê o

@@ -277,8 +277,8 @@ FORMATO_EXPORTADO = 1
 # Bloco exibido (spec, "Bloco exibido: validação"): o teste fica fechado até a Tarefa 5. Trocar o bloco é decisão
 # do dono e exige rever as checagens de `visualizacao/execucao.py`, que hoje comparam com a validação.
 BLOCO_REPLAY = BLOCO_VALIDACAO
-WEB = Path(__file__).resolve().parents[2] / "api" / "Preditor.Api" / "wwwroot"  # a página estática (HTML, CSS e JS), dentro da API em C#
-ARQUIVO_REPLAY = WEB / "dados" / "replay.json"  # saída de `visualizacao/`; a pasta `wwwroot/dados/` é ignorada pelo git
+WEB = Path(__file__).resolve().parents[2] / "web" / "public"  # os arquivos estáticos do site (app React em `web/`): o Vite os copia para `web/dist/`
+ARQUIVO_REPLAY = WEB / "dados" / "replay.json"  # saída de `visualizacao/`; só o `aovivo.json` de `web/public/dados/` é ignorado pelo git
 # Texto do aviso fixo da página (spec, "O que é real e o que é simulado").
 AVISO_ROTA = "Rota ilustrativa: os cabos existem, mas o caminho de cada fluxo é simulado."
 # Casas decimais do RTT no JSON: milésimo de ms. O RTT só serve para a duração do pulso na tela; mais casas

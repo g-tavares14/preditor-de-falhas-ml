@@ -1,0 +1,53 @@
+/* Estilo das telas da API (Testar o modelo e Histórico). O mapa tem o seu próprio estilo (estilo.css, neo-brutalista).
+   Tudo aqui vale SÓ dentro de `.api-pagina` (e as variáveis, só no <body> que a contém): sem isso, estas regras de `nav`, `main`, `h1`,
+   `button`, `label` e `table` mudariam a página do mapa, e as variáveis `--ok`, `--risco` e `--falha` (outras cores!) sobrescreveriam as dele. */
+
+body:has(.api-pagina) {
+  --api-fundo: #f6f7f9; --api-texto: #1d2733; --api-suave: #5b6b7b; --api-linha: #d9dee4; --api-cartao: #fff;
+  --api-ok: #1c7c4a; --api-risco: #a86a00; --api-falha: #b3261e; --api-acento: #1f5fa8;
+  padding: 0;
+  background: var(--api-fundo);
+  color: var(--api-texto);
+  font: 16px/1.5 system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  body:has(.api-pagina) {
+    --api-fundo: #14181d; --api-texto: #e6eaee; --api-suave: #93a1af; --api-linha: #2c343d; --api-cartao: #1b2128;
+    --api-ok: #54c58a; --api-risco: #e6b34d; --api-falha: #f08a82; --api-acento: #7db4ee;
+  }
+}
+
+.api-pagina { min-height: 100vh; font-weight: 400; }
+.api-pagina .topo { display: flex; flex-wrap: wrap; gap: 8px 24px; align-items: baseline; padding: 12px 16px; border-bottom: 1px solid var(--api-linha); background: var(--api-cartao); }
+.api-pagina .marca { font-weight: 700; color: var(--api-texto); text-decoration: none; }
+.api-pagina nav { display: flex; flex-wrap: wrap; gap: 4px 16px; }
+.api-pagina nav a { color: var(--api-acento); text-decoration: none; }
+.api-pagina main { max-width: 960px; margin: 0 auto; padding: 24px 16px 48px; }
+.api-pagina h1 { margin: 0 0 4px; font: inherit; font-size: 1.5rem; font-weight: 700; }
+.api-pagina .sub { margin: 0 0 20px; color: var(--api-suave); }
+.api-pagina .cartao { background: var(--api-cartao); border: 1px solid var(--api-linha); border-radius: 8px; padding: 16px; margin-bottom: 16px; box-shadow: none; }
+.api-pagina .grade { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px 16px; }
+.api-pagina label { display: block; font-size: .875rem; font-weight: 600; }
+.api-pagina label small { display: block; font-weight: 400; color: var(--api-suave); }
+.api-pagina input[type=number] { width: 100%; margin-top: 4px; padding: 8px; font: inherit; color: inherit; background: var(--api-fundo); border: 1px solid var(--api-linha); border-radius: 6px; }
+.api-pagina .erro-campo { color: var(--api-falha); font-size: .8125rem; }
+.api-pagina .acoes { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; margin-top: 16px; }
+.api-pagina button { padding: 9px 18px; font: inherit; font-weight: 600; color: #fff; background: var(--api-acento); border: 0; border-radius: 6px; cursor: pointer; box-shadow: none; }
+.api-pagina button:disabled { opacity: .6; cursor: progress; }
+.api-pagina .exemplos a { color: var(--api-acento); }
+.api-pagina .aviso { padding: 12px 16px; border-radius: 8px; border: 1px solid var(--api-falha); color: var(--api-falha); margin-bottom: 16px; background: transparent; box-shadow: none; }
+.api-pagina .classe { display: inline-block; padding: 2px 12px; border-radius: 999px; font-weight: 700; border: 2px solid currentColor; }
+.api-pagina .classe-OK { color: var(--api-ok); }
+.api-pagina .classe-RISCO { color: var(--api-risco); }
+.api-pagina .classe-FALHA { color: var(--api-falha); }
+.api-pagina .barra { display: flex; align-items: center; gap: 8px; margin: 4px 0; font-size: .875rem; }
+.api-pagina .barra .nome { width: 56px; }
+.api-pagina .barra .trilho { flex: 1; height: 10px; background: var(--api-fundo); border-radius: 5px; overflow: hidden; }
+.api-pagina .barra .cheio { height: 100%; background: currentColor; }
+.api-pagina table { width: 100%; border-collapse: collapse; font-size: .875rem; }
+.api-pagina th, .api-pagina td { padding: 6px 8px; text-align: left; border-bottom: 1px solid var(--api-linha); }
+.api-pagina .rolagem { overflow-x: auto; }
+.api-pagina .paginas { display: flex; gap: 16px; margin-top: 12px; }
+.api-pagina .paginas a { color: var(--api-acento); }
+.api-pagina .sha { font: .75rem ui-monospace, monospace; color: var(--api-suave); word-break: break-all; }
+.api-pagina a { color: var(--api-acento); }

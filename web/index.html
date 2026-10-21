@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <!-- A política de segurança (CSP) vai por cabeçalho HTTP, enviado pelo servidor Go (default-src 'self'; base-uri 'none'). Não há
+       script nem estilo inline: tudo vem de arquivos da própria origem. -->
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Preditor de falhas de rede</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+</head>
+<body>
+  <!-- O React troca o conteúdo desta caixa quando o app carrega. Se o JavaScript não carregar, `verificar-carga.js` troca o aviso. -->
+  <div id="raiz"><p id="carregando" role="status">Carregando a simulação...</p></div>
+  <noscript><p>Esta página precisa de JavaScript para funcionar.</p></noscript>
+  <script type="module" src="/src/main.tsx"></script>
+  <script src="/verificar-carga.js"></script>
+</body>
+</html>
