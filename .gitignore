@@ -31,5 +31,7 @@ node_modules/
 npm-debug.log*
 .idea/
 # O replay.json (2 MB) vai no git: sem ele a página abre vazia num clone limpo. O aovivo.json é o retrato de um serviço local.
-api/Preditor.Api/wwwroot/dados/aovivo.json
-api/Preditor.Api/wwwroot/dados/*.tmp
+web/public/dados/aovivo.json
+web/public/dados/*.tmp
+# O banco SQLite do servidor em Go (desenvolvimento local)
+servidor/dados/

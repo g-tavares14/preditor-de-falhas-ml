@@ -12,7 +12,7 @@ Estágio atual: o pipeline segue a arquitetura medalhão (`SPEC-medalhao.md`): B
 Silver (normalização) e o Gold (cálculo do X: baseline + features; cálculo do Y: rótulo OK / RISCO / FALHA em
 `src/preditor_analise/gold/calculo_y/`, spec em `SPEC-calculo-y.md`) estão prontos. A árvore inicial (Tarefa 3) também:
 código em `src/preditor_analise/modelo/`, spec em `SPEC-arvore.md`. A visualização (replay da validação num mapa-múndi)
-também: exportador em `src/preditor_analise/visualizacao/`, página em `api/Preditor.Api/wwwroot/`, spec em `SPEC-visualizacao.md`; desde 10/10/2026 o replay prevê com a Random Forest exportada (spec em `SPEC-replay-floresta.md`). O ajuste da
+também: exportador em `src/preditor_analise/visualizacao/`, página em `web/` (React + TypeScript desde 20/10/2026, `SPEC-go-react.md`), spec em `SPEC-visualizacao.md`; desde 10/10/2026 o replay prevê com a Random Forest exportada (spec em `SPEC-replay-floresta.md`). O ajuste da
 árvore (Tarefa 4) também: `src/preditor_analise/modelo/ajuste.py` e `execucao_ajuste.py`, spec em `SPEC-ajuste-arvore.md`,
 análise em `docs/relatorio_analise_arvore.md`. O painel da árvore na página (spec em `SPEC-arvore-na-pagina.md`) existiu até 10/10/2026: a página foi
 simplificada para público não técnico e ele saiu (ver "Página para público não técnico" em Decisions). O piso da regra 3 (10/10/2026) também: a linha 3 do Y exige
@@ -42,10 +42,12 @@ A pergunta, as regras de rótulo e a origem dos dados estão em `docs/` (índice
 - Fonte: tabela `atlas-ripe-509700.atlasRipe.atlas`, região EU.
 - Notebooks (grupo `notebook`: `requests`, `pandas`, `ipykernel`) usam a API do RIPE Atlas diretamente; `pandas`
   aparece nos dois lugares porque o grupo é separado das dependências do pacote.
-- A página (`api/Preditor.Api/wwwroot/`) é HTML + CSS + JavaScript puro em módulos ES, sem framework, sem build e sem CDN: D3, TopoJSON e o
-  contorno do mundo ficam em `api/Preditor.Api/wwwroot/vendor/` (origem, versão e licença no README de lá). O exportador e o servidor usam
-  só pandas, scikit-learn e a biblioteca padrão.
-- Sem framework de testes, linter ou type-checker configurados.
+- **O servidor público é em Go** (`servidor/`, Go 1.27, `net/http` da biblioteca padrão mais um driver: `modernc.org/sqlite`, Go puro, sem CGO) e
+  **o site é React + TypeScript** (`web/`: Vite, React 19, `react-router`, `d3-geo`/`d3-selection`/`d3-shape` e `topojson-client` pelo npm, sem CDN;
+  Node 22). O contorno do mundo fica em `web/public/mapa/` (origem e licença no README de lá); as licenças dos pacotes do npm saem em
+  `dist/licencas-de-terceiros.txt` a cada `npm run build`. O exportador e o serviço do modelo usam só pandas, scikit-learn e a biblioteca padrão.
+- Testes: o Go usa o pacote `testing`; o site usa Vitest (lógica pura em Node, telas em jsdom com Testing Library). A pipeline Python segue sem
+  framework de testes, linter ou type-checker (a verificação é rodar o comando).
 
 ## Commands
 
@@ -66,20 +68,24 @@ uv run python -m preditor_analise arvore   # data/gold/ → data/modelo/ (offlin
 # run (a árvore ajustada da Tarefa 4; comando à parte, offline, sem Spark nem Java):
 uv run python -m preditor_analise ajuste   # data/gold/ + saídas do `arvore` → data/modelo/ (não reescreve os arquivos da Tarefa 3)
 # run (a visualização; comandos à parte, offline, sem Spark nem Java):
-uv run python -m preditor_analise replay   # data/gold/ + modelo_final.joblib → api/Preditor.Api/wwwroot/dados/replay.json (prevê com a Random Forest; sem treinar)
+uv run python -m preditor_analise replay   # data/gold/ + modelo_final.joblib → web/public/dados/replay.json (prevê com a Random Forest; sem treinar)
 uv run python -m preditor_analise.visualizacao.coletar_sondas   # só para refazer sondas.csv (rede: API pública do RIPE Atlas)
-# run (o microserviço do modelo, para a API em C#; offline, sem Spark e sem Java; SPEC-api-csharp.md):
-uv run python -m preditor_analise.conferir_servico            # serviço pela rede × modelo recarregado (0 diferenças) e grava api/Preditor.Api.Tests/Fixtures/paridade.json
+# run (o microserviço do modelo, para o servidor em Go; offline, sem Spark e sem Java; SPEC-api-csharp.md, chamador trocado em SPEC-go-react.md):
+uv run python -m preditor_analise.conferir_servico            # serviço pela rede × modelo recarregado (0 diferenças) e grava servidor/internal/api/testdata/paridade.json
 uv run python -m preditor_servico.servico_modelo --porta 8001 # POST /prever, GET /saude (só rede interna; no contêiner, --endereco 0.0.0.0)
-# run (a API em C#, módulo `api` de SPEC-api-csharp.md; precisa do .NET 10 SDK e, para o /prever de verdade, do serviço acima no ar):
-dotnet test api/Preditor.sln                          # 40 testes; o de paridade sobe o serviço Python sozinho (precisa do `uv` no PATH)
-cd api/Preditor.Api && dotnet run                     # http://localhost:5053/ (mapa), /testar, /historico, /swagger, /api/*; banco em api/Preditor.Api/dados/ (ignorado)
-cd api && dotnet dotnet-ef migrations add <Nome> --project Preditor.Api --output-dir Dados/Migracoes   # nova migração (a ferramenta está em api/dotnet-tools.json)
+# run (o servidor em Go, `SPEC-go-react.md`; precisa do Go 1.27 e, para o /prever de verdade, do serviço acima no ar):
+cd servidor && go test ./...                          # a paridade com o Python de verdade sobe o serviço sozinha (precisa do `uv` no PATH; sem ele é PULADA, e o teste diz isso)
+cd servidor && go run ./cmd/preditor                  # http://localhost:5053/ (serve web/dist), /swagger/, /api/*; banco em servidor/dados/ (ignorado)
+# run (o site em React + TypeScript; precisa do Node 22):
+cd web && npm ci                                      # instala as dependências (package-lock.json)
+cd web && npm run build                               # confere os tipos (tsc), empacota (Vite) em web/dist/ e gera as licenças de terceiros
+cd web && npm test                                    # Vitest: lógica do relógio e do placar (com o placar final = o da comparação), motor, telas Testar e Histórico
+cd web && npm run dev                                 # http://localhost:5173/ com recarga ao salvar; repassa /api e /swagger ao servidor Go (porta 5053)
 # run (o modelo ao vivo na API do RIPE Atlas, com sondas fora do treino; comandos à parte, sem Spark nem Java, com rede; SPEC-ao-vivo.md):
 uv run python -m preditor_analise aovivo --conferir   # motor em pandas × Gold (offline) e leitor da API × Silver (rede); não sobe o serviço
 uv run python -m preditor_analise aovivo              # sorteia 10 sondas da América Latina, baixa o baseline de 108 h e consulta a API a cada 60 s (Ctrl+C encerra)
 uv run python -m preditor_analise aovivo --recomecar --retroativo-horas 6 --ciclos 3   # T0 seis horas atrás (as medições desde então entram como se acabassem de chegar)
-cd api/Preditor.Api && dotnet run                     # e abra http://localhost:5053/?ao-vivo (a página sem `?ao-vivo` segue sendo o replay)
+cd servidor && go run ./cmd/preditor                  # e abra http://localhost:5053/?ao-vivo (a página sem `?ao-vivo` segue sendo o replay; precisa do `npm run build` antes)
 # run (a comparação Random Forest × XGBoost × árvore; comandos à parte, offline, sem Spark nem Java):
 uv run python -m preditor_analise comparar  # data/gold/ + saídas de arvore e ajuste → data/modelo/comparacao/ (~4 min)
 uv run python -m preditor_analise exportar  # escolha.json do comparar → data/modelo/exportado/ (.joblib, LEIA-ME.md, exemplo; ~10 s)
@@ -160,24 +166,30 @@ verifique ao menos a importação: `uv run python -c "import preditor_analise.__
 - O serviço ao vivo fica em `preditor_servico/aovivo/`: `parametros.py` (constantes dele; o `config.py` não muda: foi congelado quando o teste
   final foi aberto), `atlas.py` (cliente `urllib` da API e o leitor de um resultado), `calculo.py` (a cópia em pandas de
   `gold/calculo_x/` e `gold/calculo_y/`), `selecao.py`, `servico.py` (preparo, laço e placar), `pagina.py` (o
-  `api/Preditor.Api/wwwroot/dados/aovivo.json`) e `execucao.py`. As conferências contra o Gold e o Silver ficam na análise
+  `web/public/dados/aovivo.json`) e `execucao.py`. As conferências contra o Gold e o Silver ficam na análise
   (`conferir_aovivo.py`; `uv run python -m preditor_analise aovivo` confere o motor e depois sobe o serviço; no contêiner, `python -m preditor_servico.aovivo`,
   sem conferência). Lê só o `config`; as saídas vão para `data/aovivo/` (ignorada).
 - O microserviço do modelo fica em `preditor_servico/servico_modelo/` (`parametros.py`, `previsor.py`, `servidor.py`, `__main__.py`),
   só com a biblioteca padrão para o HTTP; sobe sem Spark e sem Java (`python -m preditor_servico.servico_modelo`). A conferência dele contra o modelo
-  (a paridade) é `preditor_analise/conferir_servico.py`. A API pública é em C# (`api/`, spec em `SPEC-api-csharp.md`, plano em `tasks/plan-api-csharp.md`).
-- A API em C# fica em `api/` (`Preditor.sln`: `Preditor.Api` com Controllers, Views Razor, EF Core + SQLite, e `Preditor.Api.Tests` com xUnit).
-  Nomes em português, PascalCase. Ela não calcula nada do modelo: pergunta ao `preditor_servico.servico_modelo` (URL em `ServicoModelo:Url`) e serve a página, que mora no `wwwroot/` dela (`api/Preditor.Api/wwwroot/`),
-  na raiz pelos arquivos estáticos (o `aovivo.json` do serviço ao vivo vem de `Web:ArquivoAoVivo`). A paridade (`Fixtures/paridade.json`) vem de `python -m preditor_analise.conferir_servico`.
-- A página fica em `api/Preditor.Api/wwwroot/`: `app.js` orquestra; `tempo.js` e `placar.js` são lógica pura (sem DOM, rodam em Node);
-  `mapa.js`, `rotas.js`, `desenho.js`, `pulsos.js`, `selos.js` cuidam do mapa; `cartao.js`, `painel.js`, `foco.js` e
-  `comum.js`, do painel (`comum.js` também guarda os nomes na tela: Normal / Atenção / Problema, países por extenso). Sem `innerHTML` com dados; CSP `default-src 'self'`. As constantes só de desenho (durações,
-  tamanhos) ficam no topo do módulo JS que as usa, comentadas, porque o JS não lê `config.py`.
+  (a paridade) é `preditor_analise/conferir_servico.py`. A API pública é em Go (`servidor/`, `SPEC-go-react.md`; a de C# a precedeu, `SPEC-api-csharp.md`).
+- O servidor em Go fica em `servidor/` (módulo `preditor`; pacotes em português, sem acento, em `internal/`): `configuracao` (variáveis de ambiente; as duas
+  do Compose de produção, `ServicoModelo__Url` e `Web__ArquivoAoVivo`, mantêm o nome; `Web__OrigensConfiaveis` declara o endereço público atrás do CloudFront), `medicao` (as 10 colunas, decodificação estrita e as faixas),
+  `modelo` (o cliente do `preditor_servico.servico_modelo`), `banco` (SQLite; a mesma tabela `Previsoes` do EF Core, para o volume de produção abrir sem
+  migrar), `previsao` (validar → perguntar ao modelo → gravar) e `api` (rotas, `problem+json`, limite por IP, tamanho do corpo, site estático com cache,
+  Swagger local). Ele não calcula nada do modelo. O contrato está em `servidor/internal/api/swagger/openapi.json` (escrito à mão; um teste confere que ele
+  descreve exatamente as rotas). A paridade (`internal/api/testdata/paridade.json`) vem de `python -m preditor_analise.conferir_servico`.
+- O site fica em `web/` (`src/`): `logica/` é lógica pura em TypeScript (`tempo.ts`, `placar.ts`, `aovivo.ts`, `comum.ts`: sem DOM, rodam em Node, com testes);
+  `mapa/` é o mapa **imperativo** (D3, SVG e canvas a 60 quadros por segundo: `mapa.ts`, `rotas.ts`, `desenho.ts`, `pulsos.ts`, `selos.ts`, `foco.ts`);
+  `replay/` é a página do mapa: `motor.ts` guarda o relógio e o laço de animação **fora do React** e publica instantâneos imutáveis (no máximo 10 por segundo)
+  que os componentes leem por `useSyncExternalStore`; `paginas/` tem as telas Testar e Histórico e o cliente da API. Regras: o relógio de 60 quadros nunca entra em
+  estado do React; sem `dangerouslySetInnerHTML` (texto sempre por JSX); a política `default-src 'self'; base-uri 'none'` vai por cabeçalho (o servidor Go),
+  e o `index.html` construído não pode ter script nem estilo inline. As constantes só de desenho (durações, tamanhos) ficam no topo do módulo que as usa,
+  comentadas, porque o TypeScript não lê `config.py`. O estilo do mapa é `estilo.css` (neo-brutalista); o das telas de API, `paginas.css`, escopado em `.api-pagina`.
 - Todo "número mágico" vai para `src/preditor_analise/config.py`, com comentário dizendo a origem (seção da RFC ou decisão).
 - O código comenta cada passo, mas não repete a teoria da RFC: referencia a seção.
 - Saídas vão para `data/{bronze,silver,gold}/` (ignoradas pelo git): Parquet para dados, CSV só para leitura humana.
   As da árvore vão para `data/modelo/` (também ignoradas): CSV, JSON e TXT para leitura. O `replay.json` vai para
-  `api/Preditor.Api/wwwroot/dados/` (ignorada); `preditor_servico/dados/sondas.csv` e `api/Preditor.Api/wwwroot/vendor/` são versionados.
+  `web/public/dados/` (só o `aovivo.json` é ignorado); `preditor_servico/dados/sondas.csv` e `web/public/mapa/` são versionados.
 - O dono está começando em PySpark: prefira transformações legíveis e explicadas a construções compactas.
 
 ## Decisions
@@ -310,8 +322,18 @@ verifique ao menos a importação: `uv run python -c "import preditor_analise.__
 - **Desenho do painel com o piso (10/10/2026):** largura proporcional ao número de folhas (80 por folha, mínimo de
   1280 px), com rolagem horizontal que traz a folha em foco para a tela. Com o piso, a oficial tem 29 folhas e a
   ajustada, 40 (`SPEC-arvore-na-pagina.md`).
-- **Sem `servir` (removido em 16/10/2026):** a página é servida pela API em C# (`cd api/Preditor.Api && dotnet run`,
+- **Sem `servir` (removido em 16/10/2026):** a página é servida pela API (hoje em Go: `cd servidor && go run ./cmd/preditor`,
   http://localhost:5053/). O servidor Python da porta 8000 ficou redundante. O microserviço do modelo mantém a fila de 128 conexões.
+- **Backend em Go e frontend em React + TypeScript (20/10/2026, dono, `SPEC-go-react.md`):** a API em C# (`api/`) e a página em JavaScript puro viraram
+  `servidor/` e `web/`; os caminhos `api/Preditor.Api/wwwroot/...` que aparecem nas decisões acima são o histórico (hoje `web/`). O Python **não mudou**: a
+  Random Forest é um `.joblib`, e o Go só a consulta por HTTP, como o C# fazia (paridade: 310 linhas, 100 com NaN, iguais ao Python a 1e-9). Só mudaram
+  3 caminhos no Python (`config.WEB` = `web/public`, `ARQUIVO_PARIDADE` e textos); o `replay` regerado sai byte a byte igual. `/testar` e `/historico` viraram rotas
+  do React falando com `POST /api/previsoes?origem=formulario` (o antiforgery do Razor saiu; `Content-Type: application/json` obrigatório e
+  `http.CrossOriginProtection` no lugar). Swagger UI local (`/swagger/`, arquivos em `servidor/internal/api/swagger/ui`, sem CDN). A imagem da API vai de 436 MB
+  para ~34 MB (Node → Go → Alpine) e roda com o UID 1654, o do usuário `app` da imagem .NET: é o dono do volume `banco` da produção, cujo histórico o Go
+  abre sem migrar. Cache: arquivos com hash em `assets/` por 1 ano (imutáveis) e `index.html` sempre revalidado, então publicar não exige mais invalidar o CloudFront
+  (só o `replay.json`, que mantém o nome, espera os 5 minutos). Aceitação da etapa 2: o placar ao fim do replay (11.535 de 13.490 e 11.018 de 13.490) é o da
+  comparação (F1 macro 0,6977), conferido por teste e no navegador.
 - **Comparação das famílias (10/10/2026, `SPEC-comparacao-modelos.md`):** Random Forest (32 combinações) e XGBoost (16)
   usam o mesmo X da árvore ajustada (10 colunas), o peso de classe da ajustada adotada e a semente 16; treino só no treino,
   sem `early_stopping`. A escolha entre famílias é a regra da Tarefa 4 (a até 0,005 do maior F1 macro da validação; vence
@@ -333,13 +355,14 @@ verifique ao menos a importação: `uv run python -c "import preditor_analise.__
   usa as credenciais padrão do gcloud, sem arquivo de chave no repositório.
 - Não commitar dados de nenhuma camada (`data/raw/*`, `data/{bronze,silver,gold}/`), só os READMEs e docs.
   Exceção (16/10/2026): quatro artefatos pequenos vão no git para um clone rodar e montar o Docker: `data/modelo/exportado/modelo_final.joblib`,
-  `data/modelo/exportado/LEIA-ME.md`, `data/modelo/comparacao/escolha.json` e `api/Preditor.Api/wwwroot/dados/replay.json`. O resto de `data/modelo/` e o
+  `data/modelo/exportado/LEIA-ME.md`, `data/modelo/comparacao/escolha.json` e `web/public/dados/replay.json`. O resto de `data/modelo/` e o
   `aovivo.json` seguem ignorados. Ao refazer o `exportar`, commite o `.joblib` e o `LEIA-ME.md` juntos (o SHA-256 tem de bater).
 - Não imprimir chaves ou tokens em logs, notebooks ou saídas de célula.
 
 ## Agent workflow
 
 - Serviço ao vivo: `SPEC-ao-vivo.md` (spec curta; sem plano nem lista de tarefas à parte).
+- Backend em Go e frontend em React + TypeScript: `SPEC-go-react.md`, com `tasks/todo-go-react.md` (sem `plan-` à parte: a ordem das etapas está na spec).
 - Replay com a Random Forest: `SPEC-replay-floresta.md`, com `tasks/plan-replay-floresta.md` e `tasks/todo-replay-floresta.md`.
 - Lifecycle: `/spec` → `/plan` → `/build` → `/verify` → `/review`. Specs live in the repo; the plan in `tasks/plan.md`, tasks in `tasks/todo.md` (the Y spec uses `tasks/plan-calculo-y.md` and `tasks/todo-calculo-y.md`; the tree spec, `SPEC-arvore.md`, uses `tasks/plan-arvore.md` and `tasks/todo-arvore.md`; the visualization spec,
   `SPEC-visualizacao.md`, uses `tasks/plan-visualizacao.md` and `tasks/todo-visualizacao.md`; the Tarefa 4 spec,

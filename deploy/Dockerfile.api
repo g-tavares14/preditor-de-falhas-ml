@@ -1,25 +1,48 @@
-# Imagem da API em C# (SPEC-api-csharp.md): Web API, páginas MVC e o site do mapa (wwwroot/). Monte da raiz do repositório:
+# Imagem do site e da API (SPEC-go-react.md): o servidor em Go, o Swagger e o app React. Monte da raiz do repositório:
 #   docker build -f deploy/Dockerfile.api -t preditor-api .
-FROM mcr.microsoft.com/dotnet/sdk:10.0 AS compilar
+#
+# Três estágios: o React vira arquivos estáticos (Node), o servidor vira um binário estático (Go), e só os dois resultados vão para a
+# imagem final. Nada de Node, de Go ou de código-fonte chega à produção.
+
+# --- 1. O site: TypeScript + React → web/dist --------------------------------------------------------------
+FROM node:22-alpine AS site
+WORKDIR /web
+# As dependências vêm antes do código: enquanto o package-lock.json não muda, o `npm ci` fica em cache.
+COPY web/package.json web/package-lock.json ./
+RUN npm ci
+COPY web/ ./
+# `npm run build` confere os tipos (tsc) e só então empacota (vite). Inclui public/dados/replay.json, que sai do comando `replay` e
+# está no git.
+RUN npm run build
+
+# --- 2. O servidor: Go → binário estático --------------------------------------------------------------------
+FROM golang:1.27-alpine AS servidor
 WORKDIR /src
-# O restore vem antes do código: enquanto o .csproj não muda, as dependências NuGet ficam em cache.
-COPY api/Preditor.Api/Preditor.Api.csproj Preditor.Api/
-RUN dotnet restore Preditor.Api/Preditor.Api.csproj
-COPY api/Preditor.Api Preditor.Api
-RUN dotnet publish Preditor.Api/Preditor.Api.csproj -c Release -o /saida --no-restore
+# As dependências vêm antes do código: enquanto go.mod/go.sum não mudam, o download fica em cache.
+COPY servidor/go.mod servidor/go.sum ./
+RUN go mod download
+COPY servidor/ ./
+# Sem CGO (o driver do SQLite é Go puro): um binário estático, que roda em qualquer imagem mínima.
+RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /saida/preditor ./cmd/preditor
 
-FROM mcr.microsoft.com/dotnet/aspnet:10.0
+# --- 3. A imagem final -------------------------------------------------------------------------------------
+FROM alpine:3.22
 WORKDIR /app
-COPY --from=compilar /saida .
-# O site do mapa vai junto no publish: ele mora em api/Preditor.Api/wwwroot (inclui dados/replay.json, que sai do comando `replay` e
-# está fora do git).
+COPY --from=servidor /saida/preditor /app/preditor
+COPY --from=site /web/dist /app/site
 
-# O banco SQLite fica num volume. Criar a pasta aqui, com o dono certo, faz o volume novo herdá-lo.
-RUN mkdir /data && chown app /data
-USER app
+# O banco SQLite fica num volume. O UID 1654 é o do usuário `app` da imagem .NET anterior: o volume `banco` da produção já tem o
+# histórico, com esse dono, e outro UID não conseguiria gravar nele. Criar a pasta aqui, com o dono certo, faz um volume novo herdá-lo.
+RUN mkdir /data && chown 1654:1654 /data
+USER 1654:1654
 
-# Tudo o que muda entre a máquina de desenvolvimento e o contêiner vem por variável de ambiente (appsettings, `__` = `:`).
-ENV ASPNETCORE_URLS=http://+:8080 \
-    ConnectionStrings__Banco="Data Source=/data/preditor.db"
+# Tudo o que muda entre a máquina de desenvolvimento e o contêiner vem por variável de ambiente (o Compose define ServicoModelo__Url
+# e Web__ArquivoAoVivo).
+ENV Servidor__Endereco=:8080 \
+    Banco__Arquivo=/data/preditor.db \
+    Web__Pasta=/app/site
 EXPOSE 8080
-ENTRYPOINT ["dotnet", "Preditor.Api.dll"]
+# /api/saude responde 200 mesmo com o modelo fora do ar: o contêiner só é dado como doente se a própria API não responde.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD wget -q -O /dev/null http://127.0.0.1:8080/api/saude || exit 1
+ENTRYPOINT ["/app/preditor"]

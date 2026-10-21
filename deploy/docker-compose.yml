@@ -35,7 +35,7 @@ services:
     command: ["python", "-m", "preditor_servico.aovivo"]  # o preditor_servico não confere o motor contra o Gold (no contêiner não há Gold)
     healthcheck: { disable: true }  # a imagem checa o /saude do modelo; este contêiner não serve HTTP
     volumes:
-      - vivo:/app/api/Preditor.Api/wwwroot/dados      # onde ele grava o aovivo.json que a API serve
+      - vivo:/app/web/public/dados      # onde ele grava o aovivo.json que a API serve
       - estado_aovivo:/app/data/aovivo
     restart: unless-stopped
 

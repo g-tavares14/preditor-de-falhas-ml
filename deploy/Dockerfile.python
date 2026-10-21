@@ -5,7 +5,7 @@ FROM python:3.14-slim
 
 COPY --from=ghcr.io/astral-sh/uv:0.12.18 /uv /usr/local/bin/uv
 
-# PYTHONPATH em vez de instalar o pacote: o `config.py` acha `data/` e `wwwroot/` subindo a partir de `src/preditor_analise/`.
+# PYTHONPATH em vez de instalar o pacote: o `config.py` acha `data/` e `web/public/` subindo a partir de `src/preditor_analise/`.
 ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy UV_PYTHON_DOWNLOADS=never \
     PYTHONUNBUFFERED=1 PYTHONPATH=/app/src PATH="/app/.venv/bin:$PATH"
 WORKDIR /app
@@ -21,10 +21,10 @@ COPY src/preditor_analise/__init__.py src/preditor_analise/config.py ./src/predi
 COPY data/modelo/exportado/modelo_final.joblib data/modelo/exportado/LEIA-ME.md ./data/modelo/exportado/
 COPY data/modelo/comparacao/escolha.json ./data/modelo/comparacao/
 
-# Usuário sem privilégios. `data/aovivo` e `wwwroot/dados` são onde o serviço ao vivo grava (volumes no Compose).
+# Usuário sem privilégios. `data/aovivo` e `web/public/dados` são onde o serviço ao vivo grava (volumes no Compose).
 RUN useradd --system --uid 10001 preditor \
-    && mkdir -p /app/data/aovivo /app/api/Preditor.Api/wwwroot/dados \
-    && chown -R preditor /app/data /app/api
+    && mkdir -p /app/data/aovivo /app/web/public/dados \
+    && chown -R preditor /app/data /app/web
 USER preditor
 
 EXPOSE 8001

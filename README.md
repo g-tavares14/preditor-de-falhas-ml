@@ -16,6 +16,8 @@ Este README cobre só o código: como rodar e o que ele produz.
 |---|---|
 | `src/preditor_analise/` | Dados e treino: o pipeline em PySpark (bronze, silver, gold), os modelos em scikit-learn e a geração do replay |
 | `src/preditor_servico/` | O que roda em produção, sem Spark: o microserviço do modelo e o serviço ao vivo |
+| `servidor/` | O servidor público em Go: a API (`/api/*`), o Swagger, o histórico em SQLite e o site |
+| `web/` | O site em React + TypeScript: o mapa (replay e ao vivo), `Testar o modelo` e `Histórico` |
 | `docs/` | Documentação acadêmica e dos dados, com índice em [`docs/README.md`](docs/README.md) |
 | `notebooks/` | Entregas da primeira fase, no formato pedido pela professora: 01 (GET) e 02 (POST) direto na API do RIPE Atlas, 03 (rótulo `status_real` por limiar fixo). Não usam o BigQuery nem `src/preditor` |
 | `data/{bronze,silver,gold}/` | Saídas de cada camada do pipeline (ignoradas pelo git) |
@@ -156,15 +158,18 @@ material do diário da Tarefa 4. Os arquivos da Tarefa 3 não são reescritos.
 Uma página web reproduz o bloco de validação em tempo acelerado (spec em
 [`SPEC-visualizacao.md`](SPEC-visualizacao.md)): cada medição vira um pulso que vai da sonda ao destino e volta, a
 árvore prevê a classe 12 minutos à frente e, quando esse futuro chega, a página mostra se acertou. São dois comandos,
-os dois offline, sem Spark e sem Java:
+os dois offline, sem Spark e sem Java. O site é um app React + TypeScript (`web/`, precisa do Node 22) servido pelo servidor em Go
+(`servidor/`, precisa do Go 1.27), que também tem as telas `/testar` e `/historico` e o `/swagger/`:
 
 ```bash
-uv run python -m preditor_analise replay   # lê data/gold/, prevê com a Random Forest exportada e grava api/Preditor.Api/wwwroot/dados/replay.json
-cd api/Preditor.Api && dotnet run   # serve a página em http://localhost:5053/ (a API em C# também serve o mapa)
+uv run python -m preditor_analise replay   # lê data/gold/, prevê com a Random Forest exportada e grava web/public/dados/replay.json
+cd web && npm ci && npm run build          # confere os tipos e empacota o site em web/dist/
+uv run python -m preditor_servico.servico_modelo --porta 8001   # o modelo (só para /testar e /historico gravarem previsões)
+cd servidor && go run ./cmd/preditor       # serve a página em http://localhost:5053/
 ```
 
-A página é servida pela API em C#, que também tem as páginas `/testar`, `/historico` e o `/swagger`. Não use o
-`python -m http.server`: a página carrega vários módulos ao mesmo tempo e o servidor padrão do Python perde arquivos.
+Para mexer no site com recarga ao salvar, use `cd web && npm run dev` (http://localhost:5173/), que repassa `/api` e `/swagger` ao
+servidor Go. Testes: `cd servidor && go test ./...` e `cd web && npm test`.
 
 O que é real e o que é simulado: as medições, os rótulos e as previsões vêm do Gold e da árvore oficial; os cabos
 submarinos existem (conferidos no mapa da TeleGeography), mas **o caminho de cada fluxo por eles é simulado**, porque
@@ -197,7 +202,7 @@ de Spark nem de Java.
 ```bash
 uv run python -m preditor_analise aovivo --conferir   # o motor em pandas × Gold, e o leitor da API × Silver; não sobe o serviço
 uv run python -m preditor_analise aovivo              # sorteia as sondas, baixa o baseline de 108 h e consulta a API a cada 60 s (Ctrl+C encerra)
-cd api/Preditor.Api && dotnet run                     # e abra http://localhost:5053/?ao-vivo
+cd servidor && go run ./cmd/preditor                  # e abra http://localhost:5053/?ao-vivo (depois do `npm run build` em web/)
 ```
 
 O baseline são as 108 h antes da partida (T0) e fica congelado em `data/aovivo/estado.json`; reiniciar o comando
@@ -238,7 +243,7 @@ O que roda em produção (sem Spark e sem o código de treino) fica no outro pac
 
 ```text
 src/preditor_servico/
-  servico_modelo/          microserviço HTTP do modelo (POST /prever, GET /saude); a API em C# o chama
+  servico_modelo/          microserviço HTTP do modelo (POST /prever, GET /saude); o servidor em Go o chama
   aovivo/                  serviço ao vivo: consulta o RIPE Atlas, prevê com a Random Forest e grava o aovivo.json
   modelo_exportado.py      abre o modelo_final.joblib depois de conferir o SHA-256
   geografia.py             distância em círculo máximo, RTT mínimo teórico e leitura do sondas.csv

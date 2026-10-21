@@ -14,6 +14,9 @@ services:
     environment:
       ServicoModelo__Url: http://modelo:8001
       Web__ArquivoAoVivo: /vivo/aovivo.json
+      # O endereço público (CloudFront): atrás dele o `Host` que chega ao servidor pode ser o da instância, e o `Origin` do navegador não bateria
+      # com ele (a proteção contra POST de outro site recusaria o da tela Testar com 403).
+      Web__OrigensConfiaveis: https://d3csgsins36z0x.cloudfront.net
     depends_on:
       modelo: { condition: service_healthy }
     volumes:
@@ -26,7 +29,7 @@ services:
     command: ["python", "-m", "preditor_servico.aovivo"]
     healthcheck: { disable: true }
     volumes:
-      - vivo:/app/api/Preditor.Api/wwwroot/dados
+      - vivo:/app/web/public/dados
       - estado_aovivo:/app/data/aovivo
     restart: unless-stopped
 

@@ -4,7 +4,8 @@
 !uv.lock
 !.python-version
 !src/
-!api/Preditor.Api/
+!servidor/
+!web/
 !data/modelo/exportado/modelo_final.joblib
 !data/modelo/exportado/LEIA-ME.md
 !data/modelo/comparacao/escolha.json
@@ -13,7 +14,9 @@
 **/__pycache__
 **/bin
 **/obj
-api/Preditor.Api/dados
+servidor/dados
+web/node_modules
+web/dist
 # O aovivo.json de um serviço local seria um retrato velho: o da imagem vem do volume do serviço ao vivo.
-api/Preditor.Api/wwwroot/dados/aovivo.json
+web/public/dados/aovivo.json
 **/.DS_Store
