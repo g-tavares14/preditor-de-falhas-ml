@@ -1,0 +1,14 @@
+pais,codigo,regiao,roteador,switch,alvo,probe,rede_lan,gateway,ip_alvo,ip_probe
+Brasil,BR,América do Sul,R-BR,SW-BR,Alvo-BR,Probe-BR,192.168.10.0/24,192.168.10.1,192.168.10.10,192.168.10.20
+Uruguai,UY,América do Sul,R-UY,SW-UY,Alvo-UY,,192.168.11.0/24,192.168.11.1,192.168.11.10,
+Bolívia,BO,América do Sul,R-BO,SW-BO,Alvo-BO,,192.168.12.0/24,192.168.12.1,192.168.12.10,
+Argentina,AR,América do Sul,R-AR,SW-AR,Alvo-AR,Probe-AR,192.168.13.0/24,192.168.13.1,192.168.13.10,192.168.13.20
+Alemanha,DE,Europa,R-DE,SW-DE,Alvo-DE,Probe-DE,192.168.20.0/24,192.168.20.1,192.168.20.10,192.168.20.20
+Portugal,PT,Europa,R-PT,SW-PT,Alvo-PT,,192.168.21.0/24,192.168.21.1,192.168.21.10,
+Espanha,ES,Europa,R-ES,SW-ES,,Probe-ES,192.168.22.0/24,192.168.22.1,,192.168.22.20
+Polônia,PL,Europa,R-PL,SW-PL,Alvo-PL,,192.168.23.0/24,192.168.23.1,192.168.23.10,
+África do Sul,ZA,África,R-ZA,SW-ZA,Alvo-ZA,Probe-ZA,192.168.30.0/24,192.168.30.1,192.168.30.10,192.168.30.20
+Quênia,KE,África,R-KE,SW-KE,Alvo-KE,,192.168.31.0/24,192.168.31.1,192.168.31.10,
+Índia,IN,Ásia,R-IN,SW-IN,Alvo-IN,Probe-IN,192.168.40.0/24,192.168.40.1,192.168.40.10,192.168.40.20
+Singapura,SG,Ásia,R-SG,SW-SG,Alvo-SG,,192.168.41.0/24,192.168.41.1,192.168.41.10,
+Japão,JP,Ásia,R-JP,SW-JP,Alvo-JP,,192.168.42.0/24,192.168.42.1,192.168.42.10,
