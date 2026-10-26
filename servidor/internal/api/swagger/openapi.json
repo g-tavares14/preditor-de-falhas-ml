@@ -3,7 +3,7 @@
   "info": {
     "title": "Preditor de falhas de rede",
     "version": "1.0.0",
-    "description": "Prevê a classe de uma rota de rede (OK, RISCO ou FALHA) 12 minutos à frente, a partir de 10 métricas relativas ao baseline da rota. A previsão vem de uma Random Forest que roda num microserviço interno; esta API valida a medição, pergunta ao modelo e guarda a resposta num histórico. Coluna ausente (null) é aceita e chega ao modelo como ausente, nunca como zero."
+    "description": "Prevê a classe de uma rota de rede (OK, RISCO ou FALHA) 12 minutos à frente, a partir de 10 métricas relativas ao baseline da rota. A previsão vem de uma Random Forest que roda num microserviço interno; esta API valida a medição, pergunta ao modelo e guarda a resposta num histórico. Coluna ausente (null) é aceita e chega ao modelo como ausente, nunca como zero.\n\nTodas as rotas /api/* dividem o mesmo limite de pedidos por endereço (60 por minuto, por padrão; `Limites__PedidosPorMinuto`). Todo erro sai no formato RFC 9457 (`application/problem+json`)."
   },
   "paths": {
     "/api/previsoes": {
@@ -30,11 +30,13 @@
         },
         "responses": {
           "200": { "description": "A previsão, já gravada no histórico.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PrevisaoResposta" } } } },
-          "400": { "description": "Corpo que não é uma medição (JSON torto, coluna desconhecida, texto no lugar de número) ou coluna fora da faixa; neste último caso `errors` traz a mensagem de cada coluna.", "content": { "application/problem+json": { "schema": { "$ref": "#/components/schemas/Problema" } } } },
-          "413": { "description": "Corpo maior que o limite (16.384 bytes).", "content": { "application/problem+json": { "schema": { "$ref": "#/components/schemas/Problema" } } } },
+          "400": { "description": "`origem` fora da lista, corpo que não é uma medição (JSON torto, coluna desconhecida, texto no lugar de número) ou coluna fora da faixa; neste último caso `errors` traz a mensagem de cada coluna.", "content": { "application/problem+json": { "schema": { "$ref": "#/components/schemas/Problema" } } } },
+          "403": { "description": "Um navegador mandou o POST de outro site (cabeçalhos `Origin` ou `Sec-Fetch-Site`). Programas como o curl, que não mandam esses cabeçalhos, passam.", "content": { "application/problem+json": { "schema": { "$ref": "#/components/schemas/Problema" } } } },
+          "413": { "description": "Corpo maior que o limite (16.384 bytes, por padrão; `Limites__CorpoMaximoBytes`).", "content": { "application/problem+json": { "schema": { "$ref": "#/components/schemas/Problema" } } } },
           "415": { "description": "O corpo tem de ser application/json.", "content": { "application/problem+json": { "schema": { "$ref": "#/components/schemas/Problema" } } } },
-          "429": { "description": "Pedidos demais deste endereço (60 por minuto). O cabeçalho Retry-After diz quantos segundos esperar.", "content": { "application/problem+json": { "schema": { "$ref": "#/components/schemas/Problema" } } } },
-          "503": { "description": "O serviço do modelo está fora do ar, lento ou respondeu algo inesperado. Nada é gravado.", "content": { "application/problem+json": { "schema": { "$ref": "#/components/schemas/Problema" } } } }
+          "429": { "$ref": "#/components/responses/PedidosDemais" },
+          "500": { "$ref": "#/components/responses/ErroInterno" },
+          "503": { "$ref": "#/components/responses/ModeloIndisponivel" }
         }
       },
       "get": {
@@ -47,7 +49,8 @@
         "responses": {
           "200": { "description": "Uma página do histórico.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PaginaDePrevisoes" } } } },
           "400": { "description": "`pagina` começa em 1 e `tamanho` vai de 1 a 100.", "content": { "application/problem+json": { "schema": { "$ref": "#/components/schemas/Problema" } } } },
-          "429": { "description": "Pedidos demais deste endereço.", "content": { "application/problem+json": { "schema": { "$ref": "#/components/schemas/Problema" } } } }
+          "429": { "$ref": "#/components/responses/PedidosDemais" },
+          "500": { "$ref": "#/components/responses/ErroInterno" }
         }
       }
     },
@@ -55,9 +58,12 @@
       "get": {
         "summary": "A ficha do modelo carregado: família, parâmetros, colunas, classes e o SHA-256 do arquivo",
         "operationId": "fichaDoModelo",
+        "description": "A resposta do /saude do microserviço do modelo, repassada sem mudar.",
         "responses": {
-          "200": { "description": "A resposta do /saude do microserviço do modelo, repassada sem mudar.", "content": { "application/json": { "schema": { "type": "object", "additionalProperties": true } } } },
-          "503": { "description": "O serviço do modelo está fora do ar.", "content": { "application/problem+json": { "schema": { "$ref": "#/components/schemas/Problema" } } } }
+          "200": { "description": "A ficha do modelo.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/FichaDoModelo" } } } },
+          "429": { "$ref": "#/components/responses/PedidosDemais" },
+          "500": { "$ref": "#/components/responses/ErroInterno" },
+          "503": { "$ref": "#/components/responses/ModeloIndisponivel" }
         }
       }
     },
@@ -67,12 +73,29 @@
         "operationId": "saude",
         "description": "Responde 200 nos dois casos; o campo `modelo` diz se o serviço do modelo está fora do ar. O Compose usa este endereço como \"a API está viva\".",
         "responses": {
-          "200": { "description": "Estado dos dois serviços.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Saude" } } } }
+          "200": { "description": "Estado dos dois serviços.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Saude" } } } },
+          "429": { "$ref": "#/components/responses/PedidosDemais" },
+          "500": { "$ref": "#/components/responses/ErroInterno" }
         }
       }
     }
   },
   "components": {
+    "responses": {
+      "PedidosDemais": {
+        "description": "Pedidos demais deste endereço. O cabeçalho Retry-After diz quantos segundos esperar.",
+        "headers": { "Retry-After": { "description": "Segundos até a contagem deste endereço zerar.", "schema": { "type": "integer" } } },
+        "content": { "application/problem+json": { "schema": { "$ref": "#/components/schemas/Problema" } } }
+      },
+      "ModeloIndisponivel": {
+        "description": "O serviço do modelo está fora do ar, lento ou respondeu algo inesperado. Nada é gravado.",
+        "content": { "application/problem+json": { "schema": { "$ref": "#/components/schemas/Problema" } } }
+      },
+      "ErroInterno": {
+        "description": "Erro do servidor. O detalhe fica só no log, nunca na resposta.",
+        "content": { "application/problem+json": { "schema": { "$ref": "#/components/schemas/Problema" } } }
+      }
+    },
     "schemas": {
       "Medicao": {
         "type": "object",
@@ -130,13 +153,41 @@
           "itens": { "type": "array", "items": { "$ref": "#/components/schemas/ItemDoHistorico" } }
         }
       },
+      "FichaDoModelo": {
+        "type": "object",
+        "description": "Escrita pelo microserviço do modelo (Python). A API não lê nada dela além do `modelo.sha256` (que o /api/saude mostra).",
+        "required": ["status", "modelo"],
+        "properties": {
+          "status": { "type": "string", "example": "ok" },
+          "modelo": {
+            "type": "object",
+            "required": ["nome", "familia", "arvores", "parametros", "sha256", "colunas", "classes"],
+            "properties": {
+              "nome": { "type": "string" },
+              "familia": { "type": "string", "example": "random_forest" },
+              "arvores": { "type": "integer", "example": 100 },
+              "parametros": { "type": "object", "additionalProperties": true, "description": "Os hiperparâmetros escolhidos na comparação." },
+              "sha256": { "type": "string", "description": "SHA-256 do arquivo do modelo (o mesmo do LEIA-ME da exportação)." },
+              "colunas": { "type": "array", "items": { "type": "string" }, "description": "As colunas do X, na ordem do modelo (as mesmas de `Medicao`)." },
+              "classes": { "type": "array", "items": { "type": "string" }, "example": ["FALHA", "OK", "RISCO"] }
+            }
+          },
+          "ambiente": {
+            "type": "object",
+            "properties": {
+              "python": { "type": "string" },
+              "scikit_learn": { "type": "string" }
+            }
+          }
+        }
+      },
       "Saude": {
         "type": "object",
         "required": ["api", "modelo", "sha256"],
         "properties": {
           "api": { "type": "string", "example": "ok" },
           "modelo": { "type": "string", "enum": ["ok", "fora do ar"] },
-          "sha256": { "type": "string", "nullable": true }
+          "sha256": { "type": "string", "nullable": true, "description": "SHA-256 do modelo carregado; null quando o serviço do modelo está fora do ar." }
         }
       },
       "Problema": {

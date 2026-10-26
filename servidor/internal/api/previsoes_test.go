@@ -165,6 +165,9 @@ func TestPostDeOutraOrigem_eRecusado(t *testing.T) {
 	if resposta.StatusCode != http.StatusForbidden {
 		t.Fatalf("esperava 403, veio %d", resposta.StatusCode)
 	}
+	if tipo := resposta.Header.Get("Content-Type"); !strings.HasPrefix(tipo, "application/problem+json") {
+		t.Errorf("o 403 devia ter o formato de erro da API, veio %q", tipo)
+	}
 	if len(modelo.corposRecebidos()) != 0 || a.contarNoBanco(t) != 0 {
 		t.Error("um pedido recusado não pode chegar ao modelo nem ao banco")
 	}
