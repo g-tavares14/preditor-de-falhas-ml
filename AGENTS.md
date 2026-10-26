@@ -177,7 +177,7 @@ verifique ao menos a importação: `uv run python -c "import preditor_analise.__
   `modelo` (o cliente do `preditor_servico.servico_modelo`), `banco` (SQLite; a mesma tabela `Previsoes` do EF Core, para o volume de produção abrir sem
   migrar), `previsao` (validar → perguntar ao modelo → gravar) e `api` (rotas, `problem+json`, limite por IP, tamanho do corpo, site estático com cache,
   Swagger local). Ele não calcula nada do modelo. O contrato está em `servidor/internal/api/swagger/openapi.json` (escrito à mão; um teste confere que ele
-  descreve exatamente as rotas). A paridade (`internal/api/testdata/paridade.json`) vem de `python -m preditor_analise.conferir_servico`.
+  descreve exatamente as rotas, que cada schema tem os campos da struct Go que ele descreve, que todo `$ref` existe e que o exemplo do POST é válido). A paridade (`internal/api/testdata/paridade.json`) vem de `python -m preditor_analise.conferir_servico`.
 - O site fica em `web/` (`src/`): `logica/` é lógica pura em TypeScript (`tempo.ts`, `placar.ts`, `aovivo.ts`, `comum.ts`: sem DOM, rodam em Node, com testes);
   `mapa/` é o mapa **imperativo** (D3, SVG e canvas a 60 quadros por segundo: `mapa.ts`, `rotas.ts`, `desenho.ts`, `pulsos.ts`, `selos.ts`, `foco.ts`);
   `replay/` é a página do mapa: `motor.ts` guarda o relógio e o laço de animação **fora do React** e publica instantâneos imutáveis (no máximo 10 por segundo)

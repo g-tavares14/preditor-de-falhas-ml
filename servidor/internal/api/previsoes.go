@@ -34,6 +34,13 @@ type previsaoResposta struct {
 	ModeloSha256   string             `json:"modeloSha256"`
 }
 
+// saudeResposta é a resposta de `GET /api/saude`. `SHA256` é nil (null no JSON) quando o serviço do modelo está fora do ar.
+type saudeResposta struct {
+	API    string  `json:"api"`
+	Modelo string  `json:"modelo"`
+	SHA256 *string `json:"sha256"`
+}
+
 type itemDoHistorico struct {
 	Previsao previsaoResposta `json:"previsao"`
 	Entrada  medicao.Medicao  `json:"entrada"`
@@ -156,9 +163,10 @@ func (h *manipuladores) saude(w http.ResponseWriter, r *http.Request) {
 	var indisponivel *modelo.IndisponivelErro
 	switch {
 	case err == nil:
-		escreverJSON(w, http.StatusOK, map[string]any{"api": "ok", "modelo": "ok", "sha256": modelo.SHA256(ficha)})
+		sha := modelo.SHA256(ficha)
+		escreverJSON(w, http.StatusOK, saudeResposta{API: "ok", Modelo: "ok", SHA256: &sha})
 	case errors.As(err, &indisponivel):
-		escreverJSON(w, http.StatusOK, map[string]any{"api": "ok", "modelo": "fora do ar", "sha256": nil})
+		escreverJSON(w, http.StatusOK, saudeResposta{API: "ok", Modelo: "fora do ar"})
 	default:
 		falha(w, r, err)
 	}

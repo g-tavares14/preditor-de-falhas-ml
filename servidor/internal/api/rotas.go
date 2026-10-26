@@ -48,10 +48,7 @@ func Novo(d Dependencias) (http.Handler, error) {
 
 	raiz := http.NewServeMux()
 	raiz.Handle("/api/", limitarPedidos(novoLimitador(d.Config.PedidosPorMinuto, time.Minute, agora), limitarCorpo(d.Config.CorpoMaximoBytes, api)))
-	raiz.Handle("GET /swagger/", interfaceDoSwagger())
-	raiz.HandleFunc("GET /swagger", func(w http.ResponseWriter, r *http.Request) {
-		http.Redirect(w, r, "/swagger/", http.StatusMovedPermanently)
-	})
+	raiz.Handle("GET /swagger/", interfaceDoSwagger()) // o próprio ServeMux redireciona /swagger para /swagger/
 	// O aovivo.json do serviço ao vivo mora num volume; sem `Web__ArquivoAoVivo`, o arquivo (se existir) sai da pasta do site, como no
 	// desenvolvimento local.
 	if d.Config.ArquivoAoVivo != "" {
@@ -63,6 +60,10 @@ func Novo(d Dependencias) (http.Handler, error) {
 	// (Origin ou Sec-Fetch-Site de fora) é recusado com 403. Curl e outros programas, que não mandam esses cabeçalhos, passam. A origem pública
 	// (o CloudFront) entra em `Web__OrigensConfiaveis`: ver `configuracao.Configuracao`.
 	protecao := http.NewCrossOriginProtection()
+	// Sem isto o 403 sairia em texto puro; assim ele tem o mesmo formato de todo erro da API (e a tela Testar mostra o `title`).
+	protecao.SetDenyHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		escreverProblema(w, problema{Title: "Pedido de outro site recusado.", Status: http.StatusForbidden})
+	}))
 	for _, origem := range d.Config.OrigensConfiaveis {
 		if err := protecao.AddTrustedOrigin(origem); err != nil {
 			return nil, fmt.Errorf("origem confiável %q: %w", origem, err)
